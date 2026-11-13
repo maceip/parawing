@@ -1,8 +1,9 @@
-![Kitesurf logo](.github/assets/kitesurf_logo.png)
+<img width="200" src="https://github.com/user-attachments/assets/ad433ff8-26ae-4546-b04b-94086ebc0dd8" />
 
-# Kitesurf
 
-Kitesurf is an experimental browser engine that runs on Cloudflare Workers. It
+# Parawing
+
+Parawing forks Kitesurf, an experimental browser engine that runs on Cloudflare Workers. It
 parses HTML, applies CSS, runs page JavaScript, and renders screenshots without
 Chrome or a browser container.
 
