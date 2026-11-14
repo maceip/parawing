@@ -349,9 +349,9 @@ dependencies = [
 
 [[package]]
 name = "core-foundation"
-version = "0.9.4"
+version = "0.10.1"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "91e195e091a93c46f7102ec7818a2aa394e1e1771c3ab4825963fa03e45afb8f"
+checksum = "b2a6cd9ae233e7f62ba4e9353e81a88df7fc8a5987b8d445b4d90c879bd156f6"
 dependencies = [
  "core-foundation-sys",
  "libc",
@@ -359,9 +359,9 @@ dependencies = [
 
 [[package]]
 name = "core-foundation"
-version = "0.10.1"
+version = "0.9.4"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "b2a6cd9ae233e7f62ba4e9353e81a88df7fc8a5987b8d445b4d90c879bd156f6"
+checksum = "91e195e091a93c46f7102ec7818a2aa394e1e1771c3ab4825963fa03e45afb8f"
 dependencies = [
  "core-foundation-sys",
  "libc",
@@ -1320,26 +1320,6 @@ dependencies = [
 ]
 
 [[package]]
-name = "kitesurf"
-version = "0.0.5"
-dependencies = [
- "base64 0.22.1",
- "crossterm",
- "futures-util",
- "getrandom 0.3.4",
- "keyring",
- "png",
- "reqwest",
- "rustls",
- "serde",
- "serde_json",
- "sha2",
- "tokio",
- "tokio-tungstenite",
- "wasmtime",
-]
-
-[[package]]
 name = "leb128fmt"
 version = "0.1.0"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -1646,6 +1626,26 @@ checksum = "9aa2b01e1d916879f73a53d01d1d6cee68adbb31d6d9177a8cfce093cced1d50"
 dependencies = [
  "futures-core",
  "pin-project-lite",
+]
+
+[[package]]
+name = "parawing"
+version = "0.0.5"
+dependencies = [
+ "base64 0.22.1",
+ "crossterm",
+ "futures-util",
+ "getrandom 0.3.4",
+ "keyring",
+ "png",
+ "reqwest",
+ "rustls",
+ "serde",
+ "serde_json",
+ "sha2",
+ "tokio",
+ "tokio-tungstenite",
+ "wasmtime",
 ]
 
 [[package]]

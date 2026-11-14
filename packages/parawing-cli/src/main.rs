@@ -9,7 +9,7 @@ mod cli;
 mod oauth;
 mod tls;
 
-use kitesurf_playback::{play, FontSource, PlaybackOptions};
+use parawing_playback::{play, FontSource, PlaybackOptions};
 use std::{error::Error, io};
 use tokio_tungstenite::tungstenite;
 
@@ -24,7 +24,7 @@ fn user_error(error: &(dyn Error + 'static)) -> String {
                     tungstenite::error::ProtocolError::ResetWithoutClosingHandshake,
                 )
                 | tungstenite::Error::ConnectionClosed => {
-                    "Connection to the Kitesurf server was lost. Check that it is still running, then try again.".into()
+                    "Connection to the Parawing server was lost. Check that it is still running, then try again.".into()
                 }
                 tungstenite::Error::Io(error)
                     if matches!(
@@ -32,14 +32,14 @@ fn user_error(error: &(dyn Error + 'static)) -> String {
                         io::ErrorKind::ConnectionRefused | io::ErrorKind::TimedOut
                     ) =>
                 {
-                    "Could not reach the Kitesurf server. Check that it is running, then try again."
+                    "Could not reach the Parawing server. Check that it is running, then try again."
                         .into()
                 }
                 tungstenite::Error::Io(_) => {
-                    "Connection to the Kitesurf server was lost. Check that it is still running, then try again.".into()
+                    "Connection to the Parawing server was lost. Check that it is still running, then try again.".into()
                 }
                 tungstenite::Error::Http(response) if response.status().as_u16() == 401 => {
-                    "CDP authentication failed (HTTP 401). Run 'kitesurf login' again or check your API token.".into()
+                    "CDP authentication failed (HTTP 401). Run 'parawing login' again or check your API token.".into()
                 }
                 tungstenite::Error::Http(response) if response.status().as_u16() == 403 => {
                     "CDP access denied (HTTP 403). Check the selected account and Browser Rendering - Edit permission.".into()
@@ -48,10 +48,10 @@ fn user_error(error: &(dyn Error + 'static)) -> String {
                     "Browser session limit or rate limit reached (HTTP 429). Try again later.".into()
                 }
                 tungstenite::Error::Http(response) => format!(
-                    "Kitesurf server rejected the connection (HTTP {}).",
+                    "Parawing server rejected the connection (HTTP {}).",
                     response.status()
                 ),
-                _ => format!("Could not connect to the Kitesurf server: {ws}"),
+                _ => format!("Could not connect to the Parawing server: {ws}"),
             };
         }
         if let Some(request) = err.downcast_ref::<reqwest::Error>() {
@@ -60,10 +60,10 @@ fn user_error(error: &(dyn Error + 'static)) -> String {
                 while let Some(source) = detail.source() {
                     detail = source;
                 }
-                return format!("Could not connect to the Kitesurf server: {detail}");
+                return format!("Could not connect to the Parawing server: {detail}");
             }
             if let Some(status) = request.status() {
-                return format!("Kitesurf server returned HTTP {status}.");
+                return format!("Parawing server returned HTTP {status}.");
             }
         }
         cause = err.source();
@@ -74,7 +74,7 @@ fn user_error(error: &(dyn Error + 'static)) -> String {
 #[tokio::main(flavor = "current_thread")]
 async fn main() {
     if let Err(error) = run().await {
-        eprintln!("kitesurf: {}", user_error(error.as_ref()));
+        eprintln!("parawing: {}", user_error(error.as_ref()));
         std::process::exit(1);
     }
 }
@@ -82,7 +82,7 @@ async fn main() {
 async fn run() -> Result<()> {
     let args: Vec<String> = std::env::args().skip(1).collect();
     if args.iter().any(|arg| arg == "--version") {
-        println!("kitesurf {}", env!("CARGO_PKG_VERSION"));
+        println!("parawing {}", env!("CARGO_PKG_VERSION"));
         return Ok(());
     }
     if args
@@ -94,7 +94,7 @@ async fn run() -> Result<()> {
     }
     if let Some(command @ ("login" | "logout")) = args.first().map(String::as_str) {
         if args.len() != 1 {
-            return Err(format!("Usage: kitesurf {command}").into());
+            return Err(format!("Usage: parawing {command}").into());
         }
         return if command == "login" {
             oauth::login().await
@@ -102,7 +102,7 @@ async fn run() -> Result<()> {
             oauth::logout().await
         };
     }
-    let server_env = std::env::var("KITESURF_SERVER").ok();
+    let server_env = std::env::var("PARAWING_SERVER").ok();
     let options = match cli::parse(args, server_env.as_deref()) {
         Ok(Some(options)) => options,
         Ok(None) => {
@@ -110,7 +110,7 @@ async fn run() -> Result<()> {
             return Ok(());
         }
         Err(message) => {
-            eprintln!("{message}\nTry 'kitesurf --help' for more information.");
+            eprintln!("{message}\nTry 'parawing --help' for more information.");
             std::process::exit(2);
         }
     };
@@ -126,6 +126,7 @@ async fn run_playback(options: cli::Options) -> Result<()> {
         debug,
         mode,
         fps,
+        compositor_v2,
     } = options;
     let mut connection = access::Connection::resolve(backend).await?;
     if connection.has_unencrypted_access_token() {
@@ -133,14 +134,17 @@ async fn run_playback(options: cli::Options) -> Result<()> {
     }
     if debug {
         eprintln!(
-            "kitesurf: debug: connecting CDP WebSocket to {}",
+            "parawing: debug: connecting CDP WebSocket to {}",
             connection.websocket
         );
     }
     let ws = connection.connect().await?;
     // After connect: a rejected saved login is replaced, and fonts use the replacement's origin.
     let font_source = FontSource::new(connection.font_server.clone(), connection.font_client()?)?;
-    let options = PlaybackOptions::new(url, mode, seconds, display, debug, fps)?;
+    let mut options = PlaybackOptions::new(url, mode, seconds, display, debug, fps)?;
+    if compositor_v2 {
+        options = options.with_v2_endpoint(connection.v2_endpoint()?);
+    }
     play(ws, options, font_source).await
 }
 
@@ -154,11 +158,11 @@ mod tests {
             tungstenite::error::ProtocolError::ResetWithoutClosingHandshake,
         );
         let message = user_error(&reset);
-        assert!(message.contains("Connection to the Kitesurf server was lost"));
+        assert!(message.contains("Connection to the Parawing server was lost"));
         assert!(!message.contains("Protocol"));
 
         let refused =
             tungstenite::Error::Io(std::io::Error::from(std::io::ErrorKind::ConnectionRefused));
-        assert!(user_error(&refused).contains("Could not reach the Kitesurf server"));
+        assert!(user_error(&refused).contains("Could not reach the Parawing server"));
     }
 }

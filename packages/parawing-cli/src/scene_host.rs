@@ -78,7 +78,7 @@ async fn artifact_in(
     let reply = cdp_call(
         ws,
         next_id,
-        "Kitesurf.getSceneHostManifest",
+        "Parawing.getSceneHostManifest",
         serde_json::json!({}),
         None,
         queued,
@@ -86,7 +86,7 @@ async fn artifact_in(
     .await
     .map_err(|error| {
         format!(
-            "Could not fetch the scene-host manifest over CDP. Upgrade the connected engine if it does not support Kitesurf.getSceneHostManifest: {error}"
+            "Could not fetch the scene-host manifest over CDP. Upgrade the connected engine if it does not support Parawing.getSceneHostManifest: {error}"
         )
     })?;
     let manifest: Manifest = serde_json::from_value(reply)?;
@@ -110,7 +110,7 @@ async fn artifact_in(
         let reply = cdp_call(
             ws,
             next_id,
-            "Kitesurf.readSceneHost",
+            "Parawing.readSceneHost",
             serde_json::json!({
                 "sha256": manifest.sha256,
                 "offset": offset,

@@ -1,6 +1,6 @@
-# Kitesurf CLI
+# Parawing CLI
 
-Kitesurf opens websites in your terminal. It receives scenes over
+Parawing opens websites in your terminal. It receives scenes over
 CDP and renders them locally using Kitty graphics; use `--mode=ansi` for
 selectable text in any terminal.
 
@@ -13,21 +13,21 @@ downloaded Wasm rasterizer, displays Kitty graphics or ANSI text, and
 acknowledges each scene so the engine can send the next one.
 
 By default, CDP connects through the official Browser Run API with
-`browser=kitesurf`. After connecting, the CLI asks that engine for its
+`browser=parawing`. After connecting, the CLI asks that engine for its
 scene-host manifest over CDP. On a cache miss it downloads the matching
 Wasm in chunks of up to 4 MiB, verifies its size and SHA-256, and caches
 it by hash. A cache hit only needs the manifest. This also applies to
 playground and direct/local connections, so each engine supplies its own
 rasterizer. Scene wire-version checks remain in place before replay.
 
-In Browser Run mode, built-in fonts come from `https://kitesurf.dev/rbi/fonts/`
+In Browser Run mode, built-in fonts come from `https://parawing.dev/rbi/fonts/`
 without API or Cloudflare Access credentials. Direct connections, including
 the playground, fetch `/rbi/fonts/` from the connected engine's origin and
 send `CF_ACCESS_TOKEN` if set. Font redirects must stay on that origin.
 Page-provided fonts still travel in CDP resource batches.
 
-Built-in fonts are cached on disk in `$XDG_CACHE_HOME/kitesurf/fonts/`, or
-`~/.cache/kitesurf/fonts/` when `XDG_CACHE_HOME` is unset. Each entry stores
+Built-in fonts are cached on disk in `$XDG_CACHE_HOME/parawing/fonts/`, or
+`~/.cache/parawing/fonts/` when `XDG_CACHE_HOME` is unset. Each entry stores
 the font bytes, their SHA-256 and size, and the server's ETag. On a later
 run, the CLI checks the local bytes and sends `If-None-Match`; an HTTP 304
 reuses those bytes without downloading the font again. A changed font or
@@ -35,8 +35,8 @@ damaged cache entry triggers a full download. Responses without an ETag
 are downloaded again on the next run. Cache write failures do not prevent
 rendering; `--debug` reports them. Individual fonts remain capped at 16 MiB.
 
-The engine must support `Kitesurf.getSceneHostManifest` and
-`Kitesurf.readSceneHost`. Deploy that support before installing this CLI
+The engine must support `Parawing.getSceneHostManifest` and
+`Parawing.readSceneHost`. Deploy that support before installing this CLI
 version. An older engine produces an upgrade error; the CLI does not fall
 back to a different environment's rasterizer. The HTTP scene-host routes
 remain available for older clients.
@@ -48,7 +48,7 @@ ordinary Kitty image placement, including on Ghostty. Navigation, resize,
 or a missing base frame triggers a full scene. Older rasterizers and ANSI
 mode use full scenes.
 
-For example, `<p style="font-family: sans-serif">Hello</p>` uses Kitesurf's
+For example, `<p style="font-family: sans-serif">Hello</p>` uses Parawing's
 built-in Noto Sans font even though the page provides no font file. The CDP
 resource batch identifies it as `/fonts/NotoSans.ttf`. If the rasterizer needs
 it, the CLI fetches `/rbi/fonts/NotoSans.ttf` from the font origin described
@@ -63,16 +63,16 @@ above and supplies the bytes to the Wasm. A font loaded by the page with
 From a checkout of this repository, with Rust 1.96 or later installed:
 
 ```sh
-cargo install --path packages/kitesurf-cli --locked
+cargo install --path packages/parawing-cli --locked
 ```
 
-This installs `kitesurf` in Cargo's bin directory (usually `~/.cargo/bin`).
+This installs `parawing` in Cargo's bin directory (usually `~/.cargo/bin`).
 On Linux the build compiles its TLS stack (Rustls on aws-lc-rs) with the
 system C compiler and trusts the system certificate store. The credential
 store integration builds vendored D-Bus and OpenSSL dependencies. macOS and
 Windows use the platform's TLS.
 
-The Rust package also exposes the `kitesurf_playback` library. `play` accepts a
+The Rust package also exposes the `parawing_playback` library. `play` accepts a
 connected `CdpSocket`, validated `PlaybackOptions`, and a `FontSource` containing
 the font origin and its HTTP client. The CLI handles Browser Run authentication;
 `PlaybackOptions::new` enforces the 1-60 FPS limit.
@@ -82,13 +82,13 @@ the font origin and its HTTP client. The CLI handles Browser Run authentication;
 Open a page through Browser Run:
 
 ```sh
-kitesurf https://example.com/
+parawing https://example.com/
 ```
 
 Without a saved login, the CLI starts OAuth automatically and opens the
-requested page after you sign in. Run `kitesurf login` to sign in separately
-or select a different account. Both `kitesurf --help` and
-`kitesurf login --help` show the full usage and authentication instructions.
+requested page after you sign in. Run `parawing login` to sign in separately
+or select a different account. Both `parawing --help` and
+`parawing login --help` show the full usage and authentication instructions.
 
 Login opens your browser for Cloudflare consent and listens on
 `http://localhost:8976/oauth/callback` for up to five minutes. Choose the
@@ -111,7 +111,7 @@ OAuth login automatically, retries the connection once with the new credentials,
 and opens the requested page. A failed login or rejected retry returns an error.
 Explicit API tokens and direct engine connections do not start OAuth login.
 
-`kitesurf logout` revokes the tokens and removes the saved login. If remote
+`parawing logout` revokes the tokens and removes the saved login. If remote
 revocation fails, it still removes the local login and tells you to revoke
 the authorization in the Cloudflare dashboard.
 
@@ -120,22 +120,22 @@ For CI or terminals without a credential store, use an API token with
 
 ```sh
 export CLOUDFLARE_ACCOUNT_ID="<ACCOUNT_ID>"
-export KITESURF_API_TOKEN="<API_TOKEN>"
-kitesurf https://example.com/
+export PARAWING_API_TOKEN="<API_TOKEN>"
+parawing https://example.com/
 ```
 
-`KITESURF_API_TOKEN` takes precedence over saved OAuth credentials and requires
+`PARAWING_API_TOKEN` takes precedence over saved OAuth credentials and requires
 an explicit account ID. `CLOUDFLARE_API_TOKEN` is ignored, so exported Wrangler
-deployment credentials do not override your Kitesurf login. Neither Browser
+deployment credentials do not override your Parawing login. Neither Browser
 Run tokens nor saved OAuth credentials are sent to the playground asset host.
 
 To use the public playground without Cloudflare credentials:
 
 ```sh
-kitesurf --playground https://example.com/
+parawing --playground https://example.com/
 ```
 
-For selectable text, use `kitesurf --mode=ansi https://example.com/`.
+For selectable text, use `parawing --mode=ansi https://example.com/`.
 
 ### OAuth application setup
 
@@ -144,10 +144,10 @@ with Authorization Code and Refresh Token grants, PKCE `S256`, token
 authentication method `none`, and the exact redirect URI
 `http://localhost:8976/oauth/callback`. No client secret is shipped or required.
 
-Set `KITESURF_OAUTH_CLIENT_ID` to use another registered client, such as staging:
+Set `PARAWING_OAUTH_CLIENT_ID` to use another registered client, such as staging:
 
 ```sh
-KITESURF_OAUTH_CLIENT_ID="<STAGING_CLIENT_ID>" kitesurf https://example.com/
+PARAWING_OAUTH_CLIENT_ID="<STAGING_CLIENT_ID>" parawing https://example.com/
 ```
 
 The override applies to login, token exchange, refresh, and logout. Saved
@@ -172,22 +172,22 @@ verification. An account administrator can also block new public OAuth grants.
 
 ## Running locally
 
-Start the Kitesurf engine from the repo root, then run
+Start the Parawing engine from the repo root, then run
 the client in another terminal:
 
 ```sh
-KITESURF_PORT=8799 KITESURF_INSPECTOR_PORT=9239 pnpm run dev
-KITESURF_SERVER=http://127.0.0.1:8799 kitesurf https://example.com/
+PARAWING_PORT=8799 PARAWING_INSPECTOR_PORT=9239 pnpm run dev
+PARAWING_SERVER=http://127.0.0.1:8799 parawing https://example.com/
 ```
 
-Running `kitesurf` without a URL shows command-line help. Local Kitty mode
+Running `parawing` without a URL shows command-line help. Local Kitty mode
 needs a Kitty-graphics terminal such as Ghostty; ANSI mode works without one.
 
 ## Options
 
 | Option                     | Description                                                                                                                                                                                  |
 | -------------------------- | -------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| `--playground`             | Connect directly to kitesurf.dev. Cannot be combined with `KITESURF_SERVER`.                                                                                                                 |
+| `--playground`             | Connect directly to parawing.dev. Cannot be combined with `PARAWING_SERVER`.                                                                                                                 |
 | `--mode=kitty\|ansi`       | Choose Kitty graphics (default) or ANSI text.                                                                                                                                                |
 | `--fps N`                  | Cap the scene rate (1–60; default 60).                                                                                                                                                       |
 | `--seconds N`              | Stop replay after N seconds and print measurements.                                                                                                                                          |
@@ -201,24 +201,24 @@ needs a Kitty-graphics terminal such as Ghostty; ANSI mode works without one.
 | Variable                   | Description                                                                                                                                                      |
 | -------------------------- | ---------------------------------------------------------------------------------------------------------------------------------------------------------------- |
 | `CLOUDFLARE_ACCOUNT_ID`    | Browser Run account ID. Overrides the saved OAuth account; required when using an explicit API token. Also selects an account during login.                      |
-| `KITESURF_API_TOKEN`       | Browser Run bearer token, used instead of saved OAuth credentials. Sent only on the API WebSocket handshake. `CLOUDFLARE_API_TOKEN` is ignored.                  |
-| `KITESURF_OAUTH_CLIENT_ID` | Override the official OAuth client ID, for example for staging. Saved OAuth credentials are separate per client ID.                                              |
-| `KITESURF_SERVER`          | Direct engine URL, bypassing Browser Run and OAuth. Remote engines require HTTPS; HTTP is allowed on loopback for local development.                             |
+| `PARAWING_API_TOKEN`       | Browser Run bearer token, used instead of saved OAuth credentials. Sent only on the API WebSocket handshake. `CLOUDFLARE_API_TOKEN` is ignored.                  |
+| `PARAWING_OAUTH_CLIENT_ID` | Override the official OAuth client ID, for example for staging. Saved OAuth credentials are separate per client ID.                                              |
+| `PARAWING_SERVER`          | Direct engine URL, bypassing Browser Run and OAuth. Remote engines require HTTPS; HTTP is allowed on loopback for local development.                             |
 | `CF_ACCESS_TOKEN`          | Cloudflare Access token for a direct engine's WebSocket handshake and font requests. Ignored in Browser Run mode. Font redirects must stay on the engine origin. |
-| `KITESURF_KITTY_PNG`       | Use PNG instead of raw RGBA files in local Ghostty; useful for comparing rendering speed.                                                                        |
+| `PARAWING_KITTY_PNG`       | Use PNG instead of raw RGBA files in local Ghostty; useful for comparing rendering speed.                                                                        |
 
 For example, to use an engine behind Cloudflare Access, run this once:
 
 ```sh
-cloudflared access login -app=https://kitesurf.example.com
+cloudflared access login -app=https://parawing.example.com
 ```
 
 And then this every time:
 
 ```sh
-CF_ACCESS_TOKEN=$(cloudflared access token -app=https://kitesurf.example.com) \
-  KITESURF_SERVER=https://kitesurf.example.com \
-  kitesurf https://example.com/
+CF_ACCESS_TOKEN=$(cloudflared access token -app=https://parawing.example.com) \
+  PARAWING_SERVER=https://parawing.example.com \
+  parawing https://example.com/
 ```
 
 The stats bar is on by default. Press Ctrl-B to toggle it, or Ctrl-C to exit. Its `acct` value is

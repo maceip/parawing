@@ -21,7 +21,7 @@ use tokio::{
 const DEFAULT_CLIENT_ID: &str = "c9007ad1-f329-4bc0-93b5-931f78e8e64e";
 const REDIRECT_URI: &str = "http://localhost:8976/oauth/callback";
 const LOGIN_TIMEOUT: Duration = Duration::from_secs(300);
-const KEYRING_SERVICE: &str = "kitesurf-cli";
+const KEYRING_SERVICE: &str = "parawing-cli";
 const KEYRING_USER: &str = "cloudflare-oauth";
 const SCOPES: &str = "browser-rendering.write account-settings.read offline_access";
 
@@ -55,7 +55,7 @@ struct RejectedGrant;
 
 impl std::fmt::Display for RejectedGrant {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
-        f.write_str("Cloudflare rejected the OAuth grant; run 'kitesurf login' again")
+        f.write_str("Cloudflare rejected the OAuth grant; run 'parawing login' again")
     }
 }
 
@@ -86,7 +86,7 @@ struct PageInfo {
 
 impl OAuth {
     fn new() -> Result<Self> {
-        let client_id = var("KITESURF_OAUTH_CLIENT_ID").ok();
+        let client_id = var("PARAWING_OAUTH_CLIENT_ID").ok();
         Self::with_client_id(client_id.as_deref())
     }
 
@@ -97,7 +97,7 @@ impl OAuth {
                 .chars()
                 .any(|ch| ch.is_whitespace() || ch.is_control())
         {
-            return Err("KITESURF_OAUTH_CLIENT_ID must be a non-empty client ID without whitespace or control characters".into());
+            return Err("PARAWING_OAUTH_CLIENT_ID must be a non-empty client ID without whitespace or control characters".into());
         }
         Ok(Self {
             client_id: client_id.to_owned(),
@@ -260,7 +260,7 @@ fn load(entry: &keyring::Entry) -> Result<Option<Credentials>> {
         Err(error) => return Err(format!("Could not read the OS keyring: {error}").into()),
     };
     let credentials: Credentials = serde_json::from_str(&value)
-        .map_err(|_| "Saved OAuth credentials are invalid; run 'kitesurf login' again")?;
+        .map_err(|_| "Saved OAuth credentials are invalid; run 'parawing login' again")?;
     validate_account_id(&credentials.account_id)?;
     Ok(Some(credentials))
 }
@@ -377,12 +377,12 @@ async fn login_with(oauth: &OAuth, entry: &keyring::Entry) -> Result<Credentials
     let verifier = random_secret()?;
     let state = random_secret()?;
     let url = oauth.authorization_url(&state, &verifier);
-    println!("Open this URL to authorize Kitesurf:\n{url}");
+    println!("Open this URL to authorize Parawing:\n{url}");
     open_browser(url.as_str());
     let code = tokio::time::timeout(LOGIN_TIMEOUT, callback(&listener, ipv6.as_ref(), &state))
         .await
         .map_err(|_| {
-            "Cloudflare login timed out after five minutes; run 'kitesurf login' again"
+            "Cloudflare login timed out after five minutes; run 'parawing login' again"
         })??;
     eprintln!("Cloudflare authorization received; exchanging the code.");
     let tokens = oauth
@@ -426,11 +426,11 @@ fn select_account<'a>(accounts: &'a [Account], requested: Option<&str>) -> Resul
             .ok_or_else(|| "CLOUDFLARE_ACCOUNT_ID was not authorized by this login".into());
     }
     match accounts {
-        [] => Err("No Cloudflare accounts were authorized for Kitesurf".into()),
+        [] => Err("No Cloudflare accounts were authorized for Parawing".into()),
         [account] => Ok(account),
         _ => {
             if !io::stdin().is_terminal() {
-                return Err("Multiple Cloudflare accounts are available; set CLOUDFLARE_ACCOUNT_ID and run 'kitesurf login' again".into());
+                return Err("Multiple Cloudflare accounts are available; set CLOUDFLARE_ACCOUNT_ID and run 'parawing login' again".into());
             }
             for (index, account) in accounts.iter().enumerate() {
                 println!(
@@ -502,7 +502,7 @@ fn callback_code(target: &str, state: &str) -> Result<Option<String>> {
     let errors = values("error");
     if !errors.is_empty() {
         let message = match errors.first().map(String::as_str) {
-            Some("invalid_scope") => "Cloudflare rejected the OAuth scopes (invalid_scope). Allow browser-rendering.write and account-settings.read in the Kitesurf OAuth client registration, and enable the refresh_token grant to allow offline_access.",
+            Some("invalid_scope") => "Cloudflare rejected the OAuth scopes (invalid_scope). Allow browser-rendering.write and account-settings.read in the Parawing OAuth client registration, and enable the refresh_token grant to allow offline_access.",
             Some("unauthorized_client") => "Cloudflare rejected the OAuth client (unauthorized_client). Check Authorization Code, PKCE, and token authentication method none in the client registration.",
             Some("access_denied") => "Cloudflare authorization was denied (access_denied). Check consent and the account's OAuth access policy.",
             Some("invalid_request") => "Cloudflare rejected the OAuth request (invalid_request). Check the registered redirect URI and client configuration.",
@@ -607,7 +607,7 @@ async fn logout_saved(oauth: &OAuth, entry: &keyring::Entry) -> Result<()> {
     .await;
     entry.delete_credential()?;
     println!("Removed saved Cloudflare login from the OS keyring.");
-    revoke.map_err(|_| "Local login removed, but Cloudflare revocation failed; revoke Kitesurf in the dashboard's OAuth authorizations".into())
+    revoke.map_err(|_| "Local login removed, but Cloudflare revocation failed; revoke Parawing in the dashboard's OAuth authorizations".into())
 }
 
 #[cfg(test)]

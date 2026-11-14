@@ -10,13 +10,13 @@ sequenceDiagram
 
     Note over Engine,CLI: Browser Run API with OAuth/API token, or direct engine
     CLI->>Engine: Connect CDP WebSocket
-    CLI->>Engine: Kitesurf.getSceneHostManifest
+    CLI->>Engine: Parawing.getSceneHostManifest
     Engine-->>CLI: Deployed rasterizer manifest and SHA-256
     CLI->>Cache: Read Wasm by manifest SHA-256
     Cache-->>CLI: Cached bytes or miss
     CLI->>CLI: Verify cached Wasm size and SHA-256
     opt Missing or invalid cached Wasm
-        CLI->>Engine: Kitesurf.readSceneHost in bounded chunks
+        CLI->>Engine: Parawing.readSceneHost in bounded chunks
         Engine-->>CLI: Matching rasterizer code, no font files
         CLI->>CLI: Verify downloaded Wasm size and SHA-256
         CLI->>Cache: Save verified Wasm by hash
@@ -31,15 +31,15 @@ sequenceDiagram
     Engine->>Site: Fetch styles, scripts, images
     Site-->>Engine: Subresource responses
     Engine-->>Page: Deliver resources
-    Note over Page,Engine: CSS sans-serif uses Kitesurf's built-in Noto Sans
+    Note over Page,Engine: CSS sans-serif uses Parawing's built-in Noto Sans
 
     loop Changed page, up to requested FPS and two unacked frames
         Engine->>Page: recordScene
         Page-->>Engine: Drawing commands and resource batch
-        Engine-->>CLI: Kitesurf.sceneFrame with base64 scene envelope
+        Engine-->>CLI: Parawing.sceneFrame with base64 scene envelope
         CLI->>Wasm: Ingest inline resources and check missing hashes
         opt Missing image or font resource
-            CLI->>Engine: Kitesurf.getSceneResources
+            CLI->>Engine: Parawing.getSceneResources
             Engine-->>CLI: CDP resource batch with font asset path or font bytes
             CLI->>Wasm: Ingest resource batch
         end
@@ -61,14 +61,14 @@ sequenceDiagram
                 Fonts-->>CLI: Font bytes and optional ETag
                 CLI->>Cache: Save font bytes, size, SHA-256 and ETag
             end
-            Note over Fonts,Cache: Browser Run: kitesurf.dev, no credentials<br/>Direct: engine origin, optional Access token<br/>Best-effort cache writes, 16 MiB per font
+            Note over Fonts,Cache: Browser Run: parawing.dev, no credentials<br/>Direct: engine origin, optional Access token<br/>Best-effort cache writes, 16 MiB per font
             CLI->>Wasm: Register font bytes for pending asset
         end
         Note over Engine,Wasm: Author fonts from @font-face arrive as bytes in the CDP batch
         CLI->>Wasm: Decode resources, replay scene, rasterize
         Wasm-->>CLI: RGBA pixels or PNG / ANSI text
         CLI->>TTY: Kitty image or selectable ANSI text
-        CLI->>Engine: Kitesurf.sceneFrameAck returns stream credit
+        CLI->>Engine: Parawing.sceneFrameAck returns stream credit
     end
 
     TTY-->>CLI: Keyboard, mouse, resize

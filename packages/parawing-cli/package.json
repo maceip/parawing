@@ -1,9 +1,9 @@
 {
-  "name": "@kitesurf/kitesurf-cli",
+  "name": "@parawing/parawing-cli",
   "version": "0.0.5",
   "private": true,
   "license": "Apache-2.0",
-  "description": "Native terminal client for Kitesurf",
+  "description": "Native terminal client for Parawing",
   "scripts": {
     "build:cli": "cargo build --release --manifest-path Cargo.toml"
   }

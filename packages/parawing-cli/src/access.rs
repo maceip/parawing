@@ -46,11 +46,11 @@ impl Connection {
         if let Some(id) = &account {
             validate_account_id(id)?;
         }
-        let api_token = env("KITESURF_API_TOKEN");
+        let api_token = env("PARAWING_API_TOKEN");
         let saved_oauth = api_token.is_none();
         let (id, token) = match api_token {
             Some(token) => (
-                account.ok_or("KITESURF_API_TOKEN requires CLOUDFLARE_ACCOUNT_ID")?,
+                account.ok_or("PARAWING_API_TOKEN requires CLOUDFLARE_ACCOUNT_ID")?,
                 token,
             ),
             None => {
@@ -84,7 +84,7 @@ impl Connection {
     fn browser_run(account: &str, token: &str) -> Result<Self> {
         validate_account_id(account)?;
         Ok(Self {
-            websocket: reqwest::Url::parse(&format!("wss://api.cloudflare.com/client/v4/accounts/{account}/browser-run/devtools/browser?browser=kitesurf"))?,
+            websocket: reqwest::Url::parse(&format!("wss://api.cloudflare.com/client/v4/accounts/{account}/browser-run/devtools/browser?browser=parawing"))?,
             font_server: reqwest::Url::parse(crate::cli::PLAYGROUND)?,
             access_token: None,
             bearer_token: Some(bearer(token)?),
@@ -136,6 +136,24 @@ impl Connection {
             request.headers_mut().insert("Authorization", token.clone());
         }
         Ok(request)
+    }
+
+    pub fn v2_endpoint(&self) -> Result<parawing_playback::V2Endpoint> {
+        let mut url = self.websocket.clone();
+        url.set_path("");
+        url.set_query(None);
+        url.set_fragment(None);
+        let mut headers = Vec::new();
+        if let Some(token) = &self.access_token {
+            headers.push((ACCESS_HEADER.to_owned(), token.to_str()?.to_owned()));
+        }
+        if let Some(token) = &self.bearer_token {
+            headers.push(("Authorization".to_owned(), token.to_str()?.to_owned()));
+        }
+        Ok(parawing_playback::V2Endpoint {
+            origin_ws: url.as_str().trim_end_matches('/').to_owned(),
+            headers,
+        })
     }
 
     pub fn has_unencrypted_access_token(&self) -> bool {
@@ -357,7 +375,7 @@ mod tests {
             } else {
                 Connection::browser_run_from_env(
                     |name| match name {
-                        "KITESURF_API_TOKEN" => Some("api-token".into()),
+                        "PARAWING_API_TOKEN" => Some("api-token".into()),
                         "CLOUDFLARE_ACCOUNT_ID" => Some("0123456789abcdef0123456789abcdef".into()),
                         _ => None,
                     },
@@ -390,7 +408,7 @@ mod tests {
     async fn browser_run_bearer_reaches_only_the_api_websocket() {
         let account = "0123456789abcdef0123456789abcdef";
         let mut connection = Connection::browser_run(account, "api-secret").unwrap();
-        assert_eq!(connection.websocket.as_str(), format!("wss://api.cloudflare.com/client/v4/accounts/{account}/browser-run/devtools/browser?browser=kitesurf"));
+        assert_eq!(connection.websocket.as_str(), format!("wss://api.cloudflare.com/client/v4/accounts/{account}/browser-run/devtools/browser?browser=parawing"));
         let client = connection.font_client().unwrap();
         for path in [
             "/rbi/fonts/NotoSans.ttf",
@@ -400,13 +418,13 @@ mod tests {
                 .get(connection.font_server.join(path).unwrap())
                 .build()
                 .unwrap();
-            assert_eq!(request.url().host_str(), Some("kitesurf.dev"));
+            assert_eq!(request.url().host_str(), Some("parawing.dev"));
             assert!(!request.headers().contains_key("authorization"));
             assert!(!request.headers().contains_key(ACCESS_HEADER));
         }
         let listener = tokio::net::TcpListener::bind("127.0.0.1:0").await.unwrap();
         connection.websocket = reqwest::Url::parse(&format!(
-            "ws://{}/devtools/browser?browser=kitesurf",
+            "ws://{}/devtools/browser?browser=parawing",
             listener.local_addr().unwrap()
         ))
         .unwrap();
@@ -415,7 +433,7 @@ mod tests {
             tokio_tungstenite::accept_hdr_async(stream, |request: &Request<()>, response| {
                 assert_eq!(request.headers()["authorization"], "Bearer api-secret");
                 assert!(!request.headers().contains_key(ACCESS_HEADER));
-                assert_eq!(request.uri().query(), Some("browser=kitesurf"));
+                assert_eq!(request.uri().query(), Some("browser=parawing"));
                 Ok(response)
             })
             .await
@@ -563,11 +581,11 @@ mod tests {
     }
 
     #[tokio::test]
-    async fn explicit_kitesurf_token_requires_an_account_and_skips_oauth() {
+    async fn explicit_parawing_token_requires_an_account_and_skips_oauth() {
         for account in [None, Some("0123456789abcdef0123456789abcdef")] {
             let result = Connection::browser_run_from_env(
                 |name| match name {
-                    "KITESURF_API_TOKEN" => Some("browser-run-secret".into()),
+                    "PARAWING_API_TOKEN" => Some("browser-run-secret".into()),
                     "CLOUDFLARE_ACCOUNT_ID" => account.map(str::to_owned),
                     _ => None,
                 },
@@ -584,7 +602,7 @@ mod tests {
                     .err()
                     .unwrap()
                     .to_string()
-                    .contains("KITESURF_API_TOKEN requires CLOUDFLARE_ACCOUNT_ID"));
+                    .contains("PARAWING_API_TOKEN requires CLOUDFLARE_ACCOUNT_ID"));
             }
         }
     }
@@ -628,5 +646,29 @@ mod tests {
             .unwrap();
         assert_eq!(response.text().await.unwrap(), "font");
         server.await.unwrap();
+    }
+
+    #[test]
+    fn v2_endpoint_strips_path_and_preserves_auth_headers() {
+        let origin = reqwest::Url::parse("https://edge.example:8443/some/path?x=1").unwrap();
+        let direct = Connection::direct(origin, Some(HeaderValue::from_static("acc-tok")))
+            .unwrap()
+            .v2_endpoint()
+            .unwrap();
+        assert_eq!(direct.origin_ws, "wss://edge.example:8443");
+        assert_eq!(
+            direct.headers,
+            vec![("Cf-Access-Token".to_owned(), "acc-tok".to_owned())]
+        );
+
+        let br = Connection::browser_run("0123456789abcdef0123456789abcdef", "br-tok")
+            .unwrap()
+            .v2_endpoint()
+            .unwrap();
+        assert_eq!(br.origin_ws, "wss://api.cloudflare.com");
+        assert_eq!(
+            br.headers,
+            vec![("Authorization".to_owned(), "Bearer br-tok".to_owned())]
+        );
     }
 }

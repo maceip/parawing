@@ -16,7 +16,7 @@ impl Cache {
         let mut random = [0; 16];
         getrandom::fill(&mut random).unwrap();
         Self(std::env::temp_dir().join(format!(
-            "kitesurf-scene-host-{}",
+            "parawing-scene-host-{}",
             STANDARD.encode(random).replace(['/', '+', '='], "_")
         )))
     }
@@ -54,8 +54,8 @@ async fn server(
             let request: Value = serde_json::from_str(text.to_text().unwrap()).unwrap();
             assert!(request["sessionId"].is_null());
             let mut result = match request["method"].as_str().unwrap() {
-                "Kitesurf.getSceneHostManifest" => info.clone(),
-                "Kitesurf.readSceneHost" => {
+                "Parawing.getSceneHostManifest" => info.clone(),
+                "Parawing.readSceneHost" => {
                     let offset = request["params"]["offset"].as_u64().unwrap() as usize;
                     let length = request["params"]["length"].as_u64().unwrap() as usize;
                     assert!(length <= CHUNK_BYTES && length > 0);

@@ -15,10 +15,10 @@ cargo_toml_env_vars(
 )
 
 rust_library(
-    name = "kitesurf_playback",
+    name = "parawing_playback",
     srcs = glob(["src/**/*.rs"]),
     aliases = aliases(normal = True, proc_macro = True),
-    crate_name = "kitesurf_playback",
+    crate_name = "parawing_playback",
     crate_root = "src/lib.rs",
     edition = "2021",
     proc_macro_deps = all_crate_deps(proc_macro = True),
@@ -36,7 +36,7 @@ rust_test(
         proc_macro = True,
         proc_macro_dev = True,
     ),
-    crate_name = "kitesurf_playback",
+    crate_name = "parawing_playback",
     crate_root = "src/lib.rs",
     data = [
         "//packages/engine:rbi_json",
@@ -65,7 +65,7 @@ rust_test(
         proc_macro = True,
         proc_macro_dev = True,
     ),
-    crate_name = "kitesurf",
+    crate_name = "parawing",
     crate_root = "src/main.rs",
     edition = "2021",
     proc_macro_deps = all_crate_deps(
@@ -77,7 +77,7 @@ rust_test(
     deps = all_crate_deps(
         normal = True,
         normal_dev = True,
-    ) + [":kitesurf_playback"],
+    ) + [":parawing_playback"],
 )
 
 workspace_configs()
@@ -93,5 +93,5 @@ rust_comments_test(
 )
 
 rust_lint_tests(
-    targets = ["kitesurf_playback", "lib_test", "bin_test"],
+    targets = ["parawing_playback", "lib_test", "bin_test"],
 )

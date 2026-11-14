@@ -2,10 +2,12 @@
 // Licensed under the Apache 2.0 license found in the LICENSE file or at:
 // https://opensource.org/licenses/Apache-2.0
 
-//! Public API for configuring and running a Kitesurf terminal playback session.
+//! Public API for configuring and running a Parawing terminal playback session.
 
+pub mod compositor_v2;
 mod font_cache;
 mod playback;
+pub mod rbi_v2;
 mod scene_host;
 mod wasm;
 #[cfg(test)]
@@ -64,6 +66,13 @@ impl fmt::Display for InvalidPlaybackFps {
 
 impl Error for InvalidPlaybackFps {}
 
+/// S7 WebSocket base origin and optional authentication headers for `--v2` playback.
+#[derive(Clone, Debug)]
+pub struct V2Endpoint {
+    pub origin_ws: String,
+    pub headers: Vec<(String, String)>,
+}
+
 /// Settings for one terminal playback session; use `new` to validate the frame rate.
 #[derive(Debug)]
 pub struct PlaybackOptions {
@@ -73,6 +82,7 @@ pub struct PlaybackOptions {
     pub(crate) display: bool,
     pub(crate) debug: bool,
     pub(crate) fps: u8,
+    pub(crate) v2: Option<V2Endpoint>,
 }
 
 impl PlaybackOptions {
@@ -96,7 +106,13 @@ impl PlaybackOptions {
             display,
             debug,
             fps,
+            v2: None,
         })
+    }
+
+    pub fn with_v2_endpoint(mut self, endpoint: V2Endpoint) -> Self {
+        self.v2 = Some(endpoint);
+        self
     }
 }
 

@@ -132,7 +132,7 @@ fn oauth_clients_have_distinct_keyring_entries_and_reject_empty_overrides() {
             .err()
             .unwrap()
             .to_string();
-        assert!(error.contains("KITESURF_OAUTH_CLIENT_ID"));
+        assert!(error.contains("PARAWING_OAUTH_CLIENT_ID"));
     }
 }
 

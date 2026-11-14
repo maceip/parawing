@@ -3,20 +3,20 @@
 // https://opensource.org/licenses/Apache-2.0
 
 use std::time::Duration;
-pub use kitesurf_playback::PlaybackMode as Mode;
+pub use parawing_playback::PlaybackMode as Mode;
 
 const MIN_FPS: u8 = 1;
 const MAX_FPS: u8 = 60;
 
 pub const HELP: &str =
-    "Usage: kitesurf URL [--mode=kitty|ansi] [--fps N] [--seconds N] [--no-display] [--debug]
-       kitesurf login | logout
+    "Usage: parawing URL [--mode=kitty|ansi] [--fps N] [--seconds N] [--no-display] [--debug]
+       parawing login | logout
 
 Open a website in an interactive terminal browser using Cloudflare Browser Run.
 
 Authentication:
   Opening a URL without a saved login starts Cloudflare OAuth in your browser.
-  After you authorize Kitesurf and select an account, the requested page opens.
+  After you authorize Parawing and select an account, the requested page opens.
   Credentials are saved in the OS keyring and refreshed before new connections.
   A rejected OAuth login starts browser sign-in, then opens the requested page.
   login         Sign in to Cloudflare in your browser and select an account.
@@ -25,34 +25,35 @@ Authentication:
   On Linux, login needs an unlocked Secret Service keyring and a D-Bus session.
 
 Options:
-  --playground  Connect directly to kitesurf.dev without Browser Run credentials.
+  --playground  Connect directly to parawing.dev without Browser Run credentials.
   --mode MODE   Rendering protocol: kitty (default) or ansi (for any terminal).
   --fps N       Maximum scene frames per second (1-60, default 60).
   --seconds N   Stop replay after N seconds and print measurements.
   --no-display  Measure replay without terminal output (800x600 Kitty, 800x595 ANSI).
+  --v2          Use KSC2 + S7 /rbi/ws client compositor with local scroll/type prediction.
   --debug       Log connection, downloads and scene-stream events (also --verbose).
   --version     Print the version.
   -h, --help    Show this help.
 
 Environment:
   CLOUDFLARE_ACCOUNT_ID  Select a Cloudflare account; overrides the saved account.
-  KITESURF_API_TOKEN     Use an API token instead of OAuth (requires an account ID).
+  PARAWING_API_TOKEN     Use an API token instead of OAuth (requires an account ID).
                         The token needs Browser Rendering - Edit permission.
-  KITESURF_OAUTH_CLIENT_ID  Override the official OAuth client (for example, staging).
-  KITESURF_SERVER        Connect directly to a local or custom engine.
+  PARAWING_OAUTH_CLIENT_ID  Override the official OAuth client (for example, staging).
+  PARAWING_SERVER        Connect directly to a local or custom engine.
   CF_ACCESS_TOKEN       Cloudflare Access token for a direct engine.
 
 Examples:
-  kitesurf https://example.com/
-  kitesurf --mode=ansi https://example.com/
-  kitesurf --playground https://example.com/
-  KITESURF_SERVER=http://127.0.0.1:8799 kitesurf https://example.com/
+  parawing https://example.com/
+  parawing --mode=ansi https://example.com/
+  parawing --playground https://example.com/
+  PARAWING_SERVER=http://127.0.0.1:8799 parawing https://example.com/
 
-Kitesurf CLI is still experimental, do not use in a production environment.
+Parawing CLI is still experimental, do not use in a production environment.
 
 Press Ctrl-B when a page is open to toggle a stats bar with accounted server memory.
 
-Go to https://kitesurf.dev/ to learn more.
+Go to https://parawing.dev/ to learn more.
 ";
 
 #[derive(Debug, PartialEq)]
@@ -64,9 +65,10 @@ pub struct Options {
     pub display: bool,
     pub debug: bool,
     pub fps: u8,
+    pub compositor_v2: bool,
 }
 
-pub const PLAYGROUND: &str = "https://kitesurf.dev";
+pub const PLAYGROUND: &str = "https://parawing.dev";
 
 #[derive(Debug, PartialEq)]
 pub enum Backend {
@@ -86,10 +88,12 @@ pub fn parse(
     let mut debug = false;
     let mut fps = MAX_FPS;
     let mut playground = false;
+    let mut compositor_v2 = false;
     while let Some(arg) = args.next() {
         match arg.as_str() {
             "-h" | "--help" => return Ok(None),
             "--playground" => playground = true,
+            "--v2" => compositor_v2 = true,
             "--mode" => mode = Mode::parse(&args.next().ok_or("--mode requires a value")?)?,
             argument if argument.starts_with("--mode=") => mode = Mode::parse(&argument[7..])?,
             "--fps" => {
@@ -118,7 +122,7 @@ pub fn parse(
     }
     let Some(url) = url else { return Ok(None) };
     if playground && server_env.is_some() {
-        return Err("--playground cannot be combined with KITESURF_SERVER".into());
+        return Err("--playground cannot be combined with PARAWING_SERVER".into());
     }
     let backend = match server_env.or(playground.then_some(PLAYGROUND)) {
         Some(server) => Backend::Direct(parse_server(server)?),
@@ -132,12 +136,13 @@ pub fn parse(
         display,
         debug,
         fps,
+        compositor_v2,
     }))
 }
 
 fn parse_server(server: &str) -> Result<reqwest::Url, String> {
     let server =
-        reqwest::Url::parse(server).map_err(|error| format!("invalid KITESURF_SERVER: {error}"))?;
+        reqwest::Url::parse(server).map_err(|error| format!("invalid PARAWING_SERVER: {error}"))?;
     if !matches!(server.scheme(), "http" | "https") {
         return Err("server must use http or https".into());
     }
@@ -146,12 +151,12 @@ fn parse_server(server: &str) -> Result<reqwest::Url, String> {
         || server.query().is_some()
         || server.fragment().is_some()
     {
-        return Err("KITESURF_SERVER must not contain credentials, a query, or a fragment".into());
+        return Err("PARAWING_SERVER must not contain credentials, a query, or a fragment".into());
     }
     if server.scheme() == "http"
         && !matches!(server.host_str(), Some("localhost" | "127.0.0.1" | "[::1]"))
     {
-        return Err("remote KITESURF_SERVER must use https".into());
+        return Err("remote PARAWING_SERVER must use https".into());
     }
     Ok(server)
 }
@@ -308,5 +313,21 @@ mod tests {
         ] {
             assert!(parse(["https://example.com".into()], Some(server)).is_err());
         }
+    }
+
+    #[test]
+    fn compositor_v2_flag_is_opt_in() {
+        assert!(
+            !parse(["https://example.com".to_owned()], None)
+                .unwrap()
+                .unwrap()
+                .compositor_v2
+        );
+        assert!(
+            parse(["--v2", "https://example.com"].map(str::to_owned), None)
+                .unwrap()
+                .unwrap()
+                .compositor_v2
+        );
     }
 }

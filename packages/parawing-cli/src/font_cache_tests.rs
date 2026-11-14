@@ -16,7 +16,7 @@ impl Directory {
         let mut random = [0; 16];
         getrandom::fill(&mut random).unwrap();
         let directory = std::env::temp_dir().join(format!(
-            "kitesurf-font-cache-{}",
+            "parawing-font-cache-{}",
             u128::from_le_bytes(random)
         ));
         fs::create_dir_all(&directory).unwrap();
@@ -314,10 +314,10 @@ async fn font_download_rejects_oversized_declared_and_streamed_bodies() {
 
 #[test]
 fn font_urls_are_confined_to_builtin_font_assets() {
-    let origin = Url::parse("https://kitesurf.dev/").unwrap();
+    let origin = Url::parse("https://parawing.dev/").unwrap();
     assert_eq!(
         font_url(&origin, "/fonts/NotoSans.ttf").unwrap().as_str(),
-        "https://kitesurf.dev/rbi/fonts/NotoSans.ttf"
+        "https://parawing.dev/rbi/fonts/NotoSans.ttf"
     );
     let prefixed_origin = Url::parse("https://host/ks/").unwrap();
     assert_eq!(
