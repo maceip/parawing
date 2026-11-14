@@ -1,0 +1,99 @@
+load("@bazel_skylib//rules:build_test.bzl", "build_test")
+load("@crates_host//:defs.bzl", "aliases", "all_crate_deps")
+load("@rules_rust//cargo:defs.bzl", "cargo_toml_env_vars")
+load("@rules_rust//rust:defs.bzl", "rust_binary", "rust_library", "rust_test")
+load("//bazel:checks.bzl", "workspace_configs")
+load("//bazel:rust_checks.bzl", "rust_comments_test", "rust_lint_tests", "rust_nesting_test")
+
+exports_files([
+    "Cargo.lock",
+    "Cargo.toml",
+])
+
+cargo_toml_env_vars(
+    name = "cargo_env",
+    src = "Cargo.toml",
+)
+
+rust_library(
+    name = "parawing_rust_host",
+    srcs = glob(["src/**/*.rs"]),
+    aliases = aliases(normal = True, proc_macro = True),
+    crate_name = "parawing_rust_host",
+    crate_root = "src/lib.rs",
+    edition = "2021",
+    proc_macro_deps = all_crate_deps(proc_macro = True),
+    rustc_env_files = [":cargo_env"],
+    visibility = ["//visibility:public"],
+    deps = all_crate_deps(normal = True) + [
+        "//packages/core:parawing_core_host",
+        "//packages/device-authority:parawing_authority",
+    ],
+)
+
+rust_binary(
+    name = "parawing_rust_host_bin",
+    srcs = ["src/main.rs"],
+    aliases = aliases(normal = True, proc_macro = True),
+    edition = "2021",
+    proc_macro_deps = all_crate_deps(proc_macro = True),
+    rustc_env_files = [":cargo_env"],
+    visibility = ["//visibility:public"],
+    deps = all_crate_deps(normal = True) + [
+        ":parawing_rust_host",
+        "//packages/core:parawing_core_host",
+        "//packages/device-authority:parawing_authority",
+    ],
+)
+
+build_test(
+    name = "bin_build",
+    targets = [":parawing_rust_host_bin"],
+)
+
+rust_test(
+    name = "host_test",
+    size = "medium",
+    srcs = glob(["src/**/*.rs"]),
+    aliases = aliases(
+        normal = True,
+        normal_dev = True,
+        proc_macro = True,
+        proc_macro_dev = True,
+    ),
+    crate_name = "parawing_rust_host",
+    crate_root = "src/lib.rs",
+    data = [
+        "//packages/deno-host:pkg",
+    ],
+    edition = "2021",
+    proc_macro_deps = all_crate_deps(
+        proc_macro = True,
+        proc_macro_dev = True,
+    ),
+    rustc_env = {"CARGO_MANIFEST_DIR": package_name()},
+    rustc_env_files = [":cargo_env"],
+    deps = all_crate_deps(
+        normal = True,
+        normal_dev = True,
+    ) + [
+        "//packages/core:parawing_core_host",
+        "//packages/device-authority:parawing_authority",
+    ],
+)
+
+workspace_configs()
+
+rust_nesting_test(
+    name = "nesting_test",
+    srcs = glob(["src/**/*.rs"]),
+)
+
+rust_comments_test(
+    name = "comments_test",
+    srcs = glob(["src/**/*.rs"]),
+)
+
+rust_lint_tests(
+    targets = ["parawing_rust_host", "parawing_rust_host_bin", "host_test"],
+)

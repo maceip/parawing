@@ -1,0 +1,74 @@
+[package]
+name = "parawing-rust-host"
+version = "0.1.0"
+edition = "2021"
+rust-version = "1.96"
+license = "Apache-2.0"
+
+[workspace]
+
+[lib]
+name = "parawing_rust_host"
+
+[[bin]]
+name = "parawing-rust-host"
+path = "src/main.rs"
+
+[dependencies]
+aes-gcm = "0.10"
+base64 = "0.22"
+flate2 = "1"
+futures-util = { version = "0.3", features = ["sink"] }
+getrandom = "0.3"
+hmac = "0.12"
+parawing_core_host = { package = "parawing-core", path = "../core" }
+p256 = { version = "0.13", features = ["ecdh", "ecdsa", "pem", "pkcs8"] }
+parawing_authority = { package = "parawing-authority", path = "../device-authority" }
+png = "0.18"
+reqwest = { version = "0.12", default-features = false, features = [
+  "json",
+  "rustls-tls-native-roots-no-provider",
+] }
+ring = "0.17"
+rustls = { version = "0.23", default-features = false, features = ["ring", "std", "tls12"] }
+serde = { version = "1", features = ["derive"] }
+serde_json = "1"
+sha2 = "0.10"
+tokio = { version = "1", features = [
+  "io-std",
+  "io-util",
+  "macros",
+  "net",
+  "process",
+  "rt",
+  "rt-multi-thread",
+  "signal",
+  "sync",
+  "time",
+] }
+tokio-tungstenite = "0.26"
+url = "2"
+zeroize = "1"
+
+[patch.crates-io]
+vello_cpu = { path = "../core/target/vendor-patched/vello_cpu-0.3.0" }
+vello_common = { path = "../core/target/vendor-patched/vello_common-0.3.0" }
+parley = { path = "../core/target/vendor-patched/parley-0.12.0" }
+parley_engine = { path = "../core/target/vendor-patched/parley_engine-0.12.0" }
+blitz-dom = { path = "../core/target/vendor-patched/blitz-dom-0.3.0-beta.4" }
+blitz-paint = { path = "../core/target/vendor-patched/blitz-paint-0.3.0-beta.4" }
+blitz-html = { path = "../core/target/vendor-patched/blitz-html-0.3.0-beta.4" }
+anyrender = { path = "../core/target/vendor-patched/anyrender-0.14.0" }
+anyrender_vello_cpu = { path = "../core/target/vendor-patched/anyrender_vello_cpu-0.18.0" }
+taffy = { path = "../core/target/vendor-patched/taffy-0.15.0" }
+stylo_taffy = { path = "../core/target/vendor-patched/stylo_taffy-0.3.0-beta.4" }
+stylo = { path = "../core/target/vendor-patched/stylo-0.22.0" }
+selectors = { path = "../core/target/vendor-patched/selectors-0.41.0" }
+boa_ast = { path = "../core/target/vendor-patched/boa_ast-0.22.0" }
+boa_interner = { path = "../core/target/vendor-patched/boa_interner-0.22.0" }
+boa_gc = { path = "../core/target/vendor-patched/boa_gc-0.22.0" }
+boa_engine = { path = "../core/target/vendor-patched/boa_engine-0.22.0" }
+boa_parser = { path = "../core/target/vendor-patched/boa_parser-0.22.0" }
+usvg = { path = "../core/target/vendor-patched/usvg-0.48.1" }
+ratatui-image = { path = "../core/target/vendor-patched/ratatui-image-8.1.1" }
+jpeg-encoder = { path = "../core/target/vendor-patched/jpeg-encoder-0.7.0" }

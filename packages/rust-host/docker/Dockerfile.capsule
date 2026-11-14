@@ -1,0 +1,109 @@
+# Copyright (c) 2026 Cloudflare, Inc.
+# Licensed under the Apache 2.0 license found in the LICENSE file or at:
+# https://opensource.org/licenses/Apache-2.0
+# R0 reproducible static-musl capsule image with pinned CPU baselines, Deno V8, and CRIU.
+
+ARG ALPINE_TAG=3.21
+ARG DEBIAN_TAG=trixie-slim
+ARG DENO_VERSION=2.9.8
+ARG TARGETARCH
+
+FROM alpine:${ALPINE_TAG} AS builder
+
+ARG TARGETARCH
+
+RUN apk add --no-cache \
+    build-base \
+    ca-certificates \
+    curl \
+    git \
+    musl-dev \
+    nodejs \
+    pkgconf
+
+ENV RUSTUP_HOME=/usr/local/rustup \
+    CARGO_HOME=/usr/local/cargo \
+    PATH=/usr/local/cargo/bin:$PATH \
+    SOURCE_DATE_EPOCH=0 \
+    CARGO_INCREMENTAL=0
+
+ARG RUST_TOOLCHAIN=nightly-2026-05-14
+RUN curl -fsSL https://sh.rustup.rs | sh -s -- -y --profile minimal --default-toolchain "${RUST_TOOLCHAIN}"
+
+WORKDIR /workspace
+COPY . .
+
+RUN node scripts/get-patched-vendor-crates.mjs
+
+RUN set -eu; \
+    case "${TARGETARCH}" in \
+      amd64) \
+        RUST_TARGET="x86_64-unknown-linux-musl"; \
+        BASE_FLAGS="-C target-cpu=x86-64-v2 -C target-feature=+crt-static -C link-arg=-static"; \
+        ;; \
+      arm64) \
+        RUST_TARGET="aarch64-unknown-linux-musl"; \
+        BASE_FLAGS="-C target-cpu=generic -C target-feature=+neon,+fp-armv8,+crt-static -C link-arg=-static"; \
+        ;; \
+      *) \
+        echo "Unsupported TARGETARCH: ${TARGETARCH}" >&2; \
+        exit 1; \
+        ;; \
+    esac; \
+    rustup target add "${RUST_TARGET}"; \
+    cargo fetch --locked --manifest-path packages/rust-host/Cargo.toml --target "${RUST_TARGET}"; \
+    export RUSTFLAGS="${BASE_FLAGS} --remap-path-prefix=/workspace=/capsule-src --remap-path-prefix=/usr/local/cargo=/cargo"; \
+    cargo build --manifest-path packages/rust-host/Cargo.toml \
+      --frozen --release --target "${RUST_TARGET}" --bin parawing-rust-host; \
+    cp "packages/rust-host/target/${RUST_TARGET}/release/parawing-rust-host" /usr/local/bin/parawing-rust-host
+
+FROM debian:${DEBIAN_TAG} AS runtime-base
+
+ARG TARGETARCH
+ARG DENO_VERSION
+
+RUN apt-get update && apt-get install -y --no-install-recommends \
+    ca-certificates \
+    criu \
+    curl \
+    procps \
+    unzip && \
+    case "${TARGETARCH}" in \
+      amd64) DENO_TRIPLE="x86_64-unknown-linux-gnu" ;; \
+      arm64) DENO_TRIPLE="aarch64-unknown-linux-gnu" ;; \
+      *) echo "Unsupported TARGETARCH: ${TARGETARCH}" >&2; exit 1 ;; \
+    esac && \
+    curl -fsSL "https://github.com/denoland/deno/releases/download/v${DENO_VERSION}/deno-${DENO_TRIPLE}.zip" -o /tmp/deno.zip && \
+    unzip -q /tmp/deno.zip -d /usr/local/bin && \
+    chmod 0755 /usr/local/bin/deno && \
+    rm -f /tmp/deno.zip && \
+    apt-get purge -y --auto-remove curl unzip && \
+    rm -rf /var/lib/apt/lists/* && \
+    groupadd --system parawing && \
+    useradd --system --gid parawing --create-home --home-dir /var/lib/parawing parawing
+
+COPY --from=builder /usr/local/bin/parawing-rust-host /usr/local/bin/parawing-rust-host
+
+FROM runtime-base AS runtime-amd64
+ENV PARAWING_V8_BASELINE_FLAGS="--disallow-code-generation-from-strings,--no-enable-avx,--no-enable-avx2,--no-enable-fma3"
+
+FROM runtime-base AS runtime-arm64
+ENV PARAWING_V8_BASELINE_FLAGS="--disallow-code-generation-from-strings,--arm-arch=armv8"
+
+FROM runtime-${TARGETARCH} AS runtime
+
+ENV PATH="/usr/local/bin:/usr/sbin:/usr/bin:/sbin:/bin" \
+    DENO_NO_UPDATE_CHECK=1 \
+    GLIBC_TUNABLES="glibc.cpu.hwcaps=-AVX,-AVX2,-FMA,-AVX512F,-AVX512BW,-AVX512DQ,-AVX512VL" \
+    PARAWING_CAPSULE_PAGE_SIZE=4096 \
+    PARAWING_CAPSULE_CACHE_LINE=64 \
+    PARAWING_DENO_BIN=/usr/local/bin/deno
+
+RUN /usr/local/bin/deno --version && \
+    /usr/local/bin/deno eval --v8-flags="${PARAWING_V8_BASELINE_FLAGS}" "1 + 1" && \
+    criu --version && \
+    command -v criu
+
+USER parawing
+WORKDIR /var/lib/parawing
+ENTRYPOINT ["/usr/local/bin/parawing-rust-host"]

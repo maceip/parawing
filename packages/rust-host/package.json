@@ -1,0 +1,8 @@
+{
+  "name": "@parawing/rust-host",
+  "version": "0.1.0",
+  "private": true,
+  "license": "Apache-2.0",
+  "description": "Native Rust Parawing browser host, capsule runtime, freeze/thaw, and roaming.",
+  "scripts": {}
+}
