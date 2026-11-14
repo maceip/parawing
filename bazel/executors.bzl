@@ -1,6 +1,6 @@
 """Generic semantic executor profiles; empty defaults use local execution."""
 
-load("@kitesurf_executor_profiles//:defs.bzl", "EXECUTORS")
+load("@parawing_executor_profiles//:defs.bzl", "EXECUTORS")
 
 RUST = EXECUTORS["rust"]
 E2E = EXECUTORS["e2e"]

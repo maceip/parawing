@@ -11,7 +11,7 @@ import test from "node:test";
 import { pathToFileURL } from "node:url";
 
 function fixture(t) {
-  const root = mkdtempSync(join(tmpdir(), "kitesurf-vendor-fetch-"));
+  const root = mkdtempSync(join(tmpdir(), "parawing-vendor-fetch-"));
   t.after(() => rmSync(root, { recursive: true, force: true }));
   mkdirSync(join(root, "scripts"));
   mkdirSync(join(root, "bin"));

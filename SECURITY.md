@@ -16,7 +16,7 @@ GitHub's private vulnerability reporting in the Security tab.
 
 ## Scope
 
-kitesurf renders pages written by others, so these classes of bug are in
+parawing renders pages written by others, so these classes of bug are in
 scope:
 
 - Escape from a page's isolate into the engine or the host runtime.

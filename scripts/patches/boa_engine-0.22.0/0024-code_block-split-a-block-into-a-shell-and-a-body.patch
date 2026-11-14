@@ -227,12 +227,12 @@ index 004f2b3..d553a5d 100644
 +    // Used for identifying anonymous functions in compiled output and call frames.
 +    pub(crate) debug_id: u64,
 +
-+    // Kitesurf: this block's share of the code counters (crate::ks_code_stats), refunded
++    // Parawing: this block's share of the code counters (crate::ks_code_stats), refunded
 +    // when it drops; `ks_charged` sets it once the block's parts are in place.
 +    #[unsafe_ignore_trace]
 +    pub(crate) ks_charge: crate::ks_code_stats::CodeCharge,
 +
-+    // Kitesurf: what only running the block reads; the fields above are what making a
++    // Parawing: what only running the block reads; the fields above are what making a
 +    // function object, printing its source and running its bytecode need.
 +    body: Box<CodeBody>,
 +
@@ -241,7 +241,7 @@ index 004f2b3..d553a5d 100644
 +    pub(crate) traced: Cell<bool>,
 +}
 +
-+/// Kitesurf: the part of a [`CodeBlock`] that only running it reads: constants, bindings,
++/// Parawing: the part of a [`CodeBlock`] that only running it reads: constants, bindings,
 +/// handlers, inline caches, source map and global tables.
 +#[derive(Debug, Trace, Finalize)]
 +pub(crate) struct CodeBody {
@@ -265,7 +265,7 @@ index 004f2b3..d553a5d 100644
 -    // Used for identifying anonymous functions in compiled output and call frames.
 -    pub(crate) debug_id: u64,
 -
--    // Kitesurf: this block's share of the code counters (crate::ks_code_stats), refunded
+-    // Parawing: this block's share of the code counters (crate::ks_code_stats), refunded
 -    // when it drops; `ks_charged` sets it once the block's parts are in place.
 -    #[unsafe_ignore_trace]
 -    pub(crate) ks_charge: crate::ks_code_stats::CodeCharge,
@@ -274,7 +274,7 @@ index 004f2b3..d553a5d 100644
 -    #[unsafe_ignore_trace]
 -    pub(crate) traced: Cell<bool>,
 +impl CodeBody {
-+    /// Kitesurf: the heap bytes this body owns, apart from its source map: the box and the
++    /// Parawing: the heap bytes this body owns, apart from its source map: the box and the
 +    /// arrays. Shared strings, scopes and nested blocks are not its own.
 +    pub(crate) fn ks_fixed_bytes(&self) -> usize {
 +        size_of::<Self>()
@@ -383,14 +383,14 @@ index 004f2b3..d553a5d 100644
 +        self.body().source_info.map().path()
 +    }
 +
-+    /// Kitesurf: the part only running the block reads, behind one accessor so that it can
++    /// Parawing: the part only running the block reads, behind one accessor so that it can
 +    /// later live elsewhere.
 +    #[inline]
 +    pub(crate) fn body(&self) -> &CodeBody {
 +        &self.body
 +    }
 +
-+    /// Kitesurf: assembles a block from its two parts as the compiler finishes it, charging
++    /// Parawing: assembles a block from its two parts as the compiler finishes it, charging
 +    /// it to the code counters.
 +    pub(crate) fn from_parts(
 +        flags: CodeBlockFlags,
@@ -587,7 +587,7 @@ index c2ad792..58c695e 100644
 +            .push_bytecode(current_pc, frame.code_block().source_info().clone());
 
          self.frames.push(frame);
-         // Kitesurf: pinned after the push, which can allocate and so run a forced swap round:
+         // Parawing: pinned after the push, which can allocate and so run a forced swap round:
 @@ -670,9 +671,9 @@ impl Vm {
 
          let catch_address = handler.handler();
@@ -595,7 +595,7 @@ index c2ad792..58c695e 100644
 -        // Nothing above the registers is live at a catch; only half-built calls
 -        // push there.
 -        let registers_end = frame.rp as usize + frame.code_block().register_count as usize;
-+        // Kitesurf: nothing above the registers is live at a catch (only half-built calls
++        // Parawing: nothing above the registers is live at a catch (only half-built calls
 +        // push there), and 0.20's stack_count truncation has no register-VM equivalent.
 +        let registers_end = frame.rp as usize + frame.code_block().body().register_count as usize;
 

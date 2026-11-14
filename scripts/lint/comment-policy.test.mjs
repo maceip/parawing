@@ -138,7 +138,7 @@ test("counts tabs at tab stops and Unicode code points as one column", () => {
 
 test("allows only file-header legal text and labeled required explanations", () => {
   const legal = lineCommentFixture([
-    `// Copyright 2026 ${"Kitesurf Contributors ".repeat(6)}`,
+    `// Copyright 2026 ${"Parawing Contributors ".repeat(6)}`,
     '// Licensed under the Apache License, Version 2.0 (the "License");',
     "// you may not use this file except in compliance with the License.",
     "// You may obtain a copy of the License at",
@@ -372,7 +372,7 @@ test("Oxlint rule reports actionable diagnostics without autofixing", () => {
 });
 
 test("Oxlint parser ignores comment-like template fixture text", async () => {
-  const directory = await mkdtemp(join(tmpdir(), "kitesurf-comment-policy-"));
+  const directory = await mkdtemp(join(tmpdir(), "parawing-comment-policy-"));
   try {
     const pluginPath = join(directory, "plugin.mjs");
     const configPath = join(directory, "oxlint.config.json");

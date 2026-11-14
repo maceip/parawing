@@ -43,7 +43,7 @@ def _executor_profiles_impl(mctx):
             profiles[tag.name] = tag.exec_properties
 
     _profile_repository(
-        name = "kitesurf_executor_profiles",
+        name = "parawing_executor_profiles",
         rust = profiles["rust"],
         e2e = profiles["e2e"],
         wpt = profiles["wpt"],

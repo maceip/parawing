@@ -34,7 +34,7 @@ index 0000000..25d3716
 --- /dev/null
 +++ b/src/ks_body.rs
 @@ -0,0 +1,685 @@
-+//! Kitesurf: moves never-run function bodies, with everything nested in them, to the code
++//! Parawing: moves never-run function bodies, with everything nested in them, to the code
 +//! store as one record per block, and rebuilds a body (and shells for its nested blocks) on first read.
 +
 +use std::rc::Rc;
@@ -57,11 +57,11 @@ index 0000000..25d3716
 +};
 +
 +const VERSION: u8 = 1;
-+// Kitesurf: a subtree nested deeper than this stays resident, since collecting and dumping
++// Parawing: a subtree nested deeper than this stays resident, since collecting and dumping
 +// it recurse on the shadow stack.
 +const MAX_DEPTH: usize = 256;
 +
-+/// Kitesurf: where a swapped body is in the store, and what rebuilding it needs that its
++/// Parawing: where a swapped body is in the store, and what rebuilding it needs that its
 +/// record lacks: the scopes it hangs from and the script's path.
 +pub(crate) struct BodyDesc {
 +    key: u32,
@@ -71,7 +71,7 @@ index 0000000..25d3716
 +    path: SourcePath,
 +}
 +
-+// Kitesurf: a subtree's root rebuilds the scope table under its anchor; the blocks below it
++// Parawing: a subtree's root rebuilds the scope table under its anchor; the blocks below it
 +// index the table the root's fault-in built.
 +enum ScopeCtx {
 +    Anchor(Option<Scope>),
@@ -494,7 +494,7 @@ index 0000000..25d3716
 +    true
 +}
 +
-+/// Kitesurf: moves never-run `block`'s body and everything nested in it to `store`, leaving
++/// Parawing: moves never-run `block`'s body and everything nested in it to `store`, leaving
 +/// a shell. `outside` holds the scopes of the blocks above it that ran. Returns the records.
 +pub(crate) fn swap_out(block: &CodeBlock, store: &dyn CodeStore, outside: &FxHashSet<usize>) -> usize {
 +    let skip = || {
@@ -580,17 +580,17 @@ index 0000000..25d3716
 +    });
 +    if !ok {
 +        crate::ks_code_stats::update(|s| s.store_failures += 1);
-+        panic!("kitesurf: a swapped function body could not be read back intact");
++        panic!("parawing: a swapped function body could not be read back intact");
 +    }
 +    let path = desc.path.clone();
 +    let mut r = Reader { buf: &bytes, pos: 0 };
-+    assert_eq!(r.u8(), VERSION, "kitesurf: a body record of another version");
++    assert_eq!(r.u8(), VERSION, "parawing: a body record of another version");
 +    let with_table = r.u8() != 0;
 +    let strings = Strings::read(&mut r);
 +    let table: Rc<[Scope]> = match (&desc.scopes, with_table) {
 +        (ScopeCtx::Anchor(anchor), true) => ScopeTable::read(&mut r, &strings, anchor.as_ref()).into(),
 +        (ScopeCtx::Table(table), false) => table.clone(),
-+        _ => panic!("kitesurf: a body record that does not match its descriptor"),
++        _ => panic!("parawing: a body record that does not match its descriptor"),
 +    };
 +    let body = read_body(block, &mut r, &strings, &table, &path);
 +    let fixed = size_of::<CodeBlock>() + body.ks_fixed_bytes();
@@ -686,7 +686,7 @@ index 0000000..25d3716
 +    }
 +}
 +
-+/// Kitesurf: a compiled tree as text (each block's disassembly and its scopes' parts),
++/// Parawing: a compiled tree as text (each block's disassembly and its scopes' parts),
 +/// fetching swapped bodies; tests compare a swapped tree with one that never left memory.
 +#[doc(hidden)]
 +#[must_use]
@@ -748,7 +748,7 @@ index 5b29808..590aec1 100644
  }
 
 @@ -71,7 +81,7 @@ pub(crate) fn bytes(n: usize) -> i64 {
- /// Kitesurf: live compiled code as (name, value) pairs: blocks, source texts and bytecode by
+ /// Parawing: live compiled code as (name, value) pairs: blocks, source texts and bytecode by
  /// form (resident, swapped, expanded), store traffic and swap rounds. Shared strings uncounted.
  #[must_use]
 -pub fn ks_code_stats() -> [(&'static str, i64); 19] {
@@ -791,7 +791,7 @@ index 5b29808..590aec1 100644
          }
      }
 
-+    /// Kitesurf: moves the charge to new sizes, as a body leaves memory or comes back; the
++    /// Parawing: moves the charge to new sizes, as a body leaves memory or comes back; the
 +    /// block's count and its inline caches stay as they are.
 +    pub(crate) fn recharge(&self, fixed: usize, map: usize) {
 +        if !self.counted {
@@ -834,7 +834,7 @@ index a49fb43..e03406d 100644
 +++ b/src/ks_swap.rs
 @@ -84,7 +84,7 @@ impl Drop for RoundGuard {
 
- // Kitesurf: swaps every packed block of the tree and stores a copy of each function that
+ // Parawing: swaps every packed block of the tree and stores a copy of each function that
  // already ran, which then counts as flushable; run-once top-level code is not worth one.
 -fn walk(block: &CodeBlock, store: &dyn crate::CodeStore, keep_expanded: bool, depth: usize) -> usize {
 +fn walk_packed(block: &CodeBlock, store: &dyn crate::CodeStore, keep_expanded: bool, depth: usize) -> usize {
@@ -858,7 +858,7 @@ index a49fb43..e03406d 100644
 +    freed
 +}
 +
-+// Kitesurf: as `walk_packed`, but a nested block that never ran leaves its whole body to the
++// Parawing: as `walk_packed`, but a nested block that never ran leaves its whole body to the
 +// store (crate::ks_body); `outside` gathers the scopes of the blocks walked through, which ran.
 +fn walk(
 +    block: &CodeBlock,
@@ -930,13 +930,13 @@ index a6dd1a8..85cc14e 100644
          self.source_text.clone()
      }
 
-+    /// Kitesurf: the span alone, for an embedder that rebuilds this text from its parts
++    /// Parawing: the span alone, for an embedder that rebuilds this text from its parts
 +    /// around a source text it already holds.
 +    pub(crate) fn span(&self) -> Option<LinearSpan> {
 +        self.span
 +    }
 +
-+    /// Kitesurf: whether `other` points into the same source text, which the blocks of
++    /// Parawing: whether `other` points into the same source text, which the blocks of
 +    /// one swapped subtree must share.
 +    pub(crate) fn ks_same_source(&self, other: &Self) -> bool {
 +        match (&self.source_text.source_text, &other.source_text.source_text) {
@@ -981,7 +981,7 @@ index d553a5d..41383dc 100644
          /// If the function requires a function scope.
          const HAS_FUNCTION_SCOPE = 0b1_0000_0000;
 
-+        /// Kitesurf: a frame of this block was ever pushed. Only a block that never ran can
++        /// Parawing: a frame of this block was ever pushed. Only a block that never ran can
 +        /// leave its body to the code store: no frame and no nested function hold it yet.
 +        const KS_RAN = 0b10_0000_0000;
 +
@@ -1013,15 +1013,15 @@ index d553a5d..41383dc 100644
      // Used for identifying anonymous functions in compiled output and call frames.
 @@ -152,18 +153,45 @@ pub struct CodeBlock {
 
-     // Kitesurf: this block's share of the code counters (crate::ks_code_stats), refunded
+     // Parawing: this block's share of the code counters (crate::ks_code_stats), refunded
      // when it drops; `ks_charged` sets it once the block's parts are in place.
 -    #[unsafe_ignore_trace]
      pub(crate) ks_charge: crate::ks_code_stats::CodeCharge,
 
--    // Kitesurf: what only running the block reads; the fields above are what making a
+-    // Parawing: what only running the block reads; the fields above are what making a
 -    // function object, printing its source and running its bytecode need.
 -    body: Box<CodeBody>,
-+    // Kitesurf: resident, or in the code store (crate::ks_body); see `replace_body` for when
++    // Parawing: resident, or in the code store (crate::ks_body); see `replace_body` for when
 +    // it may change, which is what makes the references `body()` hands out sound.
 +    body: UnsafeCell<BodyState>,
 
@@ -1030,7 +1030,7 @@ index d553a5d..41383dc 100644
      pub(crate) traced: Cell<bool>,
  }
 
-+/// Kitesurf: where a block's body is: in memory, or in the code store under a
++/// Parawing: where a block's body is: in memory, or in the code store under a
 +/// descriptor (crate::ks_body).
 +pub(crate) enum BodyState {
 +    Resident(Box<CodeBody>),
@@ -1059,7 +1059,7 @@ index d553a5d..41383dc 100644
 +    }
 +}
 +
- /// Kitesurf: the part of a [`CodeBlock`] that only running it reads: constants, bindings,
+ /// Parawing: the part of a [`CodeBlock`] that only running it reads: constants, bindings,
  /// handlers, inline caches, source map and global tables.
  #[derive(Debug, Trace, Finalize)]
 @@ -270,7 +298,7 @@ impl CodeBlock {
@@ -1075,9 +1075,9 @@ index d553a5d..41383dc 100644
          self.body().source_info.map().path()
      }
 
--    /// Kitesurf: the part only running the block reads, behind one accessor so that it can
+-    /// Parawing: the part only running the block reads, behind one accessor so that it can
 -    /// later live elsewhere.
-+    /// Kitesurf: the part only running the block reads, fetched from the code store if it
++    /// Parawing: the part only running the block reads, fetched from the code store if it
 +    /// was swapped out.
      #[inline]
      pub(crate) fn body(&self) -> &CodeBody {
@@ -1088,7 +1088,7 @@ index d553a5d..41383dc 100644
 +        }
 +    }
 +
-+    /// Kitesurf: the body if it is in memory, without fetching it: what tracing and the
++    /// Parawing: the body if it is in memory, without fetching it: what tracing and the
 +    /// swap rounds read, since neither may run a fault-in.
 +    #[inline]
 +    pub(crate) fn resident_body(&self) -> Option<&CodeBody> {
@@ -1100,7 +1100,7 @@ index d553a5d..41383dc 100644
 +        }
 +    }
 +
-+    /// Kitesurf: the swap descriptor, if the body is in the store; a fault-in reads it and
++    /// Parawing: the swap descriptor, if the body is in the store; a fault-in reads it and
 +    /// then replaces it.
 +    pub(crate) fn body_desc(&self) -> Option<&crate::ks_body::BodyDesc> {
 +        // SAFETY: a shared read of the state under `replace_body`'s contract: nothing
@@ -1111,7 +1111,7 @@ index d553a5d..41383dc 100644
 +        }
 +    }
 +
-+    /// Kitesurf: swaps the body state. Safety: no reference from `body`, `resident_body` or
++    /// Parawing: swaps the body state. Safety: no reference from `body`, `resident_body` or
 +    /// `body_desc` may be live; bodies leave only never-run blocks at idle, and return on read.
 +    pub(crate) unsafe fn replace_body(&self, state: BodyState) -> BodyState {
 +        // SAFETY: the caller guarantees no reference into the state is live, so the exclusive
@@ -1119,7 +1119,7 @@ index d553a5d..41383dc 100644
 +        unsafe { std::mem::replace(&mut *self.body.get(), state) }
 +    }
 +
-+    /// Kitesurf: a block whose body is in the store, as a fault-in rebuilds each block
++    /// Parawing: a block whose body is in the store, as a fault-in rebuilds each block
 +    /// nested in the body it reads back.
 +    #[allow(clippy::too_many_arguments)]
 +    pub(crate) fn ks_shell(
@@ -1147,7 +1147,7 @@ index d553a5d..41383dc 100644
 +        }
 +    }
 +
-+    /// Kitesurf: what a block whose body is in the store keeps in memory: the shell and
++    /// Parawing: what a block whose body is in the store keeps in memory: the shell and
 +    /// its descriptor, for the code counters.
 +    pub(crate) fn ks_shell_bytes() -> usize {
 +        size_of::<Self>() + size_of::<crate::ks_body::BodyDesc>()
@@ -1164,7 +1164,7 @@ index d553a5d..41383dc 100644
 +        }
      }
 
-     /// Kitesurf: assembles a block from its two parts as the compiler finishes it, charging
+     /// Parawing: assembles a block from its two parts as the compiler finishes it, charging
 @@ -315,7 +422,7 @@ impl CodeBlock {
              bytecode,
              debug_id: CodeBlock::get_next_codeblock_id(),
@@ -1195,21 +1195,21 @@ index 96f4fe6..01d23a3 100644
      }
  }
 
-+// Kitesurf: a never-run block's bytecode as a body record carries it: its place in the
++// Parawing: a never-run block's bytecode as a body record carries it: its place in the
 +// store, or its packed bytes when they stay resident (too small, or the store refused).
 +pub(crate) enum KsBytecodeExport {
 +    Desc { key: u32, len: u32, hash: u32 },
 +    Inline(Box<[u8]>),
 +}
 +
- // Kitesurf: a swapped packed form's place in the code store and the hash it must read back
+ // Parawing: a swapped packed form's place in the code store and the hash it must read back
  // with: registers are read unchecked, so bytes that differ must never run.
  pub(crate) struct SwapDesc {
 @@ -573,6 +580,60 @@ impl Bytecode {
          len
      }
 
-+    /// Kitesurf: what a body record needs to rebuild this never-run bytecode, and its
++    /// Parawing: what a body record needs to rebuild this never-run bytecode, and its
 +    /// executable length; packs it to `store` first. None if it ever expanded or is pinned.
 +    pub(crate) fn ks_export(&self, store: &dyn crate::CodeStore) -> Option<(KsBytecodeExport, u32)> {
 +        let exec_len = self.exec_len() as u32;
@@ -1232,7 +1232,7 @@ index 96f4fe6..01d23a3 100644
 +        Some((export, exec_len))
 +    }
 +
-+    /// Kitesurf: hands this bytecode's store copy to the body record that exported it, so
++    /// Parawing: hands this bytecode's store copy to the body record that exported it, so
 +    /// dropping the block does not release it; the block must never run again.
 +    pub(crate) fn ks_disown(&self) {
 +        match self.packed.take() {
@@ -1247,7 +1247,7 @@ index 96f4fe6..01d23a3 100644
 +        }
 +    }
 +
-+    /// Kitesurf: a never-run block's bytecode, rebuilt from what [`Self::ks_export`] gave; it
++    /// Parawing: a never-run block's bytecode, rebuilt from what [`Self::ks_export`] gave; it
 +    /// owns the store copy from here on.
 +    pub(crate) fn ks_import(export: KsBytecodeExport, exec_len: u32) -> Self {
 +        let packed = match export {
@@ -1263,7 +1263,7 @@ index 96f4fe6..01d23a3 100644
 +        bytecode
 +    }
 +
-     /// Kitesurf: gives a block that ran before it could swap a copy in the store, so a forced
+     /// Parawing: gives a block that ran before it could swap a copy in the store, so a forced
      /// round can drop its executable bytes later. Returns whether it now has one.
      pub(crate) fn store_expanded(&self, store: &dyn crate::CodeStore) -> bool {
 diff --git a/src/vm/source_info/mod.rs b/src/vm/source_info/mod.rs
@@ -1275,14 +1275,14 @@ index 0354296..57043f2 100644
          self.data.len() + size_of_val::<[Checkpoint]>(&self.checkpoints)
      }
 +
-+    /// Kitesurf: the encoded entries and checkpoints (`pc, offset, line, column`), for an
++    /// Parawing: the encoded entries and checkpoints (`pc, offset, line, column`), for an
 +    /// embedder that moves the map out of memory; [`Self::ks_from_parts`] rebuilds it.
 +    pub(crate) fn ks_parts(&self) -> (&[u8], impl Iterator<Item = [u32; 4]> + '_) {
 +        let checkpoints = self.checkpoints.iter().map(|c| [c.pc, c.offset, c.line, c.column]);
 +        (&self.data, checkpoints)
 +    }
 +
-+    /// Kitesurf: the map [`Self::ks_parts`] read, rebuilt for `path`, which every block of
++    /// Parawing: the map [`Self::ks_parts`] read, rebuilt for `path`, which every block of
 +    /// a script shares and so is not stored with each.
 +    pub(crate) fn ks_from_parts(data: Box<[u8]>, checkpoints: &[[u32; 4]], path: SourcePath) -> Self {
 +        let checkpoints = checkpoints

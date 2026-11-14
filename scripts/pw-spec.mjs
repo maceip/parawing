@@ -24,7 +24,7 @@ const ROOT = resolve(import.meta.dirname, "..");
 const PATCH_DIR = resolve(ROOT, "scripts/patches/playwright");
 const USAGE = `usage: node scripts/pw-spec.mjs --spec <file> --dist <engine dist> --out-dir <dir>
        [--pw-base <directory>] [--max-wall-ms <ms>] [--keep-deviations]
---pw-base defaults to KITESURF_PW_BASE or .playwright. The checkout must be built by pw:setup.
+--pw-base defaults to PARAWING_PW_BASE or .playwright. The checkout must be built by pw:setup.
 It exits 2 when the spec deviates from its expectations after the retry; --keep-deviations
 writes the results and exits 0 instead, as rebaselining needs.`;
 
@@ -41,7 +41,7 @@ function parseArgs(argv) {
     else if (arg === "--keep-deviations") options.keepDeviations = true;
     else fail(`unknown option ${arg}\n${USAGE}`);
   }
-  options.base ??= resolve(process.env.KITESURF_PW_BASE ?? resolve(ROOT, ".playwright"));
+  options.base ??= resolve(process.env.PARAWING_PW_BASE ?? resolve(ROOT, ".playwright"));
   if (!options.spec || !options.dist || !options.outDir)
     fail(`--spec, --dist, and --out-dir are required\n${USAGE}`);
   return options;

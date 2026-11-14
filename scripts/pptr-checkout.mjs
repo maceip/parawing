@@ -20,12 +20,12 @@ import { join, resolve } from "node:path";
 
 const ROOT = resolve(import.meta.dirname, "..");
 
-// --pptr-base, else KITESURF_PPTR_BASE, else .puppeteer in this checkout.
+// --pptr-base, else PARAWING_PPTR_BASE, else .puppeteer in this checkout.
 /** @param {string[]} argv @returns {string} */
 export function checkoutBase(argv) {
   const index = argv.indexOf("--pptr-base");
   if (index >= 0) return resolve(argv[index + 1]);
-  return resolve(process.env.KITESURF_PPTR_BASE ?? resolve(ROOT, ".puppeteer"));
+  return resolve(process.env.PARAWING_PPTR_BASE ?? resolve(ROOT, ".puppeteer"));
 }
 
 /** @param {string} base @returns {string | null} why the checkout is unusable, or null */

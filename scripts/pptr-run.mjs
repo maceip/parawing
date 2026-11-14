@@ -89,7 +89,7 @@ const { buildBundles, startEngine } = localEngines({
 // specs need it. pptr-reporter writes the JSON collectResults reads.
 function runMocha(wsEndpoint, file, grep, label, skipIds = []) {
   mkdirSync(OUT_DIR, { recursive: true });
-  const jsonOut = join(OUT_DIR, `kitesurf-report-${label}.json`);
+  const jsonOut = join(OUT_DIR, `parawing-report-${label}.json`);
   rmSync(jsonOut, { force: true });
   const mochaArgs = [
     MOCHA,
@@ -107,7 +107,7 @@ function runMocha(wsEndpoint, file, grep, label, skipIds = []) {
   if (grep) mochaArgs.push("--grep", grep);
   const env = {
     ...process.env,
-    KITESURF_WS: wsEndpoint,
+    PARAWING_WS: wsEndpoint,
     PUPPETEER_BROWSER: "chrome",
     HEADLESS: "true",
     PUPPETEER_PROTOCOL: "cdp",
@@ -196,7 +196,7 @@ function compare(results, durations, errors, duplicates) {
   return 0;
 }
 
-const externalWs = process.env.KITESURF_WS;
+const externalWs = process.env.PARAWING_WS;
 if (externalWs) {
   console.log(`[${TAG}] attaching to external engine: ${externalWs} (no per-file restart)`);
 } else {

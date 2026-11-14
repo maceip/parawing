@@ -58,7 +58,7 @@ index 8851cb4..e4846f5 100644
 
 -/// Asserts the size of a type at compile time.
 +// Disabled. These dev-only size asserts run only on 64-bit
-+// targets (kitesurf builds for 32-bit wasm) and are calibrated for
++// targets (parawing builds for 32-bit wasm) and are calibrated for
 +// upstream servo.
  macro_rules! size_of_test {
 -    ($t: ty, $expected_size: expr) => {

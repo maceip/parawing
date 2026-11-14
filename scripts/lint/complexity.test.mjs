@@ -54,7 +54,7 @@ test("temporary config extends the root config and overrides only complexity", (
 });
 
 test("installed Oxlint JSON diagnostics are accepted by the analyzer", () => {
-  const temporaryDirectory = mkdtempSync(join(tmpdir(), "kitesurf-complexity-cli-"));
+  const temporaryDirectory = mkdtempSync(join(tmpdir(), "parawing-complexity-cli-"));
   try {
     const fixturePath = join(temporaryDirectory, "complexity-fixture.js");
     const branches = Array.from(

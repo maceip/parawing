@@ -13,8 +13,8 @@ const GLUE = "export function import1(a,b,c,d){globalThis.__ks_state.fetchResour
 test("the generated import calls the private bridge directly", async (t) => {
   const dir = mkdtempSync(join(tmpdir(), "build-wasm-bridge-"));
   t.after(() => rmSync(dir, { recursive: true, force: true }));
-  writeFileSync(join(dir, "kitesurf_core.js"), GLUE);
-  writeFileSync(join(dir, "kitesurf_core.d.ts"), "");
+  writeFileSync(join(dir, "parawing_core.js"), GLUE);
+  writeFileSync(join(dir, "parawing_core.d.ts"), "");
   const source = readFileSync(new URL("./build-wasm.mjs", import.meta.url), "utf8");
   const at = source.indexOf("{", source.indexOf("hide fetchResource bridge"));
   const block = source.slice(at, source.indexOf("// Every trap"));
@@ -24,7 +24,7 @@ test("the generated import calls the private bridge directly", async (t) => {
     readFileSync,
     writeFileSync,
   );
-  const glue = await import(pathToFileURL(join(dir, "kitesurf_core.js")).href);
+  const glue = await import(pathToFileURL(join(dir, "parawing_core.js")).href);
   const seen = [];
   const bridge = () => {};
   const nativeCall = Function.prototype.call;

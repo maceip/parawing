@@ -326,7 +326,7 @@ index 0f42b4b..774198c 100644
 -                // outbound gateway routes through the Font cross-
 -                // origin bypass (matching the opaque-resource path
 -                // real browsers take for @font-face). Without this
--                // tag, KitesurfNetProvider falls back to URL-
+-                // tag, ParawingNetProvider falls back to URL-
 -                // extension inference, which fails for
 -                // content-negotiating CDNs (e.g. fonts.gstatic.com
 -                // serves /<hash>.woff2 with no extension hint to
@@ -370,7 +370,7 @@ index 0f42b4b..774198c 100644
 +    // outbound gateway routes through the Font cross-
 +    // origin bypass (matching the opaque-resource path
 +    // real browsers take for @font-face). Without this
-+    // tag, KitesurfNetProvider falls back to URL-
++    // tag, ParawingNetProvider falls back to URL-
 +    // extension inference, which fails for
 +    // content-negotiating CDNs (a font CDN may serve
 +    // /<hash>.woff2 with no extension hint to

@@ -71,7 +71,7 @@ Execution
   --timeout <ms>            per-test timeout (per-test expectations override)
   --max-total <ms>          hard ceiling on total wall clock (partial run = exit 1)
   --bail                    stop at the first unexpected result
-  --port <n>                first engine port (default $KITESURF_PORT or 8787).
+  --port <n>                first engine port (default $PARAWING_PORT or 8787).
                             A run uses port..port+2j-1: engine i of a pass
                             listens on port+i, the pre-booting next pass on
                             port+j+i
@@ -94,7 +94,7 @@ Output
   --killers-out <path>      tests that took the engine down (JSON array)
   --stalled-out <path>      tests that only starved it, then recovered (JSON array)
   --engine-log-dir <dir>    where each engine's wrangler dev output goes, one
-                            ks-dev-batched-<port>.log per port (default /tmp)
+                            pw-dev-batched-<port>.log per port (default /tmp)
 
 Profiling
   WPT_PROFILE=1             stamp a per-phase timing breakdown (media / goto /
@@ -182,7 +182,7 @@ function parseArgs(arr) {
     batchSize: defaultBatchSize(),
     concurrency: defaultConcurrency(),
     start: 0,
-    port: parseInt(process.env.KITESURF_PORT ?? "8787", 10) || 8787,
+    port: parseInt(process.env.PARAWING_PORT ?? "8787", 10) || 8787,
     build: true,
     engineLauncher: "wrangler",
     engineDist: DEFAULT_DIST,
@@ -253,7 +253,7 @@ const wsFor = (port) => `ws://127.0.0.1:${port}/devtools/browser`;
 const healthFor = (port) => `http://127.0.0.1:${port}/health`;
 const ENGINE_LOG_DIR = opts.engineLogDir ? resolve(opts.engineLogDir) : "/tmp";
 mkdirSync(ENGINE_LOG_DIR, { recursive: true });
-const devLogFor = (port) => resolve(ENGINE_LOG_DIR, `ks-dev-batched-${port}.log`);
+const devLogFor = (port) => resolve(ENGINE_LOG_DIR, `pw-dev-batched-${port}.log`);
 const persistDirFor = (port) => resolve(ENGINE_CWD, ".wrangler", `state-wpt-${port}`);
 const WS = wsFor(opts.port);
 const WPT_BASE = opts.base ?? DEFAULT_WPT_BASE;
@@ -320,7 +320,7 @@ function refuseHeldPorts(ports) {
   for (const h of held) console.error(red(`           :${h.port}  pid ${h.pid}  ${h.cmd}`));
   console.error(
     red(
-      `           a run uses ${ports.length} port(s) from ${ports[0]}; stop those processes or pass --port / KITESURF_PORT`,
+      `           a run uses ${ports.length} port(s) from ${ports[0]}; stop those processes or pass --port / PARAWING_PORT`,
     ),
   );
   return true;
@@ -350,7 +350,7 @@ async function waitPortFree(port, deadlineMs = 15000) {
 
 function runPrebuild() {
   const t0 = Date.now();
-  const r = spawnSync("pnpm", ["--filter", "@kitesurf/engine", "run", "prebuild"], {
+  const r = spawnSync("pnpm", ["--filter", "@parawing/engine", "run", "prebuild"], {
     cwd: ROOT,
     stdio: ["ignore", "inherit", "inherit"],
   });

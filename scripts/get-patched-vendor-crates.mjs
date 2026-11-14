@@ -52,11 +52,11 @@ const GIT_ENV = {
   ...process.env,
   GIT_CONFIG_GLOBAL: "/dev/null",
   GIT_CONFIG_SYSTEM: "/dev/null",
-  GIT_AUTHOR_NAME: "kitesurf-vendor",
-  GIT_AUTHOR_EMAIL: "vendor@kitesurf.invalid",
+  GIT_AUTHOR_NAME: "parawing-vendor",
+  GIT_AUTHOR_EMAIL: "vendor@parawing.invalid",
   GIT_AUTHOR_DATE: "2000-01-01T00:00:00 +0000",
-  GIT_COMMITTER_NAME: "kitesurf-vendor",
-  GIT_COMMITTER_EMAIL: "vendor@kitesurf.invalid",
+  GIT_COMMITTER_NAME: "parawing-vendor",
+  GIT_COMMITTER_EMAIL: "vendor@parawing.invalid",
   GIT_COMMITTER_DATE: "2000-01-01T00:00:00 +0000",
 };
 

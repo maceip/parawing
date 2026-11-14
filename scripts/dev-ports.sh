@@ -20,10 +20,10 @@ else
   _ks_bench=$((_ks_base + 3))
 fi
 
-export KITESURF_PORT="${KITESURF_PORT:-$_ks_base}"
-export KITESURF_INSPECTOR_PORT="${KITESURF_INSPECTOR_PORT:-$_ks_inspector}"
-export KITESURF_WPT_PORT="${KITESURF_WPT_PORT:-$_ks_wpt}"
-export KITESURF_BENCH_PORT="${KITESURF_BENCH_PORT:-$_ks_bench}"
-export KITESURF_ORIGIN="${KITESURF_ORIGIN:-http://127.0.0.1:${KITESURF_PORT}}"
+export PARAWING_PORT="${PARAWING_PORT:-$_ks_base}"
+export PARAWING_INSPECTOR_PORT="${PARAWING_INSPECTOR_PORT:-$_ks_inspector}"
+export PARAWING_WPT_PORT="${PARAWING_WPT_PORT:-$_ks_wpt}"
+export PARAWING_BENCH_PORT="${PARAWING_BENCH_PORT:-$_ks_bench}"
+export PARAWING_ORIGIN="${PARAWING_ORIGIN:-http://127.0.0.1:${PARAWING_PORT}}"
 
 unset _ks_branch _ks_hash _ks_base _ks_inspector _ks_wpt _ks_bench

@@ -1,18 +1,16 @@
-name: Set up kitesurf
-description: Install pnpm 9.15.4, Node 22 and, when requested, the Rust toolchain pinned in rust-toolchain.toml, a Bazel cache and bazelflare.
+name: Set up Parawing
+description: Install pnpm 9.15.4, Node 22, Deno 2.x, and, when requested, the Rust toolchain pinned in rust-toolchain.toml and a Bazel cache.
 inputs:
   rust:
     description: Install the pinned Rust toolchain and the rust-cache.
     required: false
     default: "false"
+  deno:
+    description: Install Deno 2.x and ensure /usr/local/bin/deno is present.
+    required: false
+    default: "true"
   bazel-cache:
     description: Restore Bazel's disk and repository caches; the job saves them itself.
-    required: false
-    default: "false"
-  bazelflare:
-    description: >-
-      With bazel-cache, build on bazelflare (.bazelrc's bazelflare config) when the job has an OIDC
-      token (id-token: write), caching only Bazel's repositories here; without one, build here.
     required: false
     default: "false"
 outputs:
@@ -25,38 +23,23 @@ outputs:
   bazel-cache-paths:
     description: The paths the job saves the Bazel caches from, as the restore read them.
     value: ${{ steps.plan.outputs.cache-paths }}
-  bazelflare:
-    description: "'true' when every Bazel command builds on bazelflare."
-    value: ${{ steps.plan.outputs.bazelflare }}
 runs:
   using: composite
   steps:
-    # A pull request from a fork gets no OIDC token, so it builds on the runner. On bazelflare the
-    # actions come from its cache, so only the repositories Bazel fetches here are worth restoring.
     - if: inputs.bazel-cache == 'true'
       id: plan
       shell: bash
       env:
-        WANTS_BAZELFLARE: ${{ inputs.bazelflare }}
-        LOCKS: ${{ hashFiles('MODULE.bazel.lock', 'Cargo.lock', 'pnpm-lock.yaml') }}
+        LOCKS: ${{ hashFiles('MODULE.bazel.lock', 'Cargo.lock', 'packages/device-authority/Cargo.lock', 'packages/rust-host/Cargo.lock', 'packages/parawing-cli/Cargo.lock', 'pnpm-lock.yaml') }}
       run: |
-        remote=false
-        if [ "$WANTS_BAZELFLARE" = true ] && [ -n "${ACTIONS_ID_TOKEN_REQUEST_URL:-}" ]; then remote=true; fi
         {
-          echo "bazelflare=$remote"
-          if $remote; then
-            echo "cache-key=bazelflare-repo-$RUNNER_OS-$LOCKS"
-            printf 'cache-restore-keys<<EOF\nbazelflare-repo-%s-\nEOF\n' "$RUNNER_OS"
-            printf 'cache-paths<<EOF\n~/.cache/bazel-repo\nEOF\n'
-          else
-            echo "cache-key=bazel-$RUNNER_OS-$LOCKS-$GITHUB_SHA"
-            printf 'cache-restore-keys<<EOF\nbazel-%s-%s-\nbazel-%s-\nEOF\n' "$RUNNER_OS" "$LOCKS" "$RUNNER_OS"
-            printf 'cache-paths<<EOF\n~/.cache/bazel-disk\n~/.cache/bazel-repo\nEOF\n'
-          fi
+          echo "cache-key=bazel-$RUNNER_OS-$LOCKS-$GITHUB_SHA"
+          printf 'cache-restore-keys<<EOF\nbazel-%s-%s-\nbazel-%s-\nEOF\n' "$RUNNER_OS" "$LOCKS" "$RUNNER_OS"
+          printf 'cache-paths<<EOF\n~/.cache/bazel-disk\n~/.cache/bazel-repo\nEOF\n'
         } >> "$GITHUB_OUTPUT"
     # A cold Bazel build of every lane fills the runner's root disk. Drop SDKs the jobs never use;
     # keep /opt/hostedtoolcache, where setup-node finds Node.
-    - if: inputs.bazel-cache == 'true' && steps.plan.outputs.bazelflare != 'true'
+    - if: inputs.bazel-cache == 'true'
       name: Free disk space
       shell: bash
       run: |
@@ -77,6 +60,20 @@ runs:
       with:
         node-version: 22
         cache: pnpm
+    - if: inputs.deno == 'true'
+      uses: denoland/setup-deno@v2
+      with:
+        deno-version: v2.x
+    - if: inputs.deno == 'true'
+      name: Ensure /usr/local/bin/deno symlink
+      shell: bash
+      run: |
+        DENO_BIN="$(command -v deno || true)"
+        if [ -n "$DENO_BIN" ] && [ ! -e /usr/local/bin/deno ]; then
+          ln -sf "$DENO_BIN" /usr/local/bin/deno 2>/dev/null \
+            || sudo ln -sf "$DENO_BIN" /usr/local/bin/deno \
+            || true
+        fi
     - if: inputs.rust == 'true'
       shell: bash
       run: rustup show
@@ -92,23 +89,12 @@ runs:
     # one is a commit missing its lockfile update.
     - if: inputs.bazel-cache == 'true'
       shell: bash
-      env:
-        BAZELFLARE: ${{ steps.plan.outputs.bazelflare }}
       run: |
         {
+          echo "common --local_ram_resources=HOST_RAM*.85"
           echo "common --lockfile_mode=error"
           echo "common --repository_cache=$HOME/.cache/bazel-repo"
-          if [ "$BAZELFLARE" != true ]; then
-            echo "common --disk_cache=$HOME/.cache/bazel-disk"
-          else
-            echo "common --config=bazelflare"
-            # Only main's own CI may build in the instance every other build falls back to;
-            # bazelflare checks the job's token for the same and refuses any other job there.
-            if [[ $GITHUB_WORKFLOW_REF == "$GITHUB_REPOSITORY/.github/workflows/ci.yml@refs/heads/main" &&
-              $GITHUB_EVENT_NAME =~ ^(push|workflow_dispatch)$ ]]; then
-              echo "common --remote_instance_name=trusted"
-            fi
-          fi
+          echo "common --disk_cache=$HOME/.cache/bazel-disk"
         } >> .bazelrc.user
     # Restore only: the job saves at its end, from main only (see ci.yml).
     - if: inputs.bazel-cache == 'true'

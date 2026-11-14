@@ -4,7 +4,7 @@ Source: https://github.com/kateinoigakukun/wasm-memprof
 Upstream commit: ecab678215b83e1c59d8e80967f96d03e9a62db6
 Vendored: 2026-06-05
 
-Used by the kitesurf `KITESURF_MEMPROF=1` build for build-time
+Used by the parawing `PARAWING_MEMPROF=1` build for build-time
 WebAssembly heap profiling.
 
 The `instrumentor/` crate's library API (`instrument(bytes, &[Tracee])`)
@@ -12,7 +12,7 @@ is used by `scripts/memprof-rewriter/`. We do not use the npm package —
 we wrote our own minimal recorder baked into the page-script bundle
 because the `WMProf.wrap()` pattern in wasm-memprof's npm package does
 not work with workerd's precompiled WebAssembly.Module loading model
-(the kitesurf core wasm is loaded inside a sub-isolate via Worker
+(the parawing core wasm is loaded inside a sub-isolate via Worker
 Loader and instantiated synchronously by wasm-bindgen's `initSync`).
 
 ## What we kept vs upstream
@@ -24,9 +24,9 @@ Upstream provides four things; we only vendor the first:
   - `src/` + `dist/` — TS/JS source + pre-built bundle of npm package (DELETED)
   - `examples/`, `test/`, `docs/` (DELETED)
 
-## kitesurf-specific note: panic=abort
+## parawing-specific note: panic=abort
 
-kitesurf's production wasm is built with `panic = "unwind"`, which
+parawing's production wasm is built with `panic = "unwind"`, which
 emits the modern Wasm exception-handling instructions (`try_table`,
 `throw_ref`). walrus 0.23.3 — the parser this instrumentor depends on —
 does NOT support those ops (it `unimplemented!()`s on them). The

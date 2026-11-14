@@ -19,7 +19,7 @@ export function sha256File(file) {
   return createHash("sha256").update(readFileSync(file)).digest("hex");
 }
 
-const CACHE_ROOT = resolve(process.env.XDG_CACHE_HOME || resolve(homedir(), ".cache"), "kitesurf");
+const CACHE_ROOT = resolve(process.env.XDG_CACHE_HOME || resolve(homedir(), ".cache"), "parawing");
 
 /** @returns {string} */
 export function getWasmOpt() {

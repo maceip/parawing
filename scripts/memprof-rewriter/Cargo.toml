@@ -3,7 +3,7 @@ name = "memprof-rewriter"
 version = "0.1.0"
 edition = "2021"
 publish = false
-description = "Build-time wasm-memprof instrumentor that hooks Rust allocator names (__rust_alloc/_dealloc/_realloc/_alloc_zeroed) in the kitesurf-core wasm."
+description = "Build-time wasm-memprof instrumentor that hooks Rust allocator names (__rust_alloc/_dealloc/_realloc/_alloc_zeroed) in the parawing-core wasm."
 
 [[bin]]
 name = "memprof-rewriter"

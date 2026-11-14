@@ -86,7 +86,7 @@ index 4d18846..c590ba5 100644
  }
 +
 +#[cfg(test)]
-+mod kitesurf_regression_tests {
++mod parawing_regression_tests {
 +    use crate::prelude::*;
 +    use crate::Point;
 +

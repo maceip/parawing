@@ -20,7 +20,7 @@ import { checkoutBase, checkoutProblem, copyWritable, overlay } from "./pptr-che
 const ROOT = resolve(import.meta.dirname, "..");
 const USAGE = `usage: node scripts/pptr-spec.mjs --spec <file> --test-project <dir> --dist <engine dist>
        --out-dir <dir> [--pptr-base <directory>] [--max-wall-ms <ms>] [--keep-deviations]
---test-project is pptr-build's output. --pptr-base defaults to KITESURF_PPTR_BASE or .puppeteer,
+--test-project is pptr-build's output. --pptr-base defaults to PARAWING_PPTR_BASE or .puppeteer,
 and must be the checkout pptr-build used. It exits 2 when the spec deviates from its expectations
 after the retry; --keep-deviations writes the results and exits 0 instead, as rebaselining needs.`;
 

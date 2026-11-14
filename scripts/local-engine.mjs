@@ -16,14 +16,14 @@ const MAX_PORT_ALLOCATION_ATTEMPTS = 500;
 const ENGINE_HEALTH_POLL_INTERVAL_MS = 300;
 const ENGINE_HEALTH_STARTUP_BUDGET_MS = 90_000;
 const MINIFLARE_VARS = [
-  "KITESURF_ENV:local",
-  "KITESURF_RESOURCE_DRAIN_QUIET_TURNS:5",
-  "KITESURF_LAG_WATCHDOG:1",
-  "KITESURF_OTLP_ENDPOINT:http://127.0.0.1:4318/v1/traces",
+  "PARAWING_ENV:local",
+  "PARAWING_RESOURCE_DRAIN_QUIET_TURNS:5",
+  "PARAWING_LAG_WATCHDOG:1",
+  "PARAWING_OTLP_ENDPOINT:http://127.0.0.1:4318/v1/traces",
 ];
 // The upstream suites serve from loopback and load it from blank pages, which the engine counts
 // as public documents; Chrome leaves a blank page the client opened unrestricted.
-const SUITE_SERVER_VAR = "KITESURF_ALLOW_PRIVATE_NETWORK:1";
+const SUITE_SERVER_VAR = "PARAWING_ALLOW_PRIVATE_NETWORK:1";
 
 const ALL_STOPS = new Set();
 function cleanupAll() {
@@ -84,7 +84,7 @@ export function localEngines({ tag, launcher, dist, outDir, firstPort, skipBuild
 
   async function buildBundles() {
     if (process.env[skipBuildEnv] === "1" || launcher === "miniflare") return;
-    const wasm = resolve(ROOT, "packages/core/pkg/kitesurf_core_bg.wasm");
+    const wasm = resolve(ROOT, "packages/core/pkg/parawing_core_bg.wasm");
     if (!existsSync(wasm))
       throw new Error(`core wasm not built — run \`pnpm run build\` first (or ${skipBuildEnv}=1)`);
     for (const pkg of [
@@ -135,10 +135,10 @@ export function localEngines({ tag, launcher, dist, outDir, firstPort, skipBuild
             String(iport),
           ];
     cliArgs.push("--var", SUITE_SERVER_VAR);
-    if (process.env.KITESURF_SIMULATE_PROD_EVAL)
-      cliArgs.push("--var", "KITESURF_SIMULATE_PROD_EVAL:1");
+    if (process.env.PARAWING_SIMULATE_PROD_EVAL)
+      cliArgs.push("--var", "PARAWING_SIMULATE_PROD_EVAL:1");
     mkdirSync(outDir, { recursive: true });
-    const logPath = join(outDir, `kitesurf-engine-${port}.log`);
+    const logPath = join(outDir, `parawing-engine-${port}.log`);
     const fd = openSync(logPath, "w");
     const proc = spawn(bin, cliArgs, {
       cwd: ENGINE_DIR,

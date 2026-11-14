@@ -10,7 +10,7 @@ import { resolve } from "node:path";
 // Keep this CLI pin aligned with the wasm-bindgen crate version in the root workspace.
 export const WASM_BINDGEN_VERSION = "0.2.127";
 
-const CACHE_ROOT = resolve(process.env.XDG_CACHE_HOME || resolve(homedir(), ".cache"), "kitesurf");
+const CACHE_ROOT = resolve(process.env.XDG_CACHE_HOME || resolve(homedir(), ".cache"), "parawing");
 
 /** @param {string} [version=WASM_BINDGEN_VERSION]
  * @returns {string} */

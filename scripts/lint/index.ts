@@ -10,7 +10,7 @@ import { noUnnecessaryUnknownRule } from "./rules/no-unnecessary-unknown.ts";
 import { noWidenThenAssertRule } from "./rules/no-widen-then-assert.ts";
 
 export default definePlugin({
-  meta: { name: "kitesurf" },
+  meta: { name: "parawing" },
   rules: {
     "concise-comments": conciseCommentsRule,
     "explicit-boundary-returns": explicitBoundaryReturnsRule,

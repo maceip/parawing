@@ -1,6 +1,6 @@
-# Contributing to Kitesurf
+# Contributing to Parawing
 
-Thanks for your interest. Kitesurf is a proof-of-concept browser engine, and many
+Thanks for your interest. Parawing is a proof-of-concept browser engine, and many
 standards and behaviors are incomplete. Read the relevant code and its comments
 before you assume a feature works.
 
@@ -17,27 +17,8 @@ Focused bug fixes, web-compatibility fixes, reliability and performance
 improvements, and documentation fixes are the most likely to be accepted.
 Unrequested features, large rewrites, and unrelated cleanup are not.
 
-Report bugs and propose features in
-[issues](https://github.com/cloudflare/kitesurf/issues). Search existing issues
+Report bugs and propose features in the repository's issues tracker. Search existing issues
 and the docs before you start.
-
-## Get vouched before you open a pull request
-
-Pull requests from contributors who are not on [`.github/VOUCHED.td`](.github/VOUCHED.td)
-are closed automatically when they are opened or reopened. Issues stay open to
-everyone.
-
-1. **Open an issue.** For a bug, include a minimal reproduction, the expected
-   result, and the actual result. For a feature or behavior change, describe the
-   use case and the approach you have in mind.
-2. **Wait for a maintainer to agree and vouch for you.** A maintainer adds your
-   GitHub username to the vouched list. A vouch lets you open pull requests; it
-   does not approve any code. Bots and collaborators with write access do not
-   need an entry.
-3. **Open a focused pull request** that links the issue.
-
-If your pull request was closed before you were vouched, link it from the issue.
-A maintainer can reopen it after vouching for you.
 
 ## Agree on the problem and scope first
 
@@ -50,10 +31,9 @@ fixing it.
 For a substantial bug fix, link an issue in which maintainers confirmed the
 failure and the intended behavior.
 
-Once you are vouched, you can send a small fix for an obvious bug without a new
-issue. Explain the defect and why the fix is small and safe. There is no
-line-count cutoff: we judge the purpose and the behavior change, not the size of
-the diff.
+You can send a small fix for an obvious bug without a new issue. Explain the
+defect and why the fix is small and safe. There is no line-count cutoff: we
+judge the purpose and the behavior change, not the size of the diff.
 
 ## Solve one problem per pull request
 
@@ -89,12 +69,14 @@ Run the checks that cover what you changed rather than every lane in the repo.
 - Node.js 22, which CI uses.
 - pnpm 9.15.4, pinned through `packageManager` in the root `package.json`. Run
   `corepack enable` to use it.
+- Deno 2.x (`deno`) for the sandboxed V8 child isolate runtime (`packages/deno-host`
+  and `packages/rust-host`).
 - Bazelisk, installed as `bazel`. Bazel builds and tests everything, and fetches
   its own Rust toolchains, wasm-bindgen, and binaryen.
-- On macOS, GNU tar (`brew install gnu-tar`).
-- Rust through rustup, only for editing vendored crate patches.
-  `rust-toolchain.toml` pins `nightly-2026-05-14` with the
-  `wasm32-unknown-unknown` target, the same nightly Bazel uses.
+- On macOS, GNU tar (`brew install gnu-tar`), plus an optional Linux container runtime
+  (OrbStack or Docker) for macOS Tier 2 CRIU capsule freeze/thaw.
+- Rust through rustup matching `rust-toolchain.toml` (`nightly-2026-05-14` with the
+  `wasm32-unknown-unknown` target, the same nightly Bazel uses).
 
 ```bash
 pnpm install --frozen-lockfile
@@ -104,12 +86,6 @@ pnpm run build
 `pnpm run build` builds the wasm modules and loaded-worker bundles with Bazel
 and copies them into the source tree. Run `pnpm run dev` to build and serve the
 engine locally and `pnpm run test:e2e <substring>` for a focused e2e subset.
-
-Maintainers with a Cloudflare Access login can add `--config=bazelflare` to any
-Bazel command on Linux x86-64. It runs every action on bazelflare, the remote
-execution service CI builds on, and reads the cache main's CI writes. Log in
-once with `cloudflared access login https://bazelflare.kitesurf.workers.dev`.
-Everyone else builds locally, as above.
 
 ## Checks
 
@@ -121,13 +97,12 @@ pnpm run test:e2e <file-substring>
 ```
 
 Pass a file-name substring to `test:e2e` to run only the files you touched. For
-Rust changes, also run `pnpm run test:rust` and `pnpm run lint:rust` (the Rust
-gates as Bazel tests). CI runs
-the build, the checks, the Rust host tests, the vitest suite and the Playwright
-lane. It does not run the e2e or WPT lanes, so run the ones your change touches.
-CI builds on bazelflare, except for a pull request from a fork: GitHub gives its
-jobs no token to authenticate with, so they build on the runner, which takes
-longer, and skip the Playwright lane, which main runs once the change merges.
+Rust changes, also run `pnpm run test:rust` and `pnpm run lint:rust`. CI runs a
+standalone Bazel build and test pass covering `//:check`, `//:rust_lint`,
+`//packages/core:host_tests`, `//packages/engine:vitest`,
+`//packages/parawing-cli:lib_test`, `//packages/parawing-cli:bin_test`, clean
+`pnpm run build` verification, and the hermetic e2e smoke gate. Run full WPT
+subtrees selectively when your change touches web-platform behavior.
 
 ## Commits
 

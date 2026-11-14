@@ -5,7 +5,7 @@
 import { writeFileSync } from "node:fs";
 import puppeteer from "puppeteer-core";
 
-const WS = process.env.KITESURF_WS ?? "ws://127.0.0.1:8787/devtools/browser";
+const WS = process.env.PARAWING_WS ?? "ws://127.0.0.1:8787/devtools/browser";
 const ORIGIN = WS.replace(/^ws/, "http").replace(/\/devtools\/.*$/, "");
 
 const args = process.argv.slice(2);
@@ -27,7 +27,7 @@ async function doomSetup(page) {
   if (CANVAS_PUSH_MS > 0) {
     await page
       .evaluate((ms) => {
-        globalThis[Symbol.for("kitesurf.internals")].canvasPushMs = ms;
+        globalThis[Symbol.for("parawing.internals")].canvasPushMs = ms;
       }, CANVAS_PUSH_MS)
       .catch(() => {});
     console.log(`  [doom] canvas push interval override: ${CANVAS_PUSH_MS}ms`);
@@ -84,7 +84,7 @@ const kb = (b) => (b / 1024).toFixed(1);
 async function measure(cdp, targetId) {
   const t0 = performance.now();
   const params = targetId ? { targetId } : {};
-  let r = await cdp.send("Kitesurf.getSceneStats", params);
+  let r = await cdp.send("Parawing.getSceneStats", params);
   const callMs = performance.now() - t0;
   if (r && r.byTarget) {
     const vals = Object.values(r.byTarget);

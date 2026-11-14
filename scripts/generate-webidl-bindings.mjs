@@ -19,7 +19,7 @@ if (wptDirArg >= 0 && !process.argv[wptDirArg + 1]) {
 }
 const wptDir = path.resolve(
   wptDirArg < 0
-    ? (process.env.KITESURF_WPT_DIR ?? path.join(root, ".wpt"))
+    ? (process.env.PARAWING_WPT_DIR ?? path.join(root, ".wpt"))
     : process.argv[wptDirArg + 1],
 );
 const wptPath = (input) =>

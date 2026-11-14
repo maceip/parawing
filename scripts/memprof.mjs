@@ -16,8 +16,8 @@ function flag(name, def) {
   return v && !v.startsWith("--") ? v : true;
 }
 
-const HOST = process.env.KITESURF_HOST ?? "127.0.0.1";
-const PORT = parseInt(process.env.KITESURF_PORT ?? "8787", 10);
+const HOST = process.env.PARAWING_HOST ?? "127.0.0.1";
+const PORT = parseInt(process.env.PARAWING_PORT ?? "8787", 10);
 const WS = `ws://${HOST}:${PORT}/devtools/browser`;
 const topN = parseInt(flag("top", "25"), 10);
 const htmlFile = flag("html", null);
@@ -140,12 +140,12 @@ async function captureDump() {
       await session.send("Page.captureScreenshot", { format: "jpeg", quality: 60 });
     }
 
-    const r = await session.send("Kitesurf.getMemprofDump", { targetId });
+    const r = await session.send("Parawing.getMemprofDump", { targetId });
     const json = r?.json;
     if (typeof json !== "string") {
       throw new Error(
         `getMemprofDump returned no json (${JSON.stringify(r).slice(0, 200)}). ` +
-          `Did you build with KITESURF_MEMPROF=1 for BOTH wasm and page-script?`,
+          `Did you build with PARAWING_MEMPROF=1 for BOTH wasm and page-script?`,
       );
     }
     return JSON.parse(json);

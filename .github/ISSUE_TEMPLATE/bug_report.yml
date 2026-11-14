@@ -10,7 +10,7 @@ body:
   - type: input
     id: version
     attributes:
-      label: kitesurf commit or release
+      label: Parawing commit or release
     validations:
       required: true
   - type: dropdown
@@ -19,7 +19,7 @@ body:
       label: Entry point
       options:
         - CDP WebSocket (/devtools/browser or /devtools/page)
-        - Scene stream (kitesurf-cli)
+        - Scene stream (parawing-cli)
         - Other
     validations:
       required: true
@@ -47,4 +47,4 @@ body:
     id: environment
     attributes:
       label: Environment
-      description: Operating system, Node.js version, wrangler version, and whether the engine runs locally or on Workers.
+      description: Operating system, Node.js/Deno/Rust toolchain versions, and host mode.

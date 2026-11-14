@@ -9,7 +9,7 @@ Content-Transfer-Encoding: 8bit
 
 A script's source text is close to half of what a compiled bundle
 keeps, and its one reader is Function.prototype.toString. An embedder
-with storage outside the heap (kitesurf: a page facet's SQLite) can
+with storage outside the heap (parawing: a page facet's SQLite) can
 hold it instead, and give back only the span a toString asks for.
 
 An embedder installs a CodeStore per thread. Source texts of scripts,
@@ -92,9 +92,9 @@ index af941c4..fb4cb81 100644
      i64::try_from(n).unwrap_or(i64::MAX)
  }
 
--/// Kitesurf: live compiled code as (name, value) pairs: code blocks, those that ran, retained
+-/// Parawing: live compiled code as (name, value) pairs: code blocks, those that ran, retained
 -/// source texts, then bytes by kind. Strings and scopes shared by code blocks are not counted.
-+/// Kitesurf: live compiled code as (name, value) pairs: blocks, those that ran, resident and
++/// Parawing: live compiled code as (name, value) pairs: blocks, those that ran, resident and
 +/// swapped source texts, store reads and failures, then bytes by kind. Shared strings uncounted.
  #[must_use]
 -pub fn ks_code_stats() -> [(&'static str, i64); 9] {
@@ -118,27 +118,27 @@ index 0000000..9085083
 --- /dev/null
 +++ b/src/ks_code_store.rs
 @@ -0,0 +1,38 @@
-+//! Kitesurf: a place outside the heap where an embedder keeps bytes that compiled code
++//! Parawing: a place outside the heap where an embedder keeps bytes that compiled code
 +//! rarely reads (a script's source text for `toString`), fetched back on demand.
 +
 +use std::{cell::RefCell, rc::Rc};
 +
-+/// Kitesurf: an embedder's store for cold code bytes. Every method may fail; a refused
++/// Parawing: an embedder's store for cold code bytes. Every method may fail; a refused
 +/// `put` keeps the bytes resident and a failed `read` falls back the way a reader chooses.
 +pub trait CodeStore {
-+    /// Kitesurf: values smaller than this stay resident, since a store write and its
++    /// Parawing: values smaller than this stay resident, since a store write and its
 +    /// later delete cost more than the memory they would free.
 +    fn min_bytes(&self) -> usize;
 +
-+    /// Kitesurf: stores `bytes` and returns the key to read them back with, or None to
++    /// Parawing: stores `bytes` and returns the key to read them back with, or None to
 +    /// keep them resident (the store is full, failing, or does not want them).
 +    fn put(&self, bytes: &[u8]) -> Option<u64>;
 +
-+    /// Kitesurf: replaces `out` with `len` bytes of the value `key` from `offset` on.
++    /// Parawing: replaces `out` with `len` bytes of the value `key` from `offset` on.
 +    /// Returns false when they cannot be read; `out` is then unspecified.
 +    fn read(&self, key: u64, offset: usize, len: usize, out: &mut Vec<u8>) -> bool;
 +
-+    /// Kitesurf: the value's owner is gone, so the store may drop it. Called at most
++    /// Parawing: the value's owner is gone, so the store may drop it. Called at most
 +    /// once per key, and possibly while the thread tears its state down.
 +    fn release(&self, key: u64);
 +}
@@ -147,7 +147,7 @@ index 0000000..9085083
 +    static STORE: RefCell<Option<Rc<dyn CodeStore>>> = const { RefCell::new(None) };
 +}
 +
-+/// Kitesurf: installs (or, with None, removes) this thread's code store. Values already
++/// Parawing: installs (or, with None, removes) this thread's code store. Values already
 +/// stored keep the store they went to; source texts made from now on may be swapped.
 +pub fn ks_set_code_store(store: Option<Rc<dyn CodeStore>>) {
 +    let _ = STORE.try_with(|s| *s.borrow_mut() = store);
@@ -190,7 +190,7 @@ index 4946dbb..02cd197 100644
 
 +use crate::{ks_code_stats as stats, ks_code_store::CodeStore};
 +
-+// Kitesurf: resident until an idle point finds the script still alive and the embedder's
++// Parawing: resident until an idle point finds the script still alive and the embedder's
 +// store takes the text; `toString` then reads back only the span it asks for.
 +enum Repr {
 +    Resident(boa_ast::SourceText),
@@ -216,7 +216,7 @@ index 4946dbb..02cd197 100644
 +}
 +
 +thread_local! {
-+    // Kitesurf: texts that may be swapped at the next idle point, held weakly so a script
++    // Parawing: texts that may be swapped at the next idle point, held weakly so a script
 +    // that dies inside its own eval never reaches the store.
 +    static PENDING: RefCell<Vec<Weak<Inner>>> = const { RefCell::new(Vec::new()) };
  }
@@ -225,7 +225,7 @@ index 4946dbb..02cd197 100644
 -    fn new(mut source_text: boa_ast::SourceText) -> Self {
 -        // Kept for the script's life, so drop the lexer's growth slack
 +    fn new(mut source_text: boa_ast::SourceText, swappable: bool) -> Rc<Self> {
-+        // Kitesurf: kept for the script's life, so drop the lexer's growth slack
++        // Parawing: kept for the script's life, so drop the lexer's growth slack
          // and store Latin-1 when it fits (half of a bundle's retained source).
          source_text.compact();
 -        let charged = crate::ks_code_stats::bytes(source_text.retained_bytes());
@@ -340,7 +340,7 @@ index 4946dbb..02cd197 100644
 +    }
 +}
 +
-+/// Kitesurf: hands the installed code store every still-live source text registered since
++/// Parawing: hands the installed code store every still-live source text registered since
 +/// the last call. Safe at any point: a text being read is retried at the next call.
 +pub fn ks_swap_source_texts() -> usize {
 +    let Some(store) = crate::ks_code_store::current() else {
@@ -379,7 +379,7 @@ index 4946dbb..02cd197 100644
 
 -    fn new_empty() -> Self {
 -        Self { source_text: None }
-+    /// Kitesurf: a text that lives no longer than the call making it (JSON.parse), which
++    /// Parawing: a text that lives no longer than the call making it (JSON.parse), which
 +    /// must never cost a store write.
 +    #[must_use]
 +    pub(crate) fn new_transient(source_text: boa_ast::SourceText) -> Self {
@@ -408,7 +408,7 @@ index 4946dbb..02cd197 100644
 -        } else {
 -            None
 -        }
-+    /// Kitesurf: runs `f` on the code points of the span, from memory or from the store
++    /// Parawing: runs `f` on the code points of the span, from memory or from the store
 +    /// the text was swapped to. None without a span, or when the store cannot read them.
 +    pub fn map_code_points<R>(&self, f: impl FnOnce(&[u16]) -> R) -> Option<R> {
 +        let (inner, span) = (self.source_text.source_text.as_ref()?, self.span?);

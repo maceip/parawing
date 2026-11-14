@@ -31,11 +31,11 @@
         "disallowTypeAnnotations": false
       }
     ],
-    "kitesurf/no-chained-type-assertions": "error",
-    "kitesurf/no-unnecessary-unknown": "error",
-    "kitesurf/no-widen-then-assert": "error",
-    "kitesurf/explicit-boundary-returns": "error",
-    "kitesurf/concise-comments": "error"
+    "parawing/no-chained-type-assertions": "error",
+    "parawing/no-unnecessary-unknown": "error",
+    "parawing/no-widen-then-assert": "error",
+    "parawing/explicit-boundary-returns": "error",
+    "parawing/concise-comments": "error"
   },
   "ignorePatterns": [
     "vendor/**",

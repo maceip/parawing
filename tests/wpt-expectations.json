@@ -121,7 +121,7 @@
   },
   "/FileAPI/url/url-with-xhr.any.html": {
     "expected": "FAIL",
-    "reason": "doom-on-kitesurf fetch-backed XHR: send() performs a real fetch so the harness completes (was TIMEOUT). Remaining failures are deeper semantics (responseType document parsing / blob-XHR detail)."
+    "reason": "doom-on-parawing fetch-backed XHR: send() performs a real fetch so the harness completes (was TIMEOUT). Remaining failures are deeper semantics (responseType document parsing / blob-XHR detail)."
   },
   "/WebCryptoAPI/algorithm-discards-context.https.window.html": {
     "expected": "TIMEOUT",
@@ -323,7 +323,7 @@
   },
   "/WebCryptoAPI/historical.any.html": {
     "expected": "FAIL",
-    "reason": "Test asserts crypto.subtle / SubtleCrypto / CryptoKey are UNDEFINED in a non-secure (HTTP) window. Kitesurf treats every page as a secure context, so the properties are always live. Would need real isSecureContext gating."
+    "reason": "Test asserts crypto.subtle / SubtleCrypto / CryptoKey are UNDEFINED in a non-secure (HTTP) window. Parawing treats every page as a secure context, so the properties are always live. Would need real isSecureContext gating."
   },
   "/WebCryptoAPI/idlharness.https.any.html": {
     "expected": "FAIL",
@@ -575,11 +575,11 @@
   },
   "/console/console-count-logging.html": {
     "expected": "SKIP",
-    "reason": "test_driver-bidi-only: subscribes to log.entry_added via WebDriver BiDi. Kitesurf speaks CDP only and the vendored testdriver-vendor.js does not implement bidi.* \u2014 the await on subscribe() hangs the harness."
+    "reason": "test_driver-bidi-only: subscribes to log.entry_added via WebDriver BiDi. Parawing speaks CDP only and the vendored testdriver-vendor.js does not implement bidi.* \u2014 the await on subscribe() hangs the harness."
   },
   "/console/console-countReset-logging.html": {
     "expected": "SKIP",
-    "reason": "test_driver-bidi-only: subscribes to log.entry_added via WebDriver BiDi. Kitesurf speaks CDP only and the vendored testdriver-vendor.js does not implement bidi.* \u2014 the await on subscribe() hangs the harness."
+    "reason": "test_driver-bidi-only: subscribes to log.entry_added via WebDriver BiDi. Parawing speaks CDP only and the vendored testdriver-vendor.js does not implement bidi.* \u2014 the await on subscribe() hangs the harness."
   },
   "/console/console-is-a-namespace.any.html": {
     "expected": "FAIL",
@@ -605,7 +605,7 @@
   },
   "/console/console-number-format-specifiers-symbol.html": {
     "expected": "SKIP",
-    "reason": "test_driver-bidi-only: subscribes to log.entry_added via WebDriver BiDi. Kitesurf speaks CDP only and the vendored testdriver-vendor.js does not implement bidi.* \u2014 the await on subscribe() hangs the harness."
+    "reason": "test_driver-bidi-only: subscribes to log.entry_added via WebDriver BiDi. Parawing speaks CDP only and the vendored testdriver-vendor.js does not implement bidi.* \u2014 the await on subscribe() hangs the harness."
   },
   "/console/console-string-format-specifier-symbol-manual.html": {
     "expected": "TIMEOUT",
@@ -617,11 +617,11 @@
   },
   "/console/console-timing-logging.html": {
     "expected": "SKIP",
-    "reason": "test_driver-bidi-only: subscribes to log.entry_added via WebDriver BiDi. Kitesurf speaks CDP only and the vendored testdriver-vendor.js does not implement bidi.* \u2014 the await on subscribe() hangs the harness."
+    "reason": "test_driver-bidi-only: subscribes to log.entry_added via WebDriver BiDi. Parawing speaks CDP only and the vendored testdriver-vendor.js does not implement bidi.* \u2014 the await on subscribe() hangs the harness."
   },
   "/console/console-timing-missing-label-warnings.tentative.html": {
     "expected": "SKIP",
-    "reason": "test_driver-bidi-only: subscribes to log.entry_added via WebDriver BiDi. Kitesurf speaks CDP only and the vendored testdriver-vendor.js does not implement bidi.* \u2014 the await on subscribe() hangs the harness."
+    "reason": "test_driver-bidi-only: subscribes to log.entry_added via WebDriver BiDi. Parawing speaks CDP only and the vendored testdriver-vendor.js does not implement bidi.* \u2014 the await on subscribe() hangs the harness."
   },
   "/console/idlharness.any.html": {
     "expected": "FAIL",
@@ -937,7 +937,7 @@
   },
   "/css/css-anchor-position/anchor-getComputedStyle-004.html": {
     "expected": "FAIL",
-    "reason": "1/2 subtests pass. Kitesurf does not resolve auto insets from a valid position-area."
+    "reason": "1/2 subtests pass. Parawing does not resolve auto insets from a valid position-area."
   },
   "/css/css-anchor-position/anchor-in-multicol-crash.html": {
     "expected": "PASS",
@@ -1089,15 +1089,15 @@
   },
   "/css/css-anchor-position/container-queries/at-container-anchored-parsing-any.html": {
     "expected": "FAIL",
-    "reason": "1/7 subtests pass. Kitesurf does not support anchored() container queries."
+    "reason": "1/7 subtests pass. Parawing does not support anchored() container queries."
   },
   "/css/css-anchor-position/container-queries/at-container-anchored-parsing.html": {
     "expected": "FAIL",
-    "reason": "8/13 subtests pass. Kitesurf does not support anchored() container queries."
+    "reason": "8/13 subtests pass. Parawing does not support anchored() container queries."
   },
   "/css/css-anchor-position/container-queries/container-type-anchored-parsing.html": {
     "expected": "FAIL",
-    "reason": "2/5 subtests pass. Kitesurf does not support the anchored container-type keyword."
+    "reason": "2/5 subtests pass. Parawing does not support the anchored container-type keyword."
   },
   "/css/css-anchor-position/grid-anchor-center-crash.html": {
     "expected": "PASS",
@@ -5119,7 +5119,7 @@
   },
   "/css/css-ruby/br-clear-all-000.html": {
     "expected": "FAIL",
-    "reason": "blitz 0.3.0-beta.3: the PASS was an accident. Kitesurf has never implemented <br clear> (no clear handling for br in blitz-dom, before or after the bump). Before the bump the empty line after the <br> took the ruby's 50px height, so two 50px lines plus the 50px padding summed to the expected 150px. beta.3 gives that line its 20px strut, so the container measures 104px. br-clear-all-001/002 already FAIL for the same missing feature. Previous pin: PASS, rebaselined 2026-09-16 from FAIL (T18 enrollment, 0/1). -- acceptedRegression: the layout got more correct and exposed a missing feature; nothing regressed. Exempt from the ledger only; this pin still gates any later outcome change.",
+    "reason": "blitz 0.3.0-beta.3: the PASS was an accident. Parawing has never implemented <br clear> (no clear handling for br in blitz-dom, before or after the bump). Before the bump the empty line after the <br> took the ruby's 50px height, so two 50px lines plus the 50px padding summed to the expected 150px. beta.3 gives that line its 20px strut, so the container measures 104px. br-clear-all-001/002 already FAIL for the same missing feature. Previous pin: PASS, rebaselined 2026-09-16 from FAIL (T18 enrollment, 0/1). -- acceptedRegression: the layout got more correct and exposed a missing feature; nothing regressed. Exempt from the ledger only; this pin still gates any later outcome change.",
     "acceptedRegression": true
   },
   "/css/css-ruby/br-clear-all-001.html": {
@@ -10219,11 +10219,11 @@
   },
   "/dom/events/scrolling/scrollend-event-fires-to-iframe-window.html": {
     "expected": "TIMEOUT",
-    "reason": "Element.animate lets the scroll helpers' waitForCompositorReady() finish, so the test reaches a waitForScrollendEventNoTimeout() for a scroll kitesurf fires no scrollend for (touch drag, iframe wheel), and waits until the harness times out"
+    "reason": "Element.animate lets the scroll helpers' waitForCompositorReady() finish, so the test reaches a waitForScrollendEventNoTimeout() for a scroll parawing fires no scrollend for (touch drag, iframe wheel), and waits until the harness times out"
   },
   "/dom/events/scrolling/scrollend-event-for-user-scroll.html": {
     "expected": "TIMEOUT",
-    "reason": "Element.animate lets the scroll helpers' waitForCompositorReady() finish, so the test reaches a waitForScrollendEventNoTimeout() for a scroll kitesurf fires no scrollend for (touch drag, iframe wheel), and waits until the harness times out"
+    "reason": "Element.animate lets the scroll helpers' waitForCompositorReady() finish, so the test reaches a waitForScrollendEventNoTimeout() for a scroll parawing fires no scrollend for (touch drag, iframe wheel), and waits until the harness times out"
   },
   "/dom/events/scrolling/scrollend-event-handler-content-attributes.html": {
     "expected": "TIMEOUT",
@@ -10387,7 +10387,7 @@
   },
   "/dom/nodes/DOMImplementation-createDocument.html": {
     "expected": "PASS",
-    "reason": "kitesurf-iframes-phase2 follow-up: full 434/434 PASS. Combined fixes (XMLDocument as DetachedDocument subclass + Node-interface constants + WebIDL-correct argument validation: TypeError for <2 args, TypeError for non-DocumentType/null doctype, qualifiedName coerces undefined to \"undefined\" string per WebIDL DOMString?)."
+    "reason": "parawing-iframes-phase2 follow-up: full 434/434 PASS. Combined fixes (XMLDocument as DetachedDocument subclass + Node-interface constants + WebIDL-correct argument validation: TypeError for <2 args, TypeError for non-DocumentType/null doctype, qualifiedName coerces undefined to \"undefined\" string per WebIDL DOMString?)."
   },
   "/dom/nodes/DOMImplementation-createDocumentType.html": {
     "expected": "PASS",
@@ -10399,11 +10399,11 @@
   },
   "/dom/nodes/DOMImplementation-createHTMLDocument-with-saved-implementation.html": {
     "expected": "PASS",
-    "reason": "kitesurf-iframes-phase2 follow-up: PASS. Added ParsedDocument.implementation getter (iframe.contentDocument did not expose it before). Test creates an iframe, saves iframe.contentDocument.implementation, removes the iframe, and calls createHTMLDocument() on the saved reference."
+    "reason": "parawing-iframes-phase2 follow-up: PASS. Added ParsedDocument.implementation getter (iframe.contentDocument did not expose it before). Test creates an iframe, saves iframe.contentDocument.implementation, removes the iframe, and calls createHTMLDocument() on the saved reference."
   },
   "/dom/nodes/DOMImplementation-createHTMLDocument.html": {
     "expected": "PASS",
-    "reason": "kitesurf-iframes-phase2 follow-up: 13/13 PASS. Fixed createHTMLDocument to always append a Text node child to <title> (even for empty title=\"\"), per HTML \u00a7createHTMLDocument step 5. Previous textContent=\"\" assignment skipped the child node."
+    "reason": "parawing-iframes-phase2 follow-up: 13/13 PASS. Fixed createHTMLDocument to always append a Text node child to <title> (even for empty title=\"\"), per HTML \u00a7createHTMLDocument step 5. Previous textContent=\"\" assignment skipped the child node."
   },
   "/dom/nodes/DOMImplementation-hasFeature.html": {
     "expected": "PASS",
@@ -10411,7 +10411,7 @@
   },
   "/dom/nodes/Document-URL.html": {
     "expected": "PASS",
-    "reason": "kitesurf-iframes-phase2: dynamic iframe insertion + same-origin fetch + post-redirect URL tracking unblock this test."
+    "reason": "parawing-iframes-phase2: dynamic iframe insertion + same-origin fetch + post-redirect URL tracking unblock this test."
   },
   "/dom/nodes/Document-adoptNode.html": {
     "expected": "PASS",
@@ -10487,7 +10487,7 @@
   },
   "/dom/nodes/Document-contentType/contentType/xhr_responseType_document.html": {
     "expected": "FAIL",
-    "reason": "doom-on-kitesurf fetch-backed XHR: send() performs a real fetch so the harness completes (was TIMEOUT). Remaining failures are deeper semantics (responseType document parsing / blob-XHR detail)."
+    "reason": "doom-on-parawing fetch-backed XHR: send() performs a real fetch so the harness completes (was TIMEOUT). Remaining failures are deeper semantics (responseType document parsing / blob-XHR detail)."
   },
   "/dom/nodes/Document-createAttribute.html": {
     "expected": "PASS",
@@ -10507,7 +10507,7 @@
   },
   "/dom/nodes/Document-createElement-namespace.html": {
     "expected": "PASS",
-    "reason": "kitesurf-iframes-phase2 follow-up: full 51/51 PASS. Combined fixes: iframe Content-Type plumbing (so iframe.contentDocument.contentType reflects the served MIME), DOMParser-result mutable-by-default, ParsedDocument.createElement namespaceURI spec mapping, and DOMImplementation.createDocument contentType + createElement namespaceURI spec mapping (HTML namespace for HTML_NS, null for SVG/MathML/null/everything else)."
+    "reason": "parawing-iframes-phase2 follow-up: full 51/51 PASS. Combined fixes: iframe Content-Type plumbing (so iframe.contentDocument.contentType reflects the served MIME), DOMParser-result mutable-by-default, ParsedDocument.createElement namespaceURI spec mapping, and DOMImplementation.createDocument contentType + createElement namespaceURI spec mapping (HTML namespace for HTML_NS, null for SVG/MathML/null/everything else)."
   },
   "/dom/nodes/Document-createElement.html": {
     "expected": "PASS",
@@ -10797,7 +10797,7 @@
   },
   "/dom/nodes/MutationObserver-document.html": {
     "expected": "FAIL",
-    "reason": "1/4 pass. 3 fails require HTML-parser-level mutation observation \u2014 kitesurf's parser landing in blitz doesn't surface parsing as observable DOM mutations."
+    "reason": "1/4 pass. 3 fails require HTML-parser-level mutation observation \u2014 parawing's parser landing in blitz doesn't surface parsing as observable DOM mutations."
   },
   "/dom/nodes/MutationObserver-inner-outer.html": {
     "expected": "PASS",
@@ -10825,7 +10825,7 @@
   },
   "/dom/nodes/Node-appendChild.html": {
     "expected": "PASS",
-    "reason": "kitesurf-iframes-phase2 + mutable contentDocument: 11/11 subtests pass. Cross-doc adoption via __adoptIntoDom rewrites the wrapper in place when document.body.appendChild gets a node from a different DomHandle."
+    "reason": "parawing-iframes-phase2 + mutable contentDocument: 11/11 subtests pass. Cross-doc adoption via __adoptIntoDom rewrites the wrapper in place when document.body.appendChild gets a node from a different DomHandle."
   },
   "/dom/nodes/Node-baseURI.html": {
     "expected": "PASS",
@@ -11014,7 +11014,7 @@
   },
   "/dom/nodes/ParentNode-querySelector-All.html": {
     "expected": "FAIL",
-    "reason": "kitesurf-iframes-phase2: 946/1975 subtests pass after mutable iframe contentDocument. Remaining 1029 need deeper Selectors-API surface (NS-qualified queries, computed style filtering)."
+    "reason": "parawing-iframes-phase2: 946/1975 subtests pass after mutable iframe contentDocument. Remaining 1029 need deeper Selectors-API surface (NS-qualified queries, computed style filtering)."
   },
   "/dom/nodes/ParentNode-querySelector-case-insensitive.html": {
     "expected": "PASS",
@@ -11457,7 +11457,7 @@
   },
   "/dom/ranges/Range-extractContents-dynamic-end.html": {
     "expected": "PASS",
-    "reason": "kitesurf-iframes-phase2: iframe.contentDocument now non-null and queryable, which is enough for this test (uses iframe.contentDocument.body and iframe unload event)."
+    "reason": "parawing-iframes-phase2: iframe.contentDocument now non-null and queryable, which is enough for this test (uses iframe.contentDocument.body and iframe unload event)."
   },
   "/dom/ranges/Range-extractContents.html": {
     "expected": "SKIP",
@@ -11591,7 +11591,7 @@
   },
   "/dom/traversal/TreeWalker-realm.html": {
     "expected": "PASS",
-    "reason": "kitesurf-iframes-phase2: cross-realm constructor identity via __decorateContentWindow (TypeError, Node, etc.) unblocks the iframe.contentWindow.X reads this test depends on."
+    "reason": "parawing-iframes-phase2: cross-realm constructor identity via __decorateContentWindow (TypeError, Node, etc.) unblocks the iframe.contentWindow.X reads this test depends on."
   },
   "/dom/traversal/TreeWalker-traversal-reject.html": {
     "expected": "PASS",
@@ -12641,7 +12641,7 @@
   },
   "/fetch/api/basic/request-upload.any.html": {
     "expected": "FAIL",
-    "reason": "12-13/19 pass, FLAKY: the 'ReadableStream containing Blob' subtest races workerd's streaming upload (should reject TypeError; sometimes the request completes instead). A lone PASS reset the compare baseline and the return to FAIL shows as carried debt \u2014 no kitesurf commit involved. Siblings fail with workerd's 'Network connection lost' (streaming-upload quirk class, see AGENTS.md workerd quirks)."
+    "reason": "12-13/19 pass, FLAKY: the 'ReadableStream containing Blob' subtest races workerd's streaming upload (should reject TypeError; sometimes the request completes instead). A lone PASS reset the compare baseline and the return to FAIL shows as carried debt \u2014 no parawing commit involved. Siblings fail with workerd's 'Network connection lost' (streaming-upload quirk class, see AGENTS.md workerd quirks)."
   },
   "/fetch/api/basic/request-upload.h2.any.html": {
     "expected": "TIMEOUT",
@@ -12799,7 +12799,7 @@
   },
   "/fetch/api/headers/header-values.any.html": {
     "expected": "FAIL",
-    "reason": "doom-on-kitesurf fetch-backed XHR: the XHR echo leg completes so the harness finishes (was TIMEOUT). Remaining failures are header-value normalization details."
+    "reason": "doom-on-parawing fetch-backed XHR: the XHR echo leg completes so the harness finishes (was TIMEOUT). Remaining failures are header-value normalization details."
   },
   "/fetch/api/headers/headers-basic.any.html": {
     "expected": "FAIL",
@@ -13345,7 +13345,7 @@
   },
   "/hr-time/raf-coarsened-time.https.html": {
     "expected": "FAIL",
-    "reason": "document.timeline follows the animation clock, not frame times: kitesurf has no frame loop"
+    "reason": "document.timeline follows the animation clock, not frame times: parawing has no frame loop"
   },
   "/hr-time/test_cross_frame_start.html": {
     "expected": "FAIL",
@@ -14833,11 +14833,11 @@
   },
   "/html/canvas/element/fill-and-stroke-styles/2d.pattern.modify.canvas1.html": {
     "expected": "PASS",
-    "reason": "doom-on-kitesurf: createPattern(canvas) now flushes the source ctx so it snapshots the source at creation time (spec) \u2014 later source mutations no longer leak into the pattern."
+    "reason": "doom-on-parawing: createPattern(canvas) now flushes the source ctx so it snapshots the source at creation time (spec) \u2014 later source mutations no longer leak into the pattern."
   },
   "/html/canvas/element/fill-and-stroke-styles/2d.pattern.modify.canvas2.html": {
     "expected": "PASS",
-    "reason": "doom-on-kitesurf: createPattern(canvas) now flushes the source ctx so it snapshots the source at creation time (spec) \u2014 later source mutations no longer leak into the pattern."
+    "reason": "doom-on-parawing: createPattern(canvas) now flushes the source ctx so it snapshots the source at creation time (spec) \u2014 later source mutations no longer leak into the pattern."
   },
   "/html/canvas/element/fill-and-stroke-styles/2d.pattern.modify.image1.html": {
     "expected": "FAIL",
@@ -19341,7 +19341,7 @@
   },
   "/html/webappapis/system-state-and-capabilities/the-navigator-object/navigator.any.html": {
     "expected": "FAIL",
-    "reason": "doom-on-kitesurf: window.screen + related stubs let the harness complete (was TIMEOUT). Remaining failures are unimplemented navigator surface."
+    "reason": "doom-on-parawing: window.screen + related stubs let the harness complete (was TIMEOUT). Remaining failures are unimplemented navigator surface."
   },
   "/html/webappapis/timers/clearinterval-from-callback.any.html": {
     "expected": "PASS",
@@ -19509,7 +19509,7 @@
   },
   "/quirks/active-and-hover-manual.html": {
     "expected": "ERROR",
-    "reason": "ERROR: manual test requiring pointer clicks. Not automatable in the kitesurf runner."
+    "reason": "ERROR: manual test requiring pointer clicks. Not automatable in the parawing runner."
   },
   "/quirks/blocks-ignore-line-height.html": {
     "expected": "ERROR",
@@ -19553,15 +19553,15 @@
   },
   "/quirks/hashless-hex-color/limited-quirks.html": {
     "expected": "ERROR",
-    "reason": "ERROR: harness uses a custom test-ref-iframe.js multi-iframe comparison that kitesurf's runner can't satisfy; test loads sub-iframes with quirks/no-quirks/almost-standards docs and compares their computed styles. Chrome accepts hashless hex colors (bare `0FF`) in quirks; stylo (servo) does not."
+    "reason": "ERROR: harness uses a custom test-ref-iframe.js multi-iframe comparison that parawing's runner can't satisfy; test loads sub-iframes with quirks/no-quirks/almost-standards docs and compares their computed styles. Chrome accepts hashless hex colors (bare `0FF`) in quirks; stylo (servo) does not."
   },
   "/quirks/hashless-hex-color/no-quirks.html": {
     "expected": "ERROR",
-    "reason": "ERROR: harness uses a custom test-ref-iframe.js multi-iframe comparison that kitesurf's runner can't satisfy; test loads sub-iframes with quirks/no-quirks/almost-standards docs and compares their computed styles. Chrome accepts hashless hex colors (bare `0FF`) in quirks; stylo (servo) does not."
+    "reason": "ERROR: harness uses a custom test-ref-iframe.js multi-iframe comparison that parawing's runner can't satisfy; test loads sub-iframes with quirks/no-quirks/almost-standards docs and compares their computed styles. Chrome accepts hashless hex colors (bare `0FF`) in quirks; stylo (servo) does not."
   },
   "/quirks/hashless-hex-color/quirks.html": {
     "expected": "ERROR",
-    "reason": "ERROR: harness uses a custom test-ref-iframe.js multi-iframe comparison that kitesurf's runner can't satisfy; test loads sub-iframes with quirks/no-quirks/almost-standards docs and compares their computed styles. Chrome accepts hashless hex colors (bare `0FF`) in quirks; stylo (servo) does not."
+    "reason": "ERROR: harness uses a custom test-ref-iframe.js multi-iframe comparison that parawing's runner can't satisfy; test loads sub-iframes with quirks/no-quirks/almost-standards docs and compares their computed styles. Chrome accepts hashless hex colors (bare `0FF`) in quirks; stylo (servo) does not."
   },
   "/quirks/html-fills-viewport-quirk-vertical.html": {
     "expected": "FAIL",
@@ -19605,7 +19605,7 @@
   },
   "/quirks/supports.html": {
     "expected": "FAIL",
-    "reason": "4/6 subtests. @supports queries for the hashless-hex-color and unitless-length quirks fail because stylo's color and length parsers don't branch on QuirksMode (kitesurf hardcodes NoQuirks in Rust \u2014 see core/src/style/cssom.rs)."
+    "reason": "4/6 subtests. @supports queries for the hashless-hex-color and unitless-length quirks fail because stylo's color and length parsers don't branch on QuirksMode (parawing hardcodes NoQuirks in Rust \u2014 see core/src/style/cssom.rs)."
   },
   "/quirks/table-cell-nowrap-minimum-width-calculation.html": {
     "expected": "ERROR",
@@ -20310,11 +20310,11 @@
   },
   "/shadow-dom/focus-within-shadow.html": {
     "expected": "FAIL",
-    "reason": "Focus tracking inside shadow trees not implemented (kitesurf has no notion of a focused element in a shadow root)."
+    "reason": "Focus tracking inside shadow trees not implemented (parawing has no notion of a focused element in a shadow root)."
   },
   "/shadow-dom/form-control-form-attribute.html": {
     "expected": "FAIL",
-    "reason": "2/3 subtests. Form-control association crosses shadow boundaries in kitesurf \u2014 form-element and input.list lookup should stop at the shadow root but currently walks up the raw DOM tree."
+    "reason": "2/3 subtests. Form-control association crosses shadow boundaries in parawing \u2014 form-element and input.list lookup should stop at the shadow root but currently walks up the raw DOM tree."
   },
   "/shadow-dom/host-with-namespace.xhtml": {
     "expected": "TIMEOUT",
@@ -20322,35 +20322,35 @@
   },
   "/shadow-dom/imperative-slot-api-crash.html": {
     "expected": "PASS",
-    "reason": "imperative slotting (Element.assign / slotAssignment=\"manual\") not implemented; kitesurf only wires named slots. Partial: some slotchange dispatch works but the manual-assign path is missing."
+    "reason": "imperative slotting (Element.assign / slotAssignment=\"manual\") not implemented; parawing only wires named slots. Partial: some slotchange dispatch works but the manual-assign path is missing."
   },
   "/shadow-dom/imperative-slot-api-cross-shadow-root.html": {
     "expected": "FAIL",
-    "reason": "imperative slotting (Element.assign / slotAssignment=\"manual\") not implemented; kitesurf only wires named slots. Partial: some slotchange dispatch works but the manual-assign path is missing."
+    "reason": "imperative slotting (Element.assign / slotAssignment=\"manual\") not implemented; parawing only wires named slots. Partial: some slotchange dispatch works but the manual-assign path is missing."
   },
   "/shadow-dom/imperative-slot-api-disconnected.html": {
     "expected": "FAIL",
-    "reason": "imperative slotting (Element.assign / slotAssignment=\"manual\") not implemented; kitesurf only wires named slots. Partial: some slotchange dispatch works but the manual-assign path is missing."
+    "reason": "imperative slotting (Element.assign / slotAssignment=\"manual\") not implemented; parawing only wires named slots. Partial: some slotchange dispatch works but the manual-assign path is missing."
   },
   "/shadow-dom/imperative-slot-api-slotchange.html": {
     "expected": "FAIL",
-    "reason": "imperative slotting (Element.assign / slotAssignment=\"manual\") not implemented; kitesurf only wires named slots. Partial: some slotchange dispatch works but the manual-assign path is missing."
+    "reason": "imperative slotting (Element.assign / slotAssignment=\"manual\") not implemented; parawing only wires named slots. Partial: some slotchange dispatch works but the manual-assign path is missing."
   },
   "/shadow-dom/imperative-slot-api.html": {
     "expected": "FAIL",
-    "reason": "imperative slotting (Element.assign / slotAssignment=\"manual\") not implemented; kitesurf only wires named slots. Partial: some slotchange dispatch works but the manual-assign path is missing."
+    "reason": "imperative slotting (Element.assign / slotAssignment=\"manual\") not implemented; parawing only wires named slots. Partial: some slotchange dispatch works but the manual-assign path is missing."
   },
   "/shadow-dom/imperative-slot-assign-not-slotable-crash.html": {
     "expected": "PASS",
-    "reason": "imperative slotting (Element.assign / slotAssignment=\"manual\") not implemented; kitesurf only wires named slots. Partial: some slotchange dispatch works but the manual-assign path is missing."
+    "reason": "imperative slotting (Element.assign / slotAssignment=\"manual\") not implemented; parawing only wires named slots. Partial: some slotchange dispatch works but the manual-assign path is missing."
   },
   "/shadow-dom/imperative-slot-fallback-clear.html": {
     "expected": "FAIL",
-    "reason": "imperative slotting (Element.assign / slotAssignment=\"manual\") not implemented; kitesurf only wires named slots. Partial: some slotchange dispatch works but the manual-assign path is missing."
+    "reason": "imperative slotting (Element.assign / slotAssignment=\"manual\") not implemented; parawing only wires named slots. Partial: some slotchange dispatch works but the manual-assign path is missing."
   },
   "/shadow-dom/imperative-slot-layout-invalidation-001.html": {
     "expected": "FAIL",
-    "reason": "imperative slotting (Element.assign / slotAssignment=\"manual\") not implemented; kitesurf only wires named slots. Partial: some slotchange dispatch works but the manual-assign path is missing."
+    "reason": "imperative slotting (Element.assign / slotAssignment=\"manual\") not implemented; parawing only wires named slots. Partial: some slotchange dispatch works but the manual-assign path is missing."
   },
   "/shadow-dom/innerHTML-setter.xhtml": {
     "expected": "FAIL",
@@ -20358,7 +20358,7 @@
   },
   "/shadow-dom/input-element-list.html": {
     "expected": "FAIL",
-    "reason": "2/3 subtests. Form-control association crosses shadow boundaries in kitesurf \u2014 form-element and input.list lookup should stop at the shadow root but currently walks up the raw DOM tree."
+    "reason": "2/3 subtests. Form-control association crosses shadow boundaries in parawing \u2014 form-element and input.list lookup should stop at the shadow root but currently walks up the raw DOM tree."
   },
   "/shadow-dom/invalidate-shadow-dom-crash.html": {
     "expected": "PASS",
@@ -21562,11 +21562,11 @@
   },
   "/wasm/jsapi/instance/exports.any.html": {
     "expected": "PASS",
-    "reason": "doom-on-kitesurf wasm bake: parent-discovered .wasm binaries are compiled at LOADER.load and matched back by the WebAssembly shims, so runtime compile/instantiate works for baked modules; test now completes and passes."
+    "reason": "doom-on-parawing wasm bake: parent-discovered .wasm binaries are compiled at LOADER.load and matched back by the WebAssembly shims, so runtime compile/instantiate works for baked modules; test now completes and passes."
   },
   "/wasm/jsapi/instance/toString.any.html": {
     "expected": "PASS",
-    "reason": "doom-on-kitesurf wasm bake: parent-discovered .wasm binaries are compiled at LOADER.load and matched back by the WebAssembly shims, so runtime compile/instantiate works for baked modules; test now completes and passes."
+    "reason": "doom-on-parawing wasm bake: parent-discovered .wasm binaries are compiled at LOADER.load and matched back by the WebAssembly shims, so runtime compile/instantiate works for baked modules; test now completes and passes."
   },
   "/wasm/jsapi/interface.any.html": {
     "expected": "PASS",
@@ -21662,7 +21662,7 @@
   },
   "/wasm/jsapi/module/toString.any.html": {
     "expected": "PASS",
-    "reason": "doom-on-kitesurf wasm bake: parent-discovered .wasm binaries are compiled at LOADER.load and matched back by the WebAssembly shims, so runtime compile/instantiate works for baked modules; test now completes and passes."
+    "reason": "doom-on-parawing wasm bake: parent-discovered .wasm binaries are compiled at LOADER.load and matched back by the WebAssembly shims, so runtime compile/instantiate works for baked modules; test now completes and passes."
   },
   "/wasm/jsapi/prototypes.any.html": {
     "expected": "FAIL",
@@ -21730,7 +21730,7 @@
   },
   "/wasm/webapi/contenttype.any.html": {
     "expected": "FAIL",
-    "reason": "doom-on-kitesurf wasm bake: the streaming shims complete instead of hanging (old layering shim awaited a compile that never resolved). Remaining failures are unbaked/mismatched modules deliberately surfacing workerd's CompileError \u2014 runtime wasm codegen stays disallowed."
+    "reason": "doom-on-parawing wasm bake: the streaming shims complete instead of hanging (old layering shim awaited a compile that never resolved). Remaining failures are unbaked/mismatched modules deliberately surfacing workerd's CompileError \u2014 runtime wasm codegen stays disallowed."
   },
   "/wasm/webapi/empty-body.any.html": {
     "expected": "PASS",
@@ -21742,15 +21742,15 @@
   },
   "/wasm/webapi/idlharness.any.html": {
     "expected": "PASS",
-    "reason": "doom-on-kitesurf wasm bake: parent-discovered .wasm binaries are compiled at LOADER.load and matched back by the WebAssembly shims, so runtime compile/instantiate works for baked modules; test now completes and passes."
+    "reason": "doom-on-parawing wasm bake: parent-discovered .wasm binaries are compiled at LOADER.load and matched back by the WebAssembly shims, so runtime compile/instantiate works for baked modules; test now completes and passes."
   },
   "/wasm/webapi/instantiateStreaming-bad-imports.any.html": {
     "expected": "FAIL",
-    "reason": "doom-on-kitesurf wasm bake: the streaming shims complete instead of hanging (old layering shim awaited a compile that never resolved). Remaining failures are unbaked/mismatched modules deliberately surfacing workerd's CompileError \u2014 runtime wasm codegen stays disallowed."
+    "reason": "doom-on-parawing wasm bake: the streaming shims complete instead of hanging (old layering shim awaited a compile that never resolved). Remaining failures are unbaked/mismatched modules deliberately surfacing workerd's CompileError \u2014 runtime wasm codegen stays disallowed."
   },
   "/wasm/webapi/instantiateStreaming.any.html": {
     "expected": "FAIL",
-    "reason": "doom-on-kitesurf wasm bake: the streaming shims complete instead of hanging (old layering shim awaited a compile that never resolved). Remaining failures are unbaked/mismatched modules deliberately surfacing workerd's CompileError \u2014 runtime wasm codegen stays disallowed."
+    "reason": "doom-on-parawing wasm bake: the streaming shims complete instead of hanging (old layering shim awaited a compile that never resolved). Remaining failures are unbaked/mismatched modules deliberately surfacing workerd's CompileError \u2014 runtime wasm codegen stays disallowed."
   },
   "/wasm/webapi/invalid-args.any.html": {
     "expected": "PASS",
@@ -21758,11 +21758,11 @@
   },
   "/wasm/webapi/invalid-code.any.html": {
     "expected": "PASS",
-    "reason": "doom-on-kitesurf wasm bake: parent-discovered .wasm binaries are compiled at LOADER.load and matched back by the WebAssembly shims, so runtime compile/instantiate works for baked modules; test now completes and passes."
+    "reason": "doom-on-parawing wasm bake: parent-discovered .wasm binaries are compiled at LOADER.load and matched back by the WebAssembly shims, so runtime compile/instantiate works for baked modules; test now completes and passes."
   },
   "/wasm/webapi/modified-contenttype.any.html": {
     "expected": "FAIL",
-    "reason": "doom-on-kitesurf wasm bake: the streaming shims complete instead of hanging (old layering shim awaited a compile that never resolved). Remaining failures are unbaked/mismatched modules deliberately surfacing workerd's CompileError \u2014 runtime wasm codegen stays disallowed."
+    "reason": "doom-on-parawing wasm bake: the streaming shims complete instead of hanging (old layering shim awaited a compile that never resolved). Remaining failures are unbaked/mismatched modules deliberately surfacing workerd's CompileError \u2014 runtime wasm codegen stays disallowed."
   },
   "/wasm/webapi/origin.sub.any.html": {
     "expected": "FAIL",
@@ -21774,15 +21774,15 @@
   },
   "/wasm/webapi/status.any.html": {
     "expected": "FAIL",
-    "reason": "doom-on-kitesurf wasm bake: the streaming shims complete instead of hanging (old layering shim awaited a compile that never resolved). Remaining failures are unbaked/mismatched modules deliberately surfacing workerd's CompileError \u2014 runtime wasm codegen stays disallowed."
+    "reason": "doom-on-parawing wasm bake: the streaming shims complete instead of hanging (old layering shim awaited a compile that never resolved). Remaining failures are unbaked/mismatched modules deliberately surfacing workerd's CompileError \u2014 runtime wasm codegen stays disallowed."
   },
   "/wasm/webapi/wasm_stream_compile_test.any.html": {
     "expected": "FAIL",
-    "reason": "doom-on-kitesurf wasm bake: the streaming shims complete instead of hanging (old layering shim awaited a compile that never resolved). Remaining failures are unbaked/mismatched modules deliberately surfacing workerd's CompileError \u2014 runtime wasm codegen stays disallowed."
+    "reason": "doom-on-parawing wasm bake: the streaming shims complete instead of hanging (old layering shim awaited a compile that never resolved). Remaining failures are unbaked/mismatched modules deliberately surfacing workerd's CompileError \u2014 runtime wasm codegen stays disallowed."
   },
   "/wasm/webapi/wasm_stream_instantiate_test.any.html": {
     "expected": "FAIL",
-    "reason": "doom-on-kitesurf wasm bake: the streaming shims complete instead of hanging (old layering shim awaited a compile that never resolved). Remaining failures are unbaked/mismatched modules deliberately surfacing workerd's CompileError \u2014 runtime wasm codegen stays disallowed."
+    "reason": "doom-on-parawing wasm bake: the streaming shims complete instead of hanging (old layering shim awaited a compile that never resolved). Remaining failures are unbaked/mismatched modules deliberately surfacing workerd's CompileError \u2014 runtime wasm codegen stays disallowed."
   },
   "/webidl/current-realm.html": {
     "expected": "FAIL",
@@ -21958,7 +21958,7 @@
   },
   "/webmcp/declarative/document-domain-enabled.sub.https.html": {
     "expected": "TIMEOUT",
-    "reason": "The new upstream wrapper waits for results from a cross-origin iframe. Kitesurf does not execute the child script in the parent realm, so no report arrives. Measured TIMEOUT at 10 seconds running alone."
+    "reason": "The new upstream wrapper waits for results from a cross-origin iframe. Parawing does not execute the child script in the parent realm, so no report arrives. Measured TIMEOUT at 10 seconds running alone."
   },
   "/webmcp/declarative/duplicate-tool-name.https.html": {
     "expected": "PASS",
@@ -21978,7 +21978,7 @@
   },
   "/webmcp/declarative/getTools-declarative-schema.https.html": {
     "expected": "TIMEOUT",
-    "reason": "Stale upstream helpers: waitForFormToolSchemaToMatch string-compares tool.inputSchema, but spec PR #241 made RegisteredTool.inputSchema an object, so the equality never holds. Kitesurf also omits Chrome's multipleOf:1 on type=number inputs."
+    "reason": "Stale upstream helpers: waitForFormToolSchemaToMatch string-compares tool.inputSchema, but spec PR #241 made RegisteredTool.inputSchema an object, so the equality never holds. Parawing also omits Chrome's multipleOf:1 on type=number inputs."
   },
   "/webmcp/declarative/opaque-origin-tools.https.html": {
     "expected": "TIMEOUT",
@@ -21994,7 +21994,7 @@
   },
   "/webmcp/declarative/toolchange-on-control-add-remove.https.html": {
     "expected": "TIMEOUT",
-    "reason": "Stale upstream helpers: waitForFormToolSchemaToMatch string-compares tool.inputSchema against a JSON string, but spec PR #241 made RegisteredTool.inputSchema an object. The expected strings also carry Chrome's always-present required:[] which kitesurf omits when empty."
+    "reason": "Stale upstream helpers: waitForFormToolSchemaToMatch string-compares tool.inputSchema against a JSON string, but spec PR #241 made RegisteredTool.inputSchema an object. The expected strings also carry Chrome's always-present required:[] which parawing omits when empty."
   },
   "/webmcp/declarative/toolchange-on-name-change.https.html": {
     "expected": "PASS",
@@ -22022,7 +22022,7 @@
   },
   "/webmcp/imperative/document-domain-enabled.sub.https.html": {
     "expected": "TIMEOUT",
-    "reason": "The new upstream wrapper waits for results from a cross-origin iframe. Kitesurf does not execute the child script in the parent realm, so no report arrives. Measured TIMEOUT at 10 seconds running alone."
+    "reason": "The new upstream wrapper waits for results from a cross-origin iframe. Parawing does not execute the child script in the parent realm, so no report arrives. Measured TIMEOUT at 10 seconds running alone."
   },
   "/webmcp/imperative/executeTool-across-trees.https.html": {
     "expected": "TIMEOUT",

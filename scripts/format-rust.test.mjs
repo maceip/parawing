@@ -22,7 +22,7 @@ import { fileURLToPath } from "node:url";
 const script = fileURLToPath(new URL("./format-rust.mjs", import.meta.url));
 
 function withRepository(run) {
-  const root = realpathSync(mkdtempSync(join(tmpdir(), "kitesurf-format-rust-")));
+  const root = realpathSync(mkdtempSync(join(tmpdir(), "parawing-format-rust-")));
   const bin = join(root, "bin");
   const argsFile = join(root, "bazel-args");
   const env = {

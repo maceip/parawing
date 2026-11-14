@@ -9,7 +9,7 @@ import { trackedFiles } from "./tracked-files.mjs";
 
 const root = resolve(import.meta.dirname, "..");
 const host = { ...ts.sys };
-if (process.env.KITESURF_TRACKED_FILES) {
+if (process.env.PARAWING_TRACKED_FILES) {
   const entries = new Map();
   for (const file of trackedFiles(root, [])) {
     let dir = root;

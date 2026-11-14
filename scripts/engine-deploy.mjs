@@ -69,20 +69,20 @@ export async function stageDeploy(engineDir, out) {
   delete flat.env;
   flat.assets = { ...rawConfig.assets, directory: "../assets" };
   // A --config=devtools build ships the frontend; point the inspector routes at it unless the
-  // config names one. A `--var KITESURF_INSPECTOR_BASE_URL:<url>` argument still wins.
+  // config names one. A `--var PARAWING_INSPECTOR_BASE_URL:<url>` argument still wins.
   const inspector = join(assets, "inspector");
   if (
     existsSync(inspector) &&
     readdirSync(inspector).length > 0 &&
-    !flat.vars?.KITESURF_INSPECTOR_BASE_URL
+    !flat.vars?.PARAWING_INSPECTOR_BASE_URL
   ) {
-    flat.vars = { ...flat.vars, KITESURF_INSPECTOR_BASE_URL: SAME_ORIGIN_INSPECTOR };
+    flat.vars = { ...flat.vars, PARAWING_INSPECTOR_BASE_URL: SAME_ORIGIN_INSPECTOR };
   }
   writeFileSync(join(worker, "wrangler.json"), JSON.stringify(flat, null, 2) + "\n");
   return {
     wrangler: wrangler.bin,
     worker,
-    inspector: flat.vars?.KITESURF_INSPECTOR_BASE_URL ?? "",
+    inspector: flat.vars?.PARAWING_INSPECTOR_BASE_URL ?? "",
   };
 }
 
@@ -90,10 +90,10 @@ if (process.argv[1] === fileURLToPath(import.meta.url)) {
   const runfiles = process.env.JS_BINARY__RUNFILES
     ? join(process.env.JS_BINARY__RUNFILES, "_main")
     : resolve(import.meta.dirname, "..");
-  const out = mkdtempSync(join(tmpdir(), "kitesurf-deploy-"));
+  const out = mkdtempSync(join(tmpdir(), "parawing-deploy-"));
   try {
     const staged = await stageDeploy(join(runfiles, "packages/engine"), out);
-    console.log(`[deploy] KITESURF_INSPECTOR_BASE_URL=${JSON.stringify(staged.inspector)}`);
+    console.log(`[deploy] PARAWING_INSPECTOR_BASE_URL=${JSON.stringify(staged.inspector)}`);
     const preview = process.argv[2] === "--preview";
     const command = preview ? ["versions", "upload"] : ["deploy"];
     const rest = process.argv.slice(preview ? 3 : 2);

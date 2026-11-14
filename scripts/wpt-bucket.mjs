@@ -51,9 +51,9 @@ function parseArgs(argv) {
       process.exit(0);
     } else fail(`unknown option ${arg}\n${USAGE}`);
   }
-  options.wptDir ??= resolve(process.env.KITESURF_WPT_DIR ?? resolve(ROOT, ".wpt"));
-  options.hostsFile ??= process.env.KITESURF_WPT_HOSTS
-    ? resolve(process.env.KITESURF_WPT_HOSTS)
+  options.wptDir ??= resolve(process.env.PARAWING_WPT_DIR ?? resolve(ROOT, ".wpt"));
+  options.hostsFile ??= process.env.PARAWING_WPT_HOSTS
+    ? resolve(process.env.PARAWING_WPT_HOSTS)
     : undefined;
   if (!options.hostsFile && existsSync(resolve(options.wptDir, ".hosts")))
     options.hostsFile = resolve(options.wptDir, ".hosts");

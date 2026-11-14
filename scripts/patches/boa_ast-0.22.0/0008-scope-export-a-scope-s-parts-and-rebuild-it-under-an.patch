@@ -21,14 +21,14 @@ index 96c3b3f..28f1886 100644
          self.inner.unique_id
      }
 
-+    /// Kitesurf: identity of the shared scope, for an embedder that has to tell scopes
++    /// Parawing: identity of the shared scope, for an embedder that has to tell scopes
 +    /// apart (several blocks hold the same one).
 +    #[must_use]
 +    pub fn ks_ptr(&self) -> usize {
 +        Rc::as_ptr(&self.inner) as usize
 +    }
 +
-+    /// Kitesurf: this scope's own state apart from its outer scope, for an embedder that
++    /// Parawing: this scope's own state apart from its outer scope, for an embedder that
 +    /// moves it out of memory and rebuilds it with [`Self::ks_rebuild`].
 +    #[must_use]
 +    pub fn ks_parts(&self) -> KsScopeParts {
@@ -47,7 +47,7 @@ index 96c3b3f..28f1886 100644
 +        }
 +    }
 +
-+    /// Kitesurf: a scope equal to the one [`Self::ks_parts`] read, under `outer`, sharing its
++    /// Parawing: a scope equal to the one [`Self::ks_parts`] read, under `outer`, sharing its
 +    /// unique-id counter. Its lookup map is built by the first query that needs one.
 +    #[must_use]
 +    pub fn ks_rebuild(outer: Option<Self>, parts: KsScopeParts) -> Self {
@@ -77,14 +77,14 @@ index 96c3b3f..28f1886 100644
 +        }
 +    }
 +
-     /// Kitesurf: frees the name lookup map once the compiler is done with this scope; a later
+     /// Parawing: frees the name lookup map once the compiler is done with this scope; a later
      /// query rebuilds it. A minified bundle's flat function scopes hold thousands of names.
      pub fn ks_drop_lookup(&self) {
 @@ -579,6 +635,18 @@ impl Scope {
      }
  }
 
-+/// Kitesurf: a scope's own state, as [`Scope::ks_parts`] reads it: everything but its outer
++/// Parawing: a scope's own state, as [`Scope::ks_parts`] reads it: everything but its outer
 +/// scope and its bookkeeping. Bindings are `(name, index, flags)`.
 +#[derive(Debug, Clone)]
 +#[allow(missing_docs)]
@@ -103,14 +103,14 @@ index 96c3b3f..28f1886 100644
  }
 
  impl BindingLocator {
-+    /// Kitesurf: `(name, scope, binding index, unique scope id)`, for an embedder that moves
++    /// Parawing: `(name, scope, binding index, unique scope id)`, for an embedder that moves
 +    /// compiled code out of memory; [`Self::ks_from_parts`] puts them back together.
 +    #[must_use]
 +    pub fn ks_parts(&self) -> (&JsString, u32, u32, u32) {
 +        (&self.name, self.scope, self.binding_index, self.unique_scope_id)
 +    }
 +
-+    /// Kitesurf: the locator [`Self::ks_parts`] read, put back together for code rebuilt
++    /// Parawing: the locator [`Self::ks_parts`] read, put back together for code rebuilt
 +    /// from the store.
 +    #[must_use]
 +    pub const fn ks_from_parts(name: JsString, scope: u32, binding_index: u32, unique_scope_id: u32) -> Self {

@@ -33,7 +33,7 @@ export function packageBin(name) {
 export function oxlintConfigPath() {
   const configPath = resolve(ROOT, ".oxlintrc.json");
   if (!WORKSPACE) return configPath;
-  const directory = mkdtempSync(join(tmpdir(), "kitesurf-oxlint-"));
+  const directory = mkdtempSync(join(tmpdir(), "parawing-oxlint-"));
   process.on("exit", () => rmSync(directory, { recursive: true, force: true }));
   return copyOxlintConfig(configPath, directory);
 }

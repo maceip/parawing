@@ -21,7 +21,7 @@ type RuleName =
 type FixtureExtension = "ts" | "mjs";
 
 const repositoryRoot = fileURLToPath(new URL("../../", import.meta.url));
-const temporaryDirectory = await mkdtemp(join(tmpdir(), "kitesurf-lint-rules-"));
+const temporaryDirectory = await mkdtemp(join(tmpdir(), "parawing-lint-rules-"));
 const configPath = join(temporaryDirectory, "oxlint.config.json");
 const tsconfigPath = join(temporaryDirectory, "tsconfig.json");
 const oxlintPath = resolve(repositoryRoot, "node_modules/oxlint/bin/oxlint");
@@ -31,12 +31,12 @@ let fixtureNumber = 0;
 await writeFile(
   configPath,
   JSON.stringify({
-    jsPlugins: [{ name: "kitesurf", specifier: pluginPath }],
+    jsPlugins: [{ name: "parawing", specifier: pluginPath }],
     rules: {
-      "kitesurf/explicit-boundary-returns": "error",
-      "kitesurf/no-chained-type-assertions": "error",
-      "kitesurf/no-unnecessary-unknown": "error",
-      "kitesurf/no-widen-then-assert": "error",
+      "parawing/explicit-boundary-returns": "error",
+      "parawing/no-chained-type-assertions": "error",
+      "parawing/no-unnecessary-unknown": "error",
+      "parawing/no-widen-then-assert": "error",
     },
   }),
 );
@@ -77,14 +77,14 @@ async function lint(source: string, extension: FixtureExtension = "ts"): Promise
 }
 
 function countRuleReports(output: string, ruleName: RuleName): number {
-  return output.split(`kitesurf(${ruleName})`).length - 1;
+  return output.split(`parawing(${ruleName})`).length - 1;
 }
 
 const noUnnecessaryUnknownTester = new RuleTester({
   languageOptions: { parserOptions: { lang: "ts" } },
 });
 
-noUnnecessaryUnknownTester.run("kitesurf/no-unnecessary-unknown", noUnnecessaryUnknownRule, {
+noUnnecessaryUnknownTester.run("parawing/no-unnecessary-unknown", noUnnecessaryUnknownRule, {
   valid: [
     "declare const input: unknown; const forwarded: unknown = input;",
     "type Maybe = string | unknown; declare const input: Maybe; const value: Maybe = input;",

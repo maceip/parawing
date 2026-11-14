@@ -44,7 +44,7 @@ index a22cc17..1b2ba61 100644
              devtool_settings: DevtoolSettings::default(),
              counters: Default::default(),
              counters_seen: false,
-@@ -4287,3 +4291,70 @@ fn kitesurf_mip_dims(header_w: u32, header_h: u32, hint_w: u32, hint_h: u32, cei
+@@ -4287,3 +4291,70 @@ fn parawing_mip_dims(header_w: u32, header_h: u32, hint_w: u32, hint_h: u32, cei
      }
      (w, h)
  }

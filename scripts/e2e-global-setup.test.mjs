@@ -11,7 +11,7 @@ import { join, resolve } from "node:path";
 import test from "node:test";
 
 test("extra fixtures use the engine package's Wrangler install", async (t) => {
-  const dist = mkdtempSync(join(tmpdir(), "kitesurf-e2e-setup-"));
+  const dist = mkdtempSync(join(tmpdir(), "parawing-e2e-setup-"));
   t.after(() => rmSync(dist, { recursive: true, force: true }));
   const engineDist = join(dist, "engine");
   mkdirSync(engineDist);

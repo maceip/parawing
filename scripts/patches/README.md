@@ -187,7 +187,7 @@ git -C packages/core/target/vendor-patched/blitz-dom-0.3.0-beta.4 commit
 pnpm run vendor:regen                 # all crates
 pnpm run vendor:regen -- blitz-dom    # one crate only
 
-# Review and commit (in the kitesurf repo):
+# Review and commit (in the parawing repo):
 git diff -- scripts/patches/
 ```
 
@@ -232,7 +232,7 @@ When upstream releases a new version we want:
    the series lands), then `pnpm run vendor:regen -- <crate>` to write
    the rebased series back.
 5. Check whether upstream absorbed any of our patches — if a commit
-   becomes empty on the new base, drop it (note it in the kitesurf
+   becomes empty on the new base, drop it (note it in the parawing
    commit message) rather than shipping a no-op patch.
 6. Update the provenance table above.
 7. Smoke: `pnpm run test:e2e lifecycle-demo`, which builds from the

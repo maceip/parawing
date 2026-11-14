@@ -27,7 +27,7 @@ import {
 } from "./wpt-testdriver.mjs";
 import { getCachedRefScreenshot } from "./wpt-ref-cache.mjs";
 
-const DEFAULT_WS = process.env.KITESURF_WS ?? "ws://127.0.0.1:8787/devtools/browser";
+const DEFAULT_WS = process.env.PARAWING_WS ?? "ws://127.0.0.1:8787/devtools/browser";
 const DEFAULT_BASE = DEFAULT_WPT_BASE;
 const DEFAULT_TIMEOUT_MS = 5_000;
 const HARNESS_TIMEOUT_FLOOR_MS = 12_000;
@@ -364,7 +364,7 @@ const SCRAPER_SOURCE = String.raw`
     }
   }
 
-  // Fallback: when #results is missing (e.g. kitesurf's wasm DOM
+  // Fallback: when #results is missing (e.g. parawing's wasm DOM
   // doesn't currently render the table testharness builds via the
   // template render pipeline) we recover per-status counts from the
   // summary's checkbox labels. The summary contains
@@ -835,7 +835,7 @@ async function runOne(page, testPath, expected, perTestTimeoutMs, bridge, profSe
       lap("gotoMs");
       if (prof && profSession) {
         try {
-          const r = await profSession.send("Kitesurf.getNavigatePhases", {});
+          const r = await profSession.send("Parawing.getNavigatePhases", {});
           const byTarget = r?.byTarget ?? {};
           prof.engine = Object.values(byTarget).find((p) => p && typeof p === "object") ?? null;
         } catch {}
@@ -976,7 +976,7 @@ async function main() {
       return "stalled";
     }
   }
-  async function probeKitesurf(engine, timeoutMs = 2500) {
+  async function probeParawing(engine, timeoutMs = 2500) {
     return (await probeHealth(engine, timeoutMs)) === "ok";
   }
   async function retryReconnect(engine, once) {
@@ -995,7 +995,7 @@ async function main() {
           const t0 = Date.now();
           while (
             Date.now() - t0 < RECONNECT_HEALTH_WAIT_BUDGET_MS &&
-            !(await probeKitesurf(engine, 2000))
+            !(await probeParawing(engine, 2000))
           ) {
             await sleep(RECONNECT_HEALTH_POLL_INTERVAL_MS);
           }
@@ -1009,8 +1009,8 @@ async function main() {
   }
 
   for (const engine of ENGINES) {
-    if (!(await probeKitesurf(engine, 3000))) {
-      console.error(red(`[wpt-exec] cannot reach kitesurf health at ${engine.healthUrl}`));
+    if (!(await probeParawing(engine, 3000))) {
+      console.error(red(`[wpt-exec] cannot reach parawing health at ${engine.healthUrl}`));
       console.error(red(`         start it with: pnpm run dev`));
       console.error(red(`         (or wait — workerd may be restarting after a crash)`));
       process.exit(2);
@@ -1085,7 +1085,7 @@ async function main() {
       console.log("");
       console.log(
         yellow(
-          `[wpt-exec] ${triggerLaneTag}: kitesurf ${engineTag(engine)}health probe failed; waiting for recovery...`,
+          `[wpt-exec] ${triggerLaneTag}: parawing ${engineTag(engine)}health probe failed; waiting for recovery...`,
         ),
       );
       const t0 = Date.now();
@@ -1098,7 +1098,7 @@ async function main() {
           const how = sawStall ? " (was starved, never dead)" : "";
           console.log(
             green(
-              `[wpt-exec] kitesurf ${engineTag(engine)}recovered after ${took}ms${how} — resuming`,
+              `[wpt-exec] parawing ${engineTag(engine)}recovered after ${took}ms${how} — resuming`,
             ),
           );
           return true;
@@ -1119,7 +1119,7 @@ async function main() {
       const alive = ENGINES.filter((e) => !e.dead).length;
       console.log(
         red(
-          `[wpt-exec] kitesurf ${engineTag(engine)}did not recover within ${Math.round(budget / 1000)}s — ` +
+          `[wpt-exec] parawing ${engineTag(engine)}did not recover within ${Math.round(budget / 1000)}s — ` +
             (alive > 0 ? `dropping its lane(s); ${alive} engine(s) still up` : `aborting batch`),
         ),
       );
@@ -1264,7 +1264,7 @@ async function main() {
       }
 
       if ((r.actual === "TIMEOUT" || r.actual === "CRASH") && !r.synthetic) {
-        const alive = await probeKitesurf(engine, 2000);
+        const alive = await probeParawing(engine, 2000);
         if (!alive) {
           const iAmFirstDetector = !isRecovering(engine);
           // The lane that notices may be a bystander; blame the oldest test still in flight.
@@ -1387,7 +1387,7 @@ async function main() {
         }
 
         try {
-          if (!(await probeKitesurf(engine, 2000))) {
+          if (!(await probeParawing(engine, 2000))) {
             const ok = await recoverWorker(engine, "rerun");
             if (!ok) {
               console.log(red(`[wpt-exec] rerun: worker did not recover — skipping rerun pass`));
@@ -1402,7 +1402,7 @@ async function main() {
             const expEntry = expectations[testPath];
             const perTestTimeout = expEntry?.timeout ?? null;
 
-            if (!(await probeKitesurf(engine, 2000))) {
+            if (!(await probeParawing(engine, 2000))) {
               const ok = await recoverWorker(engine, "rerun");
               if (!ok) {
                 console.log(red(`[wpt-exec] rerun aborted — worker unrecoverable`));

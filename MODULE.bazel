@@ -1,6 +1,6 @@
-"""Public Kitesurf build and test graph."""
+"""Public Parawing build and test graph."""
 
-module(name = "kitesurf")
+module(name = "parawing")
 
 bazel_dep(name = "aspect_rules_js", version = "3.5.1")
 bazel_dep(name = "bazel_lib", version = "3.7.2")
@@ -15,7 +15,10 @@ bazel_dep(name = "rules_shell", version = "0.6.1")
 single_version_override(
     module_name = "rules_rust",
     patch_strip = 1,
-    patches = ["//bazel/rust:rules_rust-patched-crates.patch"],
+    patches = [
+        "//bazel/rust:rules_rust-patched-crates.patch",
+        "//bazel/rust:rules_rust-proc-macro-no-strip.patch",
+    ],
     version = "0.74.0",
 )
 
@@ -152,6 +155,16 @@ cargo_workspaces.standalone(
         "vendor/wasm-memprof/instrumentor": "//vendor/wasm-memprof/instrumentor:Cargo.toml",
     },
 )
+cargo_workspaces.standalone(
+    name = "cargo_ws_host",
+    lockfile = "//packages/rust-host:Cargo.lock",
+    members = {"packages/rust-host": "//packages/rust-host:Cargo.toml"},
+    strip_deps = {
+        "parawing_core_host": "parawing-core",
+        "parawing_authority": "parawing-authority",
+    },
+    strip_patches = True,
+)
 cargo_workspaces.vendor(
     name = "cargo_vendor",
     lockfile = "//:Cargo.lock",
@@ -159,6 +172,7 @@ cargo_workspaces.vendor(
 use_repo(
     cargo_workspaces,
     "cargo_vendor",
+    "cargo_ws_host",
     "cargo_ws_memprof",
     "cargo_ws_core",
     "cargo_ws_renderer",
@@ -199,10 +213,26 @@ crate.from_cargo(
     supported_platform_triples = RUST_HOST_TRIPLES,
 )
 crate.from_cargo(
-    name = "crates_cli",
-    cargo_lockfile = "//packages/kitesurf-cli:Cargo.lock",
+    name = "crates_authority",
+    cargo_lockfile = "//packages/device-authority:Cargo.lock",
     host_tools = "@rust_tools",
-    manifests = ["//packages/kitesurf-cli:Cargo.toml"],
+    manifests = ["//packages/device-authority:Cargo.toml"],
+    skip_cargo_lockfile_overwrite = True,
+    supported_platform_triples = RUST_HOST_TRIPLES,
+)
+crate.from_cargo(
+    name = "crates_cli",
+    cargo_lockfile = "//packages/parawing-cli:Cargo.lock",
+    host_tools = "@rust_tools",
+    manifests = ["//packages/parawing-cli:Cargo.toml"],
+    skip_cargo_lockfile_overwrite = True,
+    supported_platform_triples = RUST_HOST_TRIPLES,
+)
+crate.from_cargo(
+    name = "crates_host",
+    cargo_lockfile = "@cargo_ws_host//:Cargo.lock",
+    host_tools = "@rust_tools",
+    manifests = ["@cargo_ws_host//:Cargo.toml"],
     skip_cargo_lockfile_overwrite = True,
     supported_platform_triples = RUST_HOST_TRIPLES,
 )
@@ -248,7 +278,7 @@ rust_library(
     crate = "vello_cpu",
     repositories = ["crates"],
 )
-use_repo(crate, "crates", "crates_cli", "crates_memprof", "crates_renderer", "crates_rust_check", "crates_scene_host")
+use_repo(crate, "crates", "crates_authority", "crates_cli", "crates_host", "crates_memprof", "crates_renderer", "crates_rust_check", "crates_scene_host")
 use_repo(
     crate,
     "crates__boa_gc-0.22.0",
@@ -275,12 +305,16 @@ npm.npm_translate_lock(
         "//:package.json",
         "//:pnpm-workspace.yaml",
         "//:packages/core/pkg/package.json",
+        "//:packages/deno-host/package.json",
+        "//:packages/device-authority/package.json",
         "//:packages/dom-shim/package.json",
         "//:packages/engine/package.json",
         "//:packages/jsrpc-types/package.json",
-        "//:packages/kitesurf-cli/package.json",
+        "//:packages/parawing-cli/package.json",
         "//:packages/page-renderer/package.json",
         "//:packages/page-script/package.json",
+        "//:packages/rpc-transport/package.json",
+        "//:packages/rust-host/package.json",
         "//:packages/script-gate/package.json",
         "//:packages/worker-script/package.json",
     ],
@@ -485,7 +519,7 @@ wpt_editing(
 
 # Root modules may provide typed string maps for these profiles; empty maps run locally.
 executor_profiles = use_extension("//bazel:executor_profiles.bzl", "executor_profiles")
-use_repo(executor_profiles, "kitesurf_executor_profiles")
+use_repo(executor_profiles, "parawing_executor_profiles")
 
 # bazelflare's pools for these profiles (--config=bazelflare), by the names of the images its
 # deployment declares; dev-only, so a module that wraps this one keeps its own.

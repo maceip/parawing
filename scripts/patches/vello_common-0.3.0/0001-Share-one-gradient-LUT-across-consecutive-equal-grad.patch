@@ -32,7 +32,7 @@ hard-stop dots, peak heap during encode and render:
   1945x1894, 57,828 tiles: 951.7 MiB, 265 ms -> 45.1 MiB, 35 ms
 
 The second row is past blitz-paint's 24,000-tile cap and only shows
-the scaling. The pixels are unchanged. In kitesurf's renderer
+the scaling. The pixels are unchanged. In parawing's renderer
 isolate, the 1440x900 page grew the wasm memory by 431 MB before
 and 58 MB after.
 

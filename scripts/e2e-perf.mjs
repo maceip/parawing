@@ -17,7 +17,7 @@ const HOST = ARGS.host ?? "127.0.0.1";
 const PORT = intArg(ARGS.port, 8787);
 const HEALTH_URL = `http://${HOST}:${PORT}/health`;
 const WS = `ws://${HOST}:${PORT}/devtools/browser`;
-const URL = ARGS.url ?? process.env.KITESURF_URL ?? `http://${HOST}:${PORT}/__fixtures/events.html`;
+const URL = ARGS.url ?? process.env.PARAWING_URL ?? `http://${HOST}:${PORT}/__fixtures/events.html`;
 const ITERATIONS = intArg(ARGS.iterations, 5);
 const WARMUP = intArg(ARGS.warmup, 1);
 const INTERACTION = (ARGS.interaction ?? "click").toLowerCase();
@@ -118,8 +118,8 @@ async function waitForServer(timeoutMs) {
 }
 
 function startDevServer() {
-  console.log(dim(`[e2e-perf] starting workerd via 'pnpm --filter @kitesurf/engine dev'…`));
-  const proc = spawn("pnpm", ["--filter", "@kitesurf/engine", "dev"], {
+  console.log(dim(`[e2e-perf] starting workerd via 'pnpm --filter @parawing/engine dev'…`));
+  const proc = spawn("pnpm", ["--filter", "@parawing/engine", "dev"], {
     cwd: ROOT,
     stdio: ["ignore", "pipe", "pipe"],
     detached: false,
@@ -274,7 +274,7 @@ async function runOnce(browser) {
   }
 
   try {
-    const r = await session.send("Kitesurf.getNavigatePhases", {});
+    const r = await session.send("Parawing.getNavigatePhases", {});
     const byTarget = r?.byTarget ?? {};
     for (const phases of Object.values(byTarget)) {
       if (phases && typeof phases === "object") {

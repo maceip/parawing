@@ -12,7 +12,7 @@ import { join, resolve } from "node:path";
 const ROOT = resolve(import.meta.dirname, "..");
 const USAGE = `usage: node scripts/pw-html-report.mjs --runs <dir> --out <dir> [--pw-base <directory>]
 --runs holds one directory per spec action, each with test-results/blob/*.zip, as tests/pw writes them.
---pw-base defaults to KITESURF_PW_BASE or .playwright. The checkout must be built by pw:setup.`;
+--pw-base defaults to PARAWING_PW_BASE or .playwright. The checkout must be built by pw:setup.`;
 
 function fail(message) {
   console.error(`[pw-html-report] ${message}`);
@@ -29,7 +29,7 @@ function parseArgs(argv) {
     else if (arg === "--pw-base") options.base = resolve(next());
     else fail(`unknown option ${arg}\n${USAGE}`);
   }
-  options.base ??= resolve(process.env.KITESURF_PW_BASE ?? resolve(ROOT, ".playwright"));
+  options.base ??= resolve(process.env.PARAWING_PW_BASE ?? resolve(ROOT, ".playwright"));
   if (!options.runs || !options.out) fail(`--runs and --out are required\n${USAGE}`);
   return options;
 }
@@ -67,7 +67,7 @@ function main(options) {
       ...process.env,
       PLAYWRIGHT_HTML_OUTPUT_DIR: options.out,
       PLAYWRIGHT_HTML_OPEN: "never",
-      PLAYWRIGHT_HTML_TITLE: "Kitesurf: Playwright tests/page",
+      PLAYWRIGHT_HTML_TITLE: "Parawing: Playwright tests/page",
     },
   });
   rmSync(directory, { recursive: true, force: true });

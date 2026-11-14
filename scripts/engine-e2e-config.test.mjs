@@ -11,7 +11,7 @@ import test from "node:test";
 import { engineE2EConfig } from "../packages/engine/vitest.e2e.config.mts";
 
 test("e2e config defers module discovery until after global setup builds the dist", () => {
-  const engineDist = resolve(tmpdir(), `kitesurf-e2e-not-built-${randomUUID()}`);
+  const engineDist = resolve(tmpdir(), `parawing-e2e-not-built-${randomUUID()}`);
   const wranglerConfig = resolve(import.meta.dirname, "../packages/engine/wrangler.jsonc");
 
   assert.doesNotThrow(() => engineE2EConfig({ wranglerConfig, engineDist }));

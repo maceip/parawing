@@ -583,7 +583,7 @@ index feac670..7cf63d1 100644
 -            Box::new(handler),
 -        );
 +        // Tag the Request with `content_type = "text/css"`
-+        // so embedders (KitesurfNetProvider) can distinguish stylesheet
++        // so embedders (ParawingNetProvider) can distinguish stylesheet
 +        // loads from generic resource loads without having to peek at
 +        // the NetHandler trait object. Blitz's NetProvider trait
 +        // doesn't expose the handler type, and Request has no
@@ -1145,7 +1145,7 @@ index 786b5bd..f1b096c 100644
 +                // outbound gateway routes through the Font cross-
 +                // origin bypass (matching the opaque-resource path
 +                // real browsers take for @font-face). Without this
-+                // tag, KitesurfNetProvider falls back to URL-
++                // tag, ParawingNetProvider falls back to URL-
 +                // extension inference, which fails for
 +                // content-negotiating CDNs (e.g. fonts.gstatic.com
 +                // serves /<hash>.woff2 with no extension hint to

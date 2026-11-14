@@ -24,7 +24,7 @@ index b01f5f1..f2419f9 100644
          };
      }
 
-+    /// Kitesurf: the heap bytes this text holds, so an embedder can account for what a
++    /// Parawing: the heap bytes this text holds, so an embedder can account for what a
 +    /// script retains for `toString` apart from its compiled code.
 +    #[must_use]
 +    pub fn retained_bytes(&self) -> usize {

@@ -14,11 +14,11 @@ common --@rules_rust//rust/settings:pipelined_compilation=true
 common --repo_env=PATH=/usr/bin:/bin
 # Remote execution on bazelflare, a Remote Execution API server on Cloudflare Containers. CI's jobs
 # send their GitHub OIDC token, people their Access login (bazel/bazelflare/credential-helper).
-common:bazelflare --remote_executor=grpcs://bazelflare.kitesurf.dev:8980
+common:bazelflare --remote_executor=grpcs://bazelflare.parawing.dev:8980
 # Cloudflare's Origin ECC root, which signs the certificate bazelflare's front door presents; it
 # expires on 2029-08-15, before that certificate, so replace it by then.
 common:bazelflare --tls_certificate=bazel/bazelflare/tls.pem
-common:bazelflare --credential_helper=bazelflare.kitesurf.dev=%workspace%/bazel/bazelflare/credential-helper
+common:bazelflare --credential_helper=bazelflare.parawing.dev=%workspace%/bazel/bazelflare/credential-helper
 common:bazelflare --credential_helper_timeout=30s
 # Only bazelflare's executors write its action cache. Main's CI builds in the instance every other
 # build falls back to (--remote_instance_name=trusted), where bazelflare runs no one else's actions.
@@ -41,8 +41,8 @@ common:bazelflare --noexperimental_throttle_remote_action_building --remote_max_
 common:bazelflare --modify_execution_info=CopyFile=+no-remote-exec,CopyDirectory=+no-remote-exec,NpmPackageExtract=+no-remote-exec
 # The WPT and Playwright pools' images bake their pinned checkouts (MODULE.bazel), which the
 # executors have instead of the .wpt and .playwright checkouts in this tree.
-common:bazelflare --action_env=KITESURF_PW_BASE=/opt/playwright
-common:bazelflare --action_env=KITESURF_WPT_DIR=/opt/wpt
+common:bazelflare --action_env=PARAWING_PW_BASE=/opt/playwright
+common:bazelflare --action_env=PARAWING_WPT_DIR=/opt/wpt
 # Stage the prebuilt Chrome DevTools frontend (about 250 MB to download once) into the engine assets
 # at /inspector/. `pnpm run dev` takes it from `common --config=devtools` in .bazelrc.user.
 common:devtools --//packages/engine:bundle_devtools

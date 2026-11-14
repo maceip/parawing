@@ -99,7 +99,7 @@ index 97a73ad..ca07bfd 100644
      pub(crate) has_span_edges: bool,
 +    /// Glyph id of the run's space character. It has no outlines, so swapping a
 +    /// tab glyph for this id makes paint draw nothing while the advance
-+    /// still moves the pen (kitesurf tab-stop expansion).
++    /// still moves the pen (parawing tab-stop expansion).
 +    pub(crate) space_glyph_id: u32,
 +    /// Advance of the run's space glyph in layout units, the unit CSS
 +    /// `tab-size` multiplies to compute a tab stop.

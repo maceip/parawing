@@ -1,4 +1,4 @@
-kitesurf
+parawing
 Copyright (c) 2026 Cloudflare, Inc.
 
 The public source tree includes third-party software and data listed below.
@@ -132,7 +132,7 @@ WPT-derived corner-shape contours
     Copyright web-platform-tests contributors; 3-Clause BSD.
     Source: https://github.com/web-platform-tests/wpt/blob/6efb1b12b95725c026cb1f5a451138345cfca937/css/css-borders/corner-shape/resources/render-corner-shape.js
     See licenses/BSD-3-Clause-WPT.txt. The adaptation is compiled into
-    Kitesurf's painting Wasm; retain this notice with that distribution.
+    Parawing's painting Wasm; retain this notice with that distribution.
 
 JPEG encoder
   - jpeg-encoder 0.7.0, used by packages/core, packages/renderer-core, and

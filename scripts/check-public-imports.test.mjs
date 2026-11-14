@@ -8,11 +8,11 @@ import test from "node:test";
 import { readPublicPackageNames, scanPublicImports } from "./check-public-imports.mjs";
 
 const FILE = "packages/page-script/src/consumer.ts";
-const PUBLIC_PACKAGES = new Set(["@kitesurf/engine", "@kitesurf/page-script"]);
+const PUBLIC_PACKAGES = new Set(["@parawing/engine", "@parawing/page-script"]);
 
-test("rejects a @kitesurf package that is not a public workspace package", () => {
-  assert.deepEqual(scanPublicImports(FILE, 'import "@kitesurf/private-worker";', PUBLIC_PACKAGES), [
-    { file: FILE, line: 1, specifier: "@kitesurf/private-worker" },
+test("rejects a @parawing package that is not a public workspace package", () => {
+  assert.deepEqual(scanPublicImports(FILE, 'import "@parawing/private-worker";', PUBLIC_PACKAGES), [
+    { file: FILE, line: 1, specifier: "@parawing/private-worker" },
   ]);
 });
 
@@ -39,9 +39,9 @@ test("rejects internal workspace package roots, re-exports, and subpaths", () =>
   const violations = scanPublicImports(
     FILE,
     [
-      'import { KitesurfEngine } from "@kitesurf/engine-private";',
-      'export { type Env } from "@kitesurf/internal/private";',
-      'export * from "@kitesurf/engine-private/cdp";',
+      'import { ParawingEngine } from "@parawing/engine-private";',
+      'export { type Env } from "@parawing/internal/private";',
+      'export * from "@parawing/engine-private/cdp";',
     ].join("\n"),
     PUBLIC_PACKAGES,
   );
@@ -49,9 +49,9 @@ test("rejects internal workspace package roots, re-exports, and subpaths", () =>
   assert.deepEqual(
     violations.map(({ line, specifier }) => ({ line, specifier })),
     [
-      { line: 1, specifier: "@kitesurf/engine-private" },
-      { line: 2, specifier: "@kitesurf/internal/private" },
-      { line: 3, specifier: "@kitesurf/engine-private/cdp" },
+      { line: 1, specifier: "@parawing/engine-private" },
+      { line: 2, specifier: "@parawing/internal/private" },
+      { line: 3, specifier: "@parawing/engine-private/cdp" },
     ],
   );
 });
@@ -64,8 +64,8 @@ test("rejects internal dependencies in public scripts, configuration, and tests"
     "packages/engine/test/boundary.test.ts",
   ]) {
     assert.deepEqual(
-      scanPublicImports(file, 'import "@kitesurf/engine-private";', PUBLIC_PACKAGES),
-      [{ file, line: 1, specifier: "@kitesurf/engine-private" }],
+      scanPublicImports(file, 'import "@parawing/engine-private";', PUBLIC_PACKAGES),
+      [{ file, line: 1, specifier: "@parawing/engine-private" }],
     );
   }
 });
@@ -74,11 +74,11 @@ test("rejects type, dynamic, and require imports with literal internal targets",
   const violations = scanPublicImports(
     FILE,
     [
-      'import type { Env } from "@kitesurf/engine-private/types";',
-      'type RuntimeEnv = import("@kitesurf/engine-private/runtime").Env;',
-      'const runtime = import("@kitesurf/engine-private/runtime");',
-      'const required = require("@kitesurf/engine-private/commonjs");',
-      'import Engine = require("@kitesurf/engine-private/legacy");',
+      'import type { Env } from "@parawing/engine-private/types";',
+      'type RuntimeEnv = import("@parawing/engine-private/runtime").Env;',
+      'const runtime = import("@parawing/engine-private/runtime");',
+      'const required = require("@parawing/engine-private/commonjs");',
+      'import Engine = require("@parawing/engine-private/legacy");',
     ].join("\n"),
     PUBLIC_PACKAGES,
   );
@@ -96,13 +96,13 @@ test("rejects internal TypeScript path and package reference directives", () => 
       [
         '/// <reference types="node" />',
         '/// <reference path="../../../internal/packages/engine-private/src/index.ts" />',
-        '/// <reference types="@kitesurf/engine-private" />',
+        '/// <reference types="@parawing/engine-private" />',
       ].join("\n"),
       PUBLIC_PACKAGES,
     ).map(({ line, specifier }) => ({ line, specifier })),
     [
       { line: 2, specifier: "../../../internal/packages/engine-private/src/index.ts" },
-      { line: 3, specifier: "@kitesurf/engine-private" },
+      { line: 3, specifier: "@parawing/engine-private" },
     ],
   );
   assert.deepEqual(
@@ -119,10 +119,10 @@ test("accepts public imports and ignores comments, fixture strings, and generate
   const violations = scanPublicImports(
     FILE,
     [
-      'import { KitesurfEngine } from "@kitesurf/engine";',
+      'import { ParawingEngine } from "@parawing/engine";',
       'import { state } from "./state.js";',
-      '// import "@kitesurf/engine-private";',
-      '/* export * from "@kitesurf/engine-private"; */',
+      '// import "@parawing/engine-private";',
+      '/* export * from "@parawing/engine-private"; */',
       'const fixture = `export * from "../../../internal/packages/host"`;',
       "const nonLiteral = import(packageName);",
     ].join("\n"),
@@ -133,7 +133,7 @@ test("accepts public imports and ignores comments, fixture strings, and generate
   assert.deepEqual(
     scanPublicImports(
       "packages/dom-shim/src/idl/model.generated.ts",
-      'import "@kitesurf/engine-private";',
+      'import "@parawing/engine-private";',
       PUBLIC_PACKAGES,
     ),
     [],
@@ -141,7 +141,7 @@ test("accepts public imports and ignores comments, fixture strings, and generate
   assert.deepEqual(
     scanPublicImports(
       "packages/page-script/src/runtime.d.ts",
-      'import "@kitesurf/engine-private";',
+      'import "@parawing/engine-private";',
       PUBLIC_PACKAGES,
     ),
     [],
@@ -152,7 +152,7 @@ test("accepts public imports and ignores comments, fixture strings, and generate
     "packages/dom-shim/src/editing/implementation.js",
   ]) {
     assert.deepEqual(
-      scanPublicImports(file, 'import "@kitesurf/engine-private";', PUBLIC_PACKAGES),
+      scanPublicImports(file, 'import "@parawing/engine-private";', PUBLIC_PACKAGES),
       [],
     );
   }
@@ -163,18 +163,18 @@ test("accepts subpaths of public packages and leaves other scopes alone", () => 
     scanPublicImports(
       FILE,
       [
-        'import "@kitesurf/page-script/state";',
-        'import "@kitesurf/engine-extra";',
+        'import "@parawing/page-script/state";',
+        'import "@parawing/engine-extra";',
         'import "@cloudflare/puppeteer";',
       ].join("\n"),
       PUBLIC_PACKAGES,
     ).map(({ specifier }) => specifier),
-    ["@kitesurf/engine-extra"],
+    ["@parawing/engine-extra"],
   );
 });
 
 test("reads the public package names from the workspace manifests", () => {
   const names = readPublicPackageNames();
-  assert.ok(names.has("@kitesurf/engine"));
-  assert.ok(names.has("@kitesurf/page-script"));
+  assert.ok(names.has("@parawing/engine"));
+  assert.ok(names.has("@parawing/page-script"));
 });

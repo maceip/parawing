@@ -77,27 +77,27 @@
   },
   "elementhandle-screenshot.spec.ts::element screenshot › should capture full element when larger than viewport in parallel": {
     "expected": "SKIP",
-    "reason": "no kitesurf screenshot baseline"
+    "reason": "no parawing screenshot baseline"
   },
   "elementhandle-screenshot.spec.ts::element screenshot › should scroll element into view": {
     "expected": "SKIP",
-    "reason": "no kitesurf screenshot baseline"
+    "reason": "no parawing screenshot baseline"
   },
   "elementhandle-screenshot.spec.ts::element screenshot › should take into account padding and border": {
     "expected": "SKIP",
-    "reason": "no kitesurf screenshot baseline"
+    "reason": "no parawing screenshot baseline"
   },
   "elementhandle-screenshot.spec.ts::element screenshot › should work": {
     "expected": "SKIP",
-    "reason": "no kitesurf screenshot baseline"
+    "reason": "no parawing screenshot baseline"
   },
   "elementhandle-screenshot.spec.ts::element screenshot › should work for an element with an offset": {
     "expected": "SKIP",
-    "reason": "no kitesurf screenshot baseline"
+    "reason": "no parawing screenshot baseline"
   },
   "elementhandle-screenshot.spec.ts::element screenshot › should work for an element with fractional dimensions": {
     "expected": "SKIP",
-    "reason": "no kitesurf screenshot baseline"
+    "reason": "no parawing screenshot baseline"
   },
   "elementhandle-screenshot.spec.ts::element screenshot › should work when main world busts JSON.stringify": {
     "expected": "SKIP",
@@ -105,7 +105,7 @@
   },
   "elementhandle-screenshot.spec.ts::element screenshot › should work with a rotated element": {
     "expected": "SKIP",
-    "reason": "no kitesurf screenshot baseline"
+    "reason": "no parawing screenshot baseline"
   },
   "elementhandle-scroll-into-view.spec.ts::should scroll display:contents into view": {
     "expected": "FAIL",
@@ -177,7 +177,7 @@
   },
   "expect-matcher-result.spec.ts::toHaveScreenshot should populate matcherResult": {
     "expected": "SKIP",
-    "reason": "no kitesurf screenshot baseline"
+    "reason": "no parawing screenshot baseline"
   },
   "expect-misc.spec.ts::strict mode violation error format": {
     "expected": "FAIL",
@@ -413,7 +413,7 @@
   },
   "locator-misc-2.spec.ts::should take screenshot": {
     "expected": "SKIP",
-    "reason": "no kitesurf screenshot baseline"
+    "reason": "no parawing screenshot baseline"
   },
   "locator-query.spec.ts::count() should not throw during navigation": {
     "expected": "SKIP",
@@ -449,7 +449,7 @@
   },
   "page-add-locator-handler.spec.ts::should work with toHaveScreenshot": {
     "expected": "SKIP",
-    "reason": "no kitesurf screenshot baseline"
+    "reason": "no parawing screenshot baseline"
   },
   "page-add-script-tag.spec.ts::should include sourceURL when path is provided": {
     "expected": "FAIL",
@@ -729,15 +729,15 @@
   },
   "page-dialog.spec.ts::should accept the confirm prompt": {
     "expected": "FAIL",
-    "reason": "Error: page.evaluate: TypeError: kitesurf: not yet supported in this sandbox (Day 6) (tried to set/call 'confirm')"
+    "reason": "Error: page.evaluate: TypeError: parawing: not yet supported in this sandbox (Day 6) (tried to set/call 'confirm')"
   },
   "page-dialog.spec.ts::should allow accepting prompts @smoke": {
     "expected": "FAIL",
-    "reason": "Error: page.evaluate: TypeError: kitesurf: not yet supported in this sandbox (Day 6) (tried to set/call 'prompt')"
+    "reason": "Error: page.evaluate: TypeError: parawing: not yet supported in this sandbox (Day 6) (tried to set/call 'prompt')"
   },
   "page-dialog.spec.ts::should auto-dismiss the prompt without listeners": {
     "expected": "FAIL",
-    "reason": "Error: page.evaluate: TypeError: kitesurf: not yet supported in this sandbox (Day 6) (tried to set/call 'prompt')"
+    "reason": "Error: page.evaluate: TypeError: parawing: not yet supported in this sandbox (Day 6) (tried to set/call 'prompt')"
   },
   "page-dialog.spec.ts::should be able to close context with open alert": {
     "expected": "SKIP",
@@ -745,11 +745,11 @@
   },
   "page-dialog.spec.ts::should dismiss the confirm prompt": {
     "expected": "FAIL",
-    "reason": "Error: page.evaluate: TypeError: kitesurf: not yet supported in this sandbox (Day 6) (tried to set/call 'confirm')"
+    "reason": "Error: page.evaluate: TypeError: parawing: not yet supported in this sandbox (Day 6) (tried to set/call 'confirm')"
   },
   "page-dialog.spec.ts::should dismiss the prompt": {
     "expected": "FAIL",
-    "reason": "Error: page.evaluate: TypeError: kitesurf: not yet supported in this sandbox (Day 6) (tried to set/call 'prompt')"
+    "reason": "Error: page.evaluate: TypeError: parawing: not yet supported in this sandbox (Day 6) (tried to set/call 'prompt')"
   },
   "page-dispatchevent.spec.ts::should throw if argument is from different frame": {
     "expected": "SKIP",
@@ -1681,11 +1681,11 @@
   },
   "page-request-fulfill.spec.ts::should allow mocking binary responses": {
     "expected": "SKIP",
-    "reason": "no kitesurf screenshot baseline"
+    "reason": "no parawing screenshot baseline"
   },
   "page-request-fulfill.spec.ts::should allow mocking svg with charset": {
     "expected": "SKIP",
-    "reason": "no kitesurf screenshot baseline"
+    "reason": "no parawing screenshot baseline"
   },
   "page-request-fulfill.spec.ts::should fulfill preload link requests": {
     "expected": "SKIP",
@@ -1785,7 +1785,7 @@
   },
   "page-screenshot.spec.ts::page screenshot › mask option › should hide elements based on attr": {
     "expected": "SKIP",
-    "reason": "no kitesurf screenshot baseline"
+    "reason": "no parawing screenshot baseline"
   },
   "page-screenshot.spec.ts::page screenshot › mask option › should mask in parallel": {
     "expected": "SKIP",
@@ -1801,7 +1801,7 @@
   },
   "page-screenshot.spec.ts::page screenshot › mask option › should remove elements based on attr": {
     "expected": "SKIP",
-    "reason": "no kitesurf screenshot baseline"
+    "reason": "no parawing screenshot baseline"
   },
   "page-screenshot.spec.ts::page screenshot › mask option › should remove mask after screenshot": {
     "expected": "FAIL",
@@ -1833,7 +1833,7 @@
   },
   "page-screenshot.spec.ts::page screenshot › should allow transparency": {
     "expected": "SKIP",
-    "reason": "no kitesurf screenshot baseline"
+    "reason": "no parawing screenshot baseline"
   },
   "page-screenshot.spec.ts::page screenshot › should allow transparency with webp": {
     "expected": "FAIL",
@@ -1845,31 +1845,31 @@
   },
   "page-screenshot.spec.ts::page screenshot › should capture canvas changes": {
     "expected": "SKIP",
-    "reason": "no kitesurf screenshot baseline"
+    "reason": "no parawing screenshot baseline"
   },
   "page-screenshot.spec.ts::page screenshot › should clip elements to the viewport": {
     "expected": "SKIP",
-    "reason": "no kitesurf screenshot baseline"
+    "reason": "no parawing screenshot baseline"
   },
   "page-screenshot.spec.ts::page screenshot › should clip rect": {
     "expected": "SKIP",
-    "reason": "no kitesurf screenshot baseline"
+    "reason": "no parawing screenshot baseline"
   },
   "page-screenshot.spec.ts::page screenshot › should produce a valid webp screenshot": {
     "expected": "SKIP",
-    "reason": "no kitesurf screenshot baseline"
+    "reason": "no parawing screenshot baseline"
   },
   "page-screenshot.spec.ts::page screenshot › should render white background on jpeg file": {
     "expected": "SKIP",
-    "reason": "no kitesurf screenshot baseline"
+    "reason": "no parawing screenshot baseline"
   },
   "page-screenshot.spec.ts::page screenshot › should run in parallel": {
     "expected": "SKIP",
-    "reason": "no kitesurf screenshot baseline"
+    "reason": "no parawing screenshot baseline"
   },
   "page-screenshot.spec.ts::page screenshot › should take fullPage screenshots": {
     "expected": "SKIP",
-    "reason": "no kitesurf screenshot baseline"
+    "reason": "no parawing screenshot baseline"
   },
   "page-screenshot.spec.ts::page screenshot › should take fullPage screenshots and mask elements outside of it": {
     "expected": "FAIL",
@@ -1877,19 +1877,19 @@
   },
   "page-screenshot.spec.ts::page screenshot › should work @smoke": {
     "expected": "SKIP",
-    "reason": "no kitesurf screenshot baseline"
+    "reason": "no parawing screenshot baseline"
   },
   "page-screenshot.spec.ts::page screenshot › should work for canvas": {
     "expected": "SKIP",
-    "reason": "no kitesurf screenshot baseline"
+    "reason": "no parawing screenshot baseline"
   },
   "page-screenshot.spec.ts::page screenshot › should work for translateZ": {
     "expected": "SKIP",
-    "reason": "no kitesurf screenshot baseline"
+    "reason": "no parawing screenshot baseline"
   },
   "page-screenshot.spec.ts::page screenshot › should work for webgl": {
     "expected": "SKIP",
-    "reason": "no kitesurf screenshot baseline"
+    "reason": "no parawing screenshot baseline"
   },
   "page-screenshot.spec.ts::page screenshot › should work while navigating": {
     "expected": "SKIP",
@@ -1897,11 +1897,11 @@
   },
   "page-screenshot.spec.ts::page screenshot › should work with iframe in shadow": {
     "expected": "SKIP",
-    "reason": "no kitesurf screenshot baseline"
+    "reason": "no parawing screenshot baseline"
   },
   "page-screenshot.spec.ts::page screenshot › should work with odd clip size on Retina displays": {
     "expected": "SKIP",
-    "reason": "no kitesurf screenshot baseline"
+    "reason": "no parawing screenshot baseline"
   },
   "page-screenshot.spec.ts::page screenshot › webp screenshots should be lossless by default": {
     "expected": "FAIL",
@@ -1949,15 +1949,15 @@
   },
   "page-screenshot.spec.ts::page screenshot animations › should wait for fonts to load": {
     "expected": "SKIP",
-    "reason": "no kitesurf screenshot baseline"
+    "reason": "no parawing screenshot baseline"
   },
   "page-screenshot.spec.ts::page screenshot should capture css transform": {
     "expected": "SKIP",
-    "reason": "no kitesurf screenshot baseline"
+    "reason": "no parawing screenshot baseline"
   },
   "page-screenshot.spec.ts::should capture css box-shadow": {
     "expected": "SKIP",
-    "reason": "no kitesurf screenshot baseline"
+    "reason": "no parawing screenshot baseline"
   },
   "page-select-option.spec.ts::should fall back to selecting by label": {
     "expected": "FAIL",

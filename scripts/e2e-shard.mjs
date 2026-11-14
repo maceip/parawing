@@ -89,7 +89,7 @@ function main(options) {
         NO_COLOR: "1",
         // Wrangler logs under the user's config directory by default, which a sandbox may not let
         // an action write.
-        WRANGLER_LOG_PATH: resolve(tmpdir(), "kitesurf-e2e-wrangler-logs"),
+        WRANGLER_LOG_PATH: resolve(tmpdir(), "parawing-e2e-wrangler-logs"),
       },
     },
   );

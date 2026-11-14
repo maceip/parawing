@@ -28,7 +28,7 @@ index c764e04..4e5077a 100644
 -        // "template contents" fragment node rather than into the element itself
 -        self.mutr().template_contents(*target)
 +        // Parse a template's children inline, under the element,
-+        // as blitz 0.3.0-beta.2 did. Kitesurf's DOM shim owns template
++        // as blitz 0.3.0-beta.2 did. Parawing's DOM shim owns template
 +        // semantics: it moves these children into the JS `.content` fragment
 +        // on first access. Upstream's detached contents node is invisible to
 +        // the shim, and would leave every parsed template (markup, innerHTML,

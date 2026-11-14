@@ -54,7 +54,7 @@ index 0000000..af941c4
 --- /dev/null
 +++ b/src/ks_code_stats.rs
 @@ -0,0 +1,131 @@
-+//! Kitesurf: live counts and bytes of compiled code on this thread, so an embedder can
++//! Parawing: live counts and bytes of compiled code on this thread, so an embedder can
 +//! tell what code retains apart from the GC heap and from everything else in memory.
 +
 +use std::cell::Cell;
@@ -104,7 +104,7 @@ index 0000000..af941c4
 +    i64::try_from(n).unwrap_or(i64::MAX)
 +}
 +
-+/// Kitesurf: live compiled code as (name, value) pairs: code blocks, those that ran, retained
++/// Parawing: live compiled code as (name, value) pairs: code blocks, those that ran, retained
 +/// source texts, then bytes by kind. Strings and scopes shared by code blocks are not counted.
 +#[must_use]
 +pub fn ks_code_stats() -> [(&'static str, i64); 9] {
@@ -245,7 +245,7 @@ index d791749..004f2b3 100644
      // Used for identifying anonymous functions in compiled output and call frames.
      pub(crate) debug_id: u64,
 
-+    // Kitesurf: this block's share of the code counters (crate::ks_code_stats), refunded
++    // Parawing: this block's share of the code counters (crate::ks_code_stats), refunded
 +    // when it drops; `ks_charged` sets it once the block's parts are in place.
 +    #[unsafe_ignore_trace]
 +    pub(crate) ks_charge: crate::ks_code_stats::CodeCharge,
@@ -267,7 +267,7 @@ index d791749..004f2b3 100644
 +        })
 +    }
 +
-+    /// Kitesurf: charges this block to the code counters: the struct and the arrays it owns,
++    /// Parawing: charges this block to the code counters: the struct and the arrays it owns,
 +    /// and its source map apart. Shared strings, scopes and nested blocks are not its own.
 +    #[must_use]
 +    pub(crate) fn ks_charged(mut self) -> Self {
@@ -331,7 +331,7 @@ index eb91502..9c22c7e 100644
 +        packed
 +    }
 +
-+    // Kitesurf: adds (sign 1) or refunds (-1) this bytecode's bytes to the code counters,
++    // Parawing: adds (sign 1) or refunds (-1) this bytecode's bytes to the code counters,
 +    // under the form it holds now: packed until it first runs, expanded after.
 +    fn charge(&self, sign: i64) {
 +        let packed = self.packed.take();
@@ -370,7 +370,7 @@ index 958e512..aa42c53 100644
  const CHECKPOINT_EVERY: usize = 32;
 
 +impl SourceMap {
-+    /// Kitesurf: the heap bytes of the encoded entries and their checkpoints, for the code
++    /// Parawing: the heap bytes of the encoded entries and their checkpoints, for the code
 +    /// counters. The path is shared with the rest of the script, so it is left out.
 +    pub(crate) fn ks_heap_bytes(&self) -> usize {
 +        self.data.len() + size_of_val::<[Checkpoint]>(&self.checkpoints)

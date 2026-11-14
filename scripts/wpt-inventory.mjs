@@ -104,7 +104,7 @@ function parseArgs(argv) {
     out: INVENTORY_FILE,
     manifest: null,
     reference: true,
-    wptDir: process.env.KITESURF_WPT_DIR ? resolve(process.env.KITESURF_WPT_DIR) : WPT_ROOT,
+    wptDir: process.env.PARAWING_WPT_DIR ? resolve(process.env.PARAWING_WPT_DIR) : WPT_ROOT,
     pin: null,
     addReference: null,
     pythonPath: null,

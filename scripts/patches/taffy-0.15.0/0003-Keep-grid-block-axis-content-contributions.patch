@@ -95,7 +95,7 @@ index a450531..512d3fa 100644
 -                    } else {
 -                        limited_min_content
 -                    }
-+            // Kitesurf keeps block-axis content contributions under all availability so measurement and final row sizing agree.
++            // Parawing keeps block-axis content contributions under all availability so measurement and final row sizing agree.
 +            let use_limited_min_content = axis == AbstractAxis::Block
 +                || (matches!(axis_available_grid_space, AvailableSpace::MinContent | AvailableSpace::MaxContent)
 +                    && !item.overflow.get(axis).is_scroll_container());

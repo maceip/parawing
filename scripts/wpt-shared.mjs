@@ -188,7 +188,7 @@ export function summarize(results) {
 /** @returns {string} */
 export function renderReportMd({ date, base, ws, summary, results }) {
   const lines = [];
-  lines.push(`# Kitesurf WPT report — ${date}`);
+  lines.push(`# Parawing WPT report — ${date}`);
   lines.push("");
   lines.push(`Base: \`${base}\`  ·  CDP: \`${ws}\``);
   lines.push("");

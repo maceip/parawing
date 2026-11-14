@@ -6,13 +6,13 @@ index 746c584..266e2c7 100644
  );
  defaultBrowserOptions.args!.push(`--force-device-scale-factor=1`);
  
-+// Kitesurf: attach to a running engine's /devtools/browser endpoint instead of launching Chrome.
-+const kitesurfWS = process.env['KITESURF_WS'];
++// Parawing: attach to a running engine's /devtools/browser endpoint instead of launching Chrome.
++const parawingWS = process.env['PARAWING_WS'];
 +
  let executableExists = false;
  async function verifyExecutable() {
 -  if (executableExists) {
-+  if (executableExists || kitesurfWS) {
++  if (executableExists || parawingWS) {
      return;
    }
  
@@ -20,9 +20,9 @@ index 746c584..266e2c7 100644
      await verifyExecutable();
      try {
        if (!state.browser) {
-+        if (!browserPromise && kitesurfWS) {
++        if (!browserPromise && parawingWS) {
 +          browserPromise = (puppeteer as unknown as PuppeteerNode).connect({
-+            browserWSEndpoint: kitesurfWS,
++            browserWSEndpoint: parawingWS,
 +            protocolTimeout,
 +          });
 +        }

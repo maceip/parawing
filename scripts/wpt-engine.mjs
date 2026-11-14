@@ -133,7 +133,7 @@ async function serve(options) {
   };
   const engine = {
     ...workerOptions,
-    name: "kitesurf-engine",
+    name: "parawing-engine",
     modulesRoot: options.dist,
     modules: distModules(options.dist, "index.js", testRegExps, compileModuleRules(ENGINE_RULES)),
     bindings: { ...workerOptions.bindings, ...options.vars },

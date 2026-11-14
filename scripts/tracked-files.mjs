@@ -21,7 +21,7 @@ function matcher(pathspec) {
 
 /** @param {string} root @param {string[]} pathspecs @returns {string[]} */
 export function trackedFiles(root, pathspecs) {
-  const list = process.env.KITESURF_TRACKED_FILES;
+  const list = process.env.PARAWING_TRACKED_FILES;
   if (!list) {
     return execFileSync("git", ["ls-files", "--", ...pathspecs], { cwd: root, encoding: "utf8" })
       .split("\n")

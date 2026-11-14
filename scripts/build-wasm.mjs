@@ -33,23 +33,23 @@ function pathOption(flag) {
 
 const postprocessWasm = pathOption("--postprocess");
 const PKG_DIR = pathOption("--out-dir") ?? resolve(CORE_DIR, "pkg");
-const WASM_OUT = resolve(PKG_DIR, "kitesurf_core_bg.wasm");
+const WASM_OUT = resolve(PKG_DIR, "parawing_core_bg.wasm");
 const PKG_OUTPUTS = [
   WASM_OUT,
-  resolve(PKG_DIR, "kitesurf_core.js"),
-  resolve(PKG_DIR, "kitesurf_core.glue.js"),
-  resolve(PKG_DIR, "kitesurf_core.glue.d.ts"),
+  resolve(PKG_DIR, "parawing_core.js"),
+  resolve(PKG_DIR, "parawing_core.glue.js"),
+  resolve(PKG_DIR, "parawing_core.glue.d.ts"),
 ];
 const SELF = resolve(dirname(fileURLToPath(import.meta.url)), "build-wasm.mjs");
 
 const inCI = Boolean(process.env.CI);
 
-const reuseWasm = Boolean(process.env.KITESURF_REUSE_WASM);
+const reuseWasm = Boolean(process.env.PARAWING_REUSE_WASM);
 
 // Bazel compiles the wasm itself (rules_rust) and hands this script the raw wasm:
 // only the post-passes run, with the tools named by WASM_BINDGEN_BIN/WASM_OPT_BIN.
 const memprof = process.argv.includes("--memprof");
-if (process.env.KITESURF_MEMPROF && !memprof) {
+if (process.env.PARAWING_MEMPROF && !memprof) {
   console.error("[build-wasm] use `pnpm run build:wasm:memprof` for the Bazel memprof build");
   process.exit(2);
 }
@@ -62,7 +62,7 @@ if (postprocessWasm && !process.env.WASM_BINDGEN_BIN) {
   process.exit(2);
 }
 
-const lastWasMemprof = existsSync(resolve(PKG_DIR, "kitesurf_core_bg.wasm.memprof.json"));
+const lastWasMemprof = existsSync(resolve(PKG_DIR, "parawing_core_bg.wasm.memprof.json"));
 // A staged memprof wasm shares this package path and must not be reused as the normal wasm.
 const force = process.argv.includes("--force") || inCI || memprof || lastWasMemprof;
 
@@ -121,7 +121,7 @@ function shouldRebuild() {
 
 if (!postprocessWasm && reuseWasm && existsSync(WASM_OUT)) {
   console.log(
-    `[build-wasm] KITESURF_REUSE_WASM=1 and ${WASM_OUT} present — reusing pre-staged pkg/`,
+    `[build-wasm] PARAWING_REUSE_WASM=1 and ${WASM_OUT} present — reusing pre-staged pkg/`,
   );
   process.exit(0);
 }
@@ -157,7 +157,7 @@ if (!postprocessWasm) {
 }
 
 const cargoWasm =
-  postprocessWasm ?? resolve(CORE_DIR, "target/wasm32-unknown-unknown/release/kitesurf_core.wasm");
+  postprocessWasm ?? resolve(CORE_DIR, "target/wasm32-unknown-unknown/release/parawing_core.wasm");
 if (!existsSync(cargoWasm)) {
   console.error(`[build-wasm] expected ${cargoWasm} after cargo build`);
   process.exit(1);
@@ -178,14 +178,14 @@ execFileSync(wasmBindgen, [cargoWasm, "--out-dir", PKG_DIR, "--target", "web", "
 
 // This tracked manifest lets pnpm resolve core before the ignored wasm outputs exist.
 const pkgJson = {
-  name: "kitesurf-core",
+  name: "parawing-core",
   type: "module",
-  description: "Wasm core for kitesurf: DOM data plane + Stylo + Blitz render.",
+  description: "Wasm core for parawing: DOM data plane + Stylo + Blitz render.",
   version: "0.0.1",
   license: "Apache-2.0",
-  files: ["kitesurf_core_bg.wasm", "kitesurf_core.js", "kitesurf_core.d.ts"],
-  main: "kitesurf_core.js",
-  types: "kitesurf_core.d.ts",
+  files: ["parawing_core_bg.wasm", "parawing_core.js", "parawing_core.d.ts"],
+  main: "parawing_core.js",
+  types: "parawing_core.d.ts",
   sideEffects: ["./snippets/*"],
 };
 // Bazel uses the committed package manifest and checks it for drift.
@@ -243,7 +243,7 @@ if (memprof) {
 
 console.log("[build-wasm] post-pass: hide fetchResource bridge");
 {
-  const gluePath = resolve(PKG_DIR, "kitesurf_core.js");
+  const gluePath = resolve(PKG_DIR, "parawing_core.js");
   const original = readFileSync(gluePath, "utf8");
   if (original.includes("// HIDDEN-BRIDGE-MARKER-v1")) {
     console.log("[build-wasm]   marker present; skipping");
@@ -290,7 +290,7 @@ console.log("[build-wasm] post-pass: hide fetchResource bridge");
     console.log("[build-wasm]   rewrote " + LEGACY_CALL + " → closure");
   }
 
-  const dtsPath = resolve(PKG_DIR, "kitesurf_core.d.ts");
+  const dtsPath = resolve(PKG_DIR, "parawing_core.d.ts");
   const dtsOriginal = readFileSync(dtsPath, "utf8");
   if (!dtsOriginal.includes("__setBridgeFetchResource")) {
     const appendix =
@@ -310,7 +310,7 @@ console.log("[build-wasm] post-pass: hide fetchResource bridge");
 // async tasks. Hand the trap to PageScript there, so it can end the page instead of hanging.
 console.log("[build-wasm] post-pass: terminated hook");
 {
-  const gluePath = resolve(PKG_DIR, "kitesurf_core.js");
+  const gluePath = resolve(PKG_DIR, "parawing_core.js");
   const original = readFileSync(gluePath, "utf8");
   if (original.includes("// TERMINATED-HOOK-MARKER-v1")) {
     console.log("[build-wasm]   marker present; skipping");
@@ -353,7 +353,7 @@ console.log("[build-wasm] post-pass: terminated hook");
 // a sheet it cannot read. Capture the natives at module load and copy through them.
 console.log("[build-wasm] post-pass: capture typed-array copy intrinsics");
 {
-  const gluePath = resolve(PKG_DIR, "kitesurf_core.js");
+  const gluePath = resolve(PKG_DIR, "parawing_core.js");
   const original = readFileSync(gluePath, "utf8");
   if (original.includes("// TYPED-COPY-MARKER-v1")) {
     console.log("[build-wasm]   marker present; skipping");
@@ -393,11 +393,11 @@ console.log("[build-wasm] post-pass: capture typed-array copy intrinsics");
   }
 }
 
-console.log("[build-wasm] cp kitesurf_core.js → kitesurf_core.glue.js");
-copyFileSync(resolve(PKG_DIR, "kitesurf_core.js"), resolve(PKG_DIR, "kitesurf_core.glue.js"));
+console.log("[build-wasm] cp parawing_core.js → parawing_core.glue.js");
+copyFileSync(resolve(PKG_DIR, "parawing_core.js"), resolve(PKG_DIR, "parawing_core.glue.js"));
 
-console.log("[build-wasm] emit kitesurf_core.glue.d.ts");
-const glueDts = `// Companion declaration for kitesurf_core.glue.js (verbatim copy of
+console.log("[build-wasm] emit parawing_core.glue.d.ts");
+const glueDts = `// Companion declaration for parawing_core.glue.js (verbatim copy of
 // the wasm-bindgen JS glue). The Wrangler "Text" rule on **/*.glue.js
 // makes the import yield the file's contents as a string, which we
 // embed in the eval sandbox's module bundle.
@@ -406,6 +406,6 @@ const glueDts = `// Companion declaration for kitesurf_core.glue.js (verbatim co
 declare const value: string;
 export default value;
 `;
-writeFileSync(resolve(PKG_DIR, "kitesurf_core.glue.d.ts"), glueDts);
+writeFileSync(resolve(PKG_DIR, "parawing_core.glue.d.ts"), glueDts);
 
 console.log("[build-wasm] done");

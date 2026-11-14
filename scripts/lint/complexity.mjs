@@ -294,7 +294,7 @@ function runComplexityReport() {
     return;
   }
 
-  const temporaryDirectory = mkdtempSync(join(tmpdir(), "kitesurf-complexity-"));
+  const temporaryDirectory = mkdtempSync(join(tmpdir(), "parawing-complexity-"));
   try {
     const configPath = join(temporaryDirectory, "oxlint.config.json");
     writeFileSync(configPath, JSON.stringify(createComplexityConfig(oxlintConfigPath())));

@@ -117,7 +117,7 @@
   },
   "[evaluation.test] Evaluation specs Page.evaluate should return properly serialize objects with unknown type fields": {
     "expected": "FAIL",
-    "reason": "auto: ReferenceError: createImageBitmap is not defined / __wbg_new_358857d90afd5a2d (file:///bundle/wasm-glue.js:6379:25) / kitesurf_core.wasm.<js_sys[a6174709d61e686f]::Error>::new::__wbg_new_358857d90afd…"
+    "reason": "auto: ReferenceError: createImageBitmap is not defined / __wbg_new_358857d90afd5a2d (file:///bundle/wasm-glue.js:6379:25) / parawing_core.wasm.<js_sys[a6174709d61e686f]::Error>::new::__wbg_new_358857d90afd…"
   },
   "[evaluation.test] Evaluation specs Page.evaluate should return RegEx": {
     "expected": "FAIL",
@@ -153,7 +153,7 @@
   },
   "[evaluation.test] Evaluation specs Page.evaluate should transfer 100Mb of data from page to node.js": {
     "expected": "SKIP",
-    "reason": "auto: FAIL after 10.6s: capacity overflow / __wbg___wbindgen_panic_error_f153dd2564290663 (file:///bundle/wasm-glue.js:6092:25) / kitesurf_core.wasm.wasm_bindgen[850068d9710d5473]::__rt::__wbindgen_panic_error::__wbg___wbin…"
+    "reason": "auto: FAIL after 10.6s: capacity overflow / __wbg___wbindgen_panic_error_f153dd2564290663 (file:///bundle/wasm-glue.js:6092:25) / parawing_core.wasm.wasm_bindgen[850068d9710d5473]::__rt::__wbindgen_panic_error::__wbg___wbin…"
   },
   "[evaluation.test] Evaluation specs Page.evaluate should transfer BigInt": {
     "expected": "FAIL",
@@ -193,7 +193,7 @@
   },
   "[jshandle.test] JSHandle Page.evaluateHandle should accept object handle as an argument": {
     "expected": "FAIL",
-    "reason": "auto: expect(received).toContain(expected) // indexOf / Expected substring: \"Mozilla\" / Received string:    \"Kitesurf/0.0.1\""
+    "reason": "auto: expect(received).toContain(expected) // indexOf / Expected substring: \"Mozilla\" / Received string:    \"Parawing/0.0.1\""
   },
   "[jshandle.test] JSHandle Page.evaluateHandle should accept object handle to unserializable value": {
     "expected": "FAIL",
@@ -277,11 +277,11 @@
   },
   "[queryhandler.test] Query handler tests P selectors should work ARIA selectors with name and role": {
     "expected": "FAIL",
-    "reason": "auto: TypeError: cyclic object value / __wbg_new_358857d90afd5a2d (file:///bundle/wasm-glue.js:6379:25) / kitesurf_core.wasm.<js_sys[a6174709d61e686f]::Error>::new::__wbg_new_358857d90afd5a2d externref shi…"
+    "reason": "auto: TypeError: cyclic object value / __wbg_new_358857d90afd5a2d (file:///bundle/wasm-glue.js:6379:25) / parawing_core.wasm.<js_sys[a6174709d61e686f]::Error>::new::__wbg_new_358857d90afd5a2d externref shi…"
   },
   "[queryhandler.test] Query handler tests P selectors should work ARIA selectors with role": {
     "expected": "FAIL",
-    "reason": "auto: TypeError: cyclic object value / __wbg_new_358857d90afd5a2d (file:///bundle/wasm-glue.js:6379:25) / kitesurf_core.wasm.<js_sys[a6174709d61e686f]::Error>::new::__wbg_new_358857d90afd5a2d externref shi…"
+    "reason": "auto: TypeError: cyclic object value / __wbg_new_358857d90afd5a2d (file:///bundle/wasm-glue.js:6379:25) / parawing_core.wasm.<js_sys[a6174709d61e686f]::Error>::new::__wbg_new_358857d90afd5a2d externref shi…"
   },
   "[queryhandler.test] Query handler tests P selectors should work for ARIA selectors in multiple isolated worlds": {
     "expected": "SKIP",

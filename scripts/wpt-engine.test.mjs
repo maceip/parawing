@@ -21,7 +21,7 @@ test(
   "engine preparation and serving retain the embedding host's config and binary imports",
   { timeout: ENGINE_TEST_TIMEOUT_MS },
   async (t) => {
-    const root = mkdtempSync(join(tmpdir(), "kitesurf-host-dist-"));
+    const root = mkdtempSync(join(tmpdir(), "parawing-host-dist-"));
     const config = join(root, "wrangler.jsonc");
     const dist = join(root, "dist");
     let child;
@@ -46,7 +46,7 @@ test(
     writeFileSync(
       config,
       JSON.stringify({
-        name: "kitesurf-test-host",
+        name: "parawing-test-host",
         main: "index.js",
         compatibility_date: "2026-09-11",
         vars: { HOST_MARKER: "private" },

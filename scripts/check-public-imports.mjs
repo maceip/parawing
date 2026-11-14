@@ -28,9 +28,9 @@ const EXCLUDED_SOURCE_SEGMENTS = new Set([
 const DECLARATION_FILE = /\.d(?:\.[^/]+)?\.(?:ts|mts|cts)$/i;
 const GENERATED_FILE = /\.generated\./i;
 
-const PACKAGE_SCOPE = "@kitesurf/";
+const PACKAGE_SCOPE = "@parawing/";
 
-// Every @kitesurf/* package that is not a workspace package here belongs to the private
+// Every @parawing/* package that is not a workspace package here belongs to the private
 // overlay, which lives in a separate repository, so allow-list the public ones by reading
 // their manifests instead of naming the private ones.
 /** @param {string} [root]

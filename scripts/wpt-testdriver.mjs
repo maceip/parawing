@@ -402,7 +402,7 @@ export function createTestdriverBridge({ page, session }) {
     for (let i = 1; i <= steps; i++) {
       state.x = Math.round(fromX + ((x - fromX) * i) / steps);
       state.y = Math.round(fromY + ((y - fromY) * i) / steps);
-      await mouse("mouseMoved", { button: "none", _kitesurfSyncMove: true });
+      await mouse("mouseMoved", { button: "none", _parawingSyncMove: true });
     }
     state.x = x;
     state.y = y;

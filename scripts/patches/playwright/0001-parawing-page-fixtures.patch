@@ -1,11 +1,11 @@
-diff --git a/tests/kitesurf/kitesurfTest.ts b/tests/kitesurf/kitesurfTest.ts
+diff --git a/tests/parawing/parawingTest.ts b/tests/parawing/parawingTest.ts
 new file mode 100644
 index 0000000..6ec5406
 --- /dev/null
-+++ b/tests/kitesurf/kitesurfTest.ts
++++ b/tests/parawing/parawingTest.ts
 @@ -0,0 +1,56 @@
-+// Kitesurf impl of the shared tests/page fixture surface (PWPAGE_IMPL=kitesurf).
-+// Drives a running kitesurf engine over CDP; KITESURF_WS points at it.
++// Parawing impl of the shared tests/page fixture surface (PWPAGE_IMPL=parawing).
++// Drives a running parawing engine over CDP; PARAWING_WS points at it.
 +
 +import { chromium } from 'playwright-core';
 +import type { Browser, BrowserContext } from 'playwright-core';
@@ -14,29 +14,29 @@ index 0000000..6ec5406
 +
 +export { expect } from '@playwright/test';
 +
-+type KitesurfWorkerFixtures = PageWorkerFixtures & {
-+  kitesurfBrowser: Browser;
-+  kitesurfContext: BrowserContext;
++type ParawingWorkerFixtures = PageWorkerFixtures & {
++  parawingBrowser: Browser;
++  parawingContext: BrowserContext;
 +};
 +
-+export const kitesurfTest = baseTest.extend<PageTestFixtures, KitesurfWorkerFixtures>({
-+  kitesurfBrowser: [async ({}, use) => {
-+    const ws = process.env.KITESURF_WS;
++export const parawingTest = baseTest.extend<PageTestFixtures, ParawingWorkerFixtures>({
++  parawingBrowser: [async ({}, use) => {
++    const ws = process.env.PARAWING_WS;
 +    if (!ws)
-+      throw new Error('KITESURF_WS must point at a kitesurf /devtools/browser ws endpoint');
++      throw new Error('PARAWING_WS must point at a parawing /devtools/browser ws endpoint');
 +    const browser = await chromium.connectOverCDP(ws);
 +    await use(browser);
 +    await browser.close();
 +  }, { scope: 'worker' }],
 +
-+  // connectOverCDP surfaces the engine's single default context; kitesurf
++  // connectOverCDP surfaces the engine's single default context; parawing
 +  // fakes createBrowserContext, so all tests share it (and its cookie jar).
-+  kitesurfContext: [async ({ kitesurfBrowser }, use) => {
-+    await use(kitesurfBrowser.contexts()[0]);
++  parawingContext: [async ({ parawingBrowser }, use) => {
++    await use(parawingBrowser.contexts()[0]);
 +  }, { scope: 'worker' }],
 +
-+  browserVersion: [async ({ kitesurfBrowser }, use) => {
-+    await use(kitesurfBrowser.version());
++  browserVersion: [async ({ parawingBrowser }, use) => {
++    await use(parawingBrowser.version());
 +  }, { scope: 'worker' }],
 +
 +  browserMajorVersion: [async ({ browserVersion }, use) => {
@@ -52,29 +52,29 @@ index 0000000..6ec5406
 +
 +  // Fresh page per test, closed after; cookies cleared between tests
 +  // (Storage.clearCookies) since the single context persists until
-+  // kitesurf grows real browser contexts (TODO-playwright.md 3.7).
-+  page: async ({ kitesurfContext }, use) => {
-+    const page = await kitesurfContext.newPage();
++  // parawing grows real browser contexts (TODO-playwright.md 3.7).
++  page: async ({ parawingContext }, use) => {
++    const page = await parawingContext.newPage();
 +    await use(page);
 +    await page.close().catch(() => {});
-+    await kitesurfContext.clearCookies().catch(() => {});
++    await parawingContext.clearCookies().catch(() => {});
 +  },
 +});
-diff --git a/tests/kitesurf/playwright.config.ts b/tests/kitesurf/playwright.config.ts
+diff --git a/tests/parawing/playwright.config.ts b/tests/parawing/playwright.config.ts
 new file mode 100644
 index 0000000..b36c7f6
 --- /dev/null
-+++ b/tests/kitesurf/playwright.config.ts
++++ b/tests/parawing/playwright.config.ts
 @@ -0,0 +1,54 @@
-+// Config for running the shared tests/page suite against kitesurf over CDP.
-+// Invoked by kitesurf's scripts/pw-run.mjs (which owns the engine lifecycle).
++// Config for running the shared tests/page suite against parawing over CDP.
++// Invoked by parawing's scripts/pw-run.mjs (which owns the engine lifecycle).
 +
 +import type { Config, PlaywrightTestOptions, PlaywrightWorkerOptions } from '@playwright/test';
 +import * as path from 'path';
 +import type { ServerWorkerOptions } from '../config/serverFixtures';
 +
 +process.env.PWTEST_UNDER_TEST = '1';
-+process.env.PWPAGE_IMPL = 'kitesurf';
++process.env.PWPAGE_IMPL = 'parawing';
 +
 +const outputDir = path.join(__dirname, '..', '..', 'test-results');
 +const testDir = path.join(__dirname, '..', 'page');
@@ -97,19 +97,19 @@ index 0000000..b36c7f6
 +  forbidOnly: !!process.env.CI,
 +  reporter: [
 +    ['line'],
-+    ['json', { outputFile: process.env.PWTEST_JSON_OUTPUT || path.join(outputDir, 'kitesurf-report.json') }],
++    ['json', { outputFile: process.env.PWTEST_JSON_OUTPUT || path.join(outputDir, 'parawing-report.json') }],
 +    // pw-run names one blob per batch; tests/pw:html_report merges them into one HTML report.
 +    ...(process.env.PLAYWRIGHT_BLOB_OUTPUT_FILE ? [['blob'] as const] : []),
 +  ],
 +  projects: [
 +    {
-+      name: 'kitesurf-page',
++      name: 'parawing-page',
 +      use: {
 +        browserName: 'chromium',
 +      },
 +      testDir,
 +      metadata: {
-+        platform: 'kitesurf',
++        platform: 'parawing',
 +        headless: 'headless',
 +        browserName: 'chromium',
 +        mode: 'default',
@@ -128,7 +128,7 @@ index 85c532a..2723681 100644
  import { androidTest } from '../android/androidTest';
  import { browserTest } from '../config/browserTest';
  import { electronTest } from '../electron/electronTest';
-+import { kitesurfTest } from '../kitesurf/kitesurfTest';
++import { parawingTest } from '../parawing/parawingTest';
  import { webviewTest } from '../webview/webviewTest';
  import type { PageTestFixtures, PageWorkerFixtures } from './pageTestApi';
  import type { ServerFixtures, ServerWorkerOptions } from '../config/serverFixtures';
@@ -136,8 +136,8 @@ index 85c532a..2723681 100644
    impl = electronTest;
  if (process.env.PWPAGE_IMPL === 'webkit-webview')
    impl = webviewTest;
-+if (process.env.PWPAGE_IMPL === 'kitesurf')
-+  impl = kitesurfTest;
++if (process.env.PWPAGE_IMPL === 'parawing')
++  impl = parawingTest;
  
  export const test = impl;
  

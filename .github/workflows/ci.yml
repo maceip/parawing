@@ -13,37 +13,42 @@ concurrency:
   group: ci-${{ github.workflow }}-${{ github.ref }}
   cancel-in-progress: ${{ github.event_name == 'pull_request' }}
 
-# The e2e and WPT suites need more memory than a standard hosted runner has, so CI leaves them to
-# local runs (AGENTS.md, "Running"); the Playwright lane runs on bazelflare's executors instead.
 jobs:
   # One job, so the Rust crates compile once: the tests and the dev build share one Bazel output
-  # tree, and the checks, the lint tests, the Rust host tests and the vitest suite one invocation.
+  # tree, and the checks, the lint tests, the Rust host tests, vitest, and CLI tests one invocation.
   ci:
     runs-on: ubuntu-latest
     timeout-minutes: 120
     permissions:
       contents: read
-      # Authenticates the job to bazelflare (bazel/bazelflare/credential-helper).
-      id-token: write
     steps:
       - uses: actions/checkout@v4
       - id: setup
         uses: ./.github/actions/setup
         with:
           bazel-cache: "true"
-          bazelflare: "true"
+          deno: "true"
       - run: pnpm install --frozen-lockfile
-      - run: bazel test --keep_going --test_output=errors //:check //:rust_lint //packages/core:host_tests //packages/engine:vitest
+      - name: Install CRIU
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y --no-install-recommends criu
+          criu --version
+      - run: bazel test --keep_going --test_output=errors //:check //:rust_lint //packages/core:host_tests //packages/engine:vitest //packages/parawing-cli:lib_test //packages/parawing-cli:bin_test
+      - name: Verify Tier 2 CRIU 4.1.1 capsule freeze and thaw
+        run: >
+          bazel test --strategy=TestRunner=local
+          --test_env=HOME --test_env=PATH --test_env=PARAWING_REQUIRE_CAPSULE_CRIU=1
+          --nocache_test_results --test_output=errors
+          //packages/rust-host:host_test --test_arg=capsule
       - run: pnpm run build
       - name: Fail on generated drift
         run: git diff --exit-code
       - run: pnpm run format:check
       - run: pnpm run lint:js
       - run: bazel run //scripts:workspace_checks
-      # Each spec boots an engine on a bazelflare executor, whose image holds the pinned Playwright
-      # checkout. A fork's pull request has no bazelflare, so main runs the lane once it merges.
-      - if: steps.setup.outputs.bazelflare == 'true'
-        run: bazel test --keep_going --test_output=errors //tests/pw:specs //tests/pw:expectations_test
+      - name: Hermetic e2e smoke gate
+        run: pnpm run test:e2e page-script-demo.e2e.test.ts fetch-init-headers.e2e.test.ts storage-cookies.e2e.test.ts inserted-script-cap.e2e.test.ts rbi-v2-channel.e2e.test.ts parawing-page-ops.e2e.test.ts
       - if: always()
         run: df -h /
       # Only main saves, so PR runs cannot evict main's entry from the 10 GB repository quota. Save

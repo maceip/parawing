@@ -110,7 +110,7 @@ console.log("");
 console.log("[wpt-setup] next steps:");
 console.log("  1. Add WPT hostnames to /etc/hosts (one-time, requires sudo):");
 console.log("       cd .wpt && ./wpt make-hosts-file | sudo tee -a /etc/hosts");
-console.log("  2. Start the kitesurf dev server in one terminal:");
+console.log("  2. Start the parawing dev server in one terminal:");
 console.log("       pnpm run dev");
 console.log("  3. Start wpt serve in another:");
 console.log("       pnpm run wpt:serve");

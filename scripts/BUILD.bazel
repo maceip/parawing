@@ -174,7 +174,7 @@ _LINT_DATA = glob(
 ]
 
 # `bazel run //scripts:lint -- format --check|--write` or `-- lint:js`. It checks the workspace
-# it runs from, which may be a host workspace running @kitesurf//scripts:lint, with oxfmt and
+# it runs from, which may be a host workspace running @parawing//scripts:lint, with oxfmt and
 # oxlint from Bazel's npm tree. The Rust gates are Bazel tests (`bazel test //:rust_lint`), wired
 # per package through //bazel:rust_checks.bzl.
 js_binary(
@@ -433,7 +433,7 @@ js_test(
         "//packages/engine/test/e2e:idl_gaps",
     ],
     entry_point = "generate-webidl-bindings.mjs",
-    env_inherit = ["KITESURF_WPT_DIR"],
+    env_inherit = ["PARAWING_WPT_DIR"],
     exec_properties = for_test(WPT),
 )
 

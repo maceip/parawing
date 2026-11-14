@@ -107,14 +107,14 @@ function idGrep(id) {
 
 function runPlaywright(wsEndpoint, specFiles, grep, tag) {
   mkdirSync(OUT_DIR, { recursive: true });
-  const jsonOut = join(OUT_DIR, `kitesurf-report-${tag}.json`);
+  const jsonOut = join(OUT_DIR, `parawing-report-${tag}.json`);
   const blobOut = join(OUT_DIR, "blob", `${tag}.zip`);
   rmSync(jsonOut, { force: true });
   rmSync(blobOut, { force: true });
   const cliArgs = [
     "packages/playwright/cli.js",
     "test",
-    "--config=tests/kitesurf/playwright.config.ts",
+    "--config=tests/parawing/playwright.config.ts",
     ...specFiles,
   ];
   const invert = skipGrepInvert();
@@ -126,8 +126,8 @@ function runPlaywright(wsEndpoint, specFiles, grep, tag) {
     env: {
       ...process.env,
       NPM_TOKEN: process.env.NPM_TOKEN ?? "",
-      PWPAGE_IMPL: "kitesurf",
-      KITESURF_WS: wsEndpoint,
+      PWPAGE_IMPL: "parawing",
+      PARAWING_WS: wsEndpoint,
       PWTEST_JSON_OUTPUT: jsonOut,
       PLAYWRIGHT_BLOB_OUTPUT_FILE: blobOut,
     },
@@ -215,7 +215,7 @@ function compare(results) {
   return 0;
 }
 
-const externalWs = process.env.KITESURF_WS;
+const externalWs = process.env.PARAWING_WS;
 if (externalWs) {
   console.log(`[pw-run] attaching to external engine: ${externalWs} (no per-batch restart)`);
 } else {

@@ -13,9 +13,9 @@ const RUNNER = resolve(import.meta.dirname, "e2e-shard.mjs");
 const TEST_FILE = "test/e2e/example.e2e.test.ts";
 
 test("e2e shards resolve Vitest and tests from the external engine directory", (t) => {
-  const root = mkdtempSync(join(tmpdir(), "kitesurf-external-e2e-"));
+  const root = mkdtempSync(join(tmpdir(), "parawing-external-e2e-"));
   t.after(() => rmSync(root, { recursive: true, force: true }));
-  const engine = join(root, "external/kitesurf+/packages/engine");
+  const engine = join(root, "external/parawing+/packages/engine");
   const vitest = join(engine, "node_modules/vitest");
   mkdirSync(vitest, { recursive: true });
   writeFileSync(join(engine, "package.json"), '{"type":"module"}');

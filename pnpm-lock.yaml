@@ -51,14 +51,50 @@ importers:
 
   packages/core/pkg: {}
 
-  packages/dom-shim:
+  packages/deno-host:
     dependencies:
-      '@kitesurf/jsrpc-types':
+      '@parawing/engine':
+        specifier: workspace:*
+        version: link:../engine
+      '@parawing/jsrpc-types':
         specifier: workspace:*
         version: link:../jsrpc-types
+      '@parawing/rpc-transport':
+        specifier: workspace:*
+        version: link:../rpc-transport
+      devtools-protocol:
+        specifier: ^0.0.1669207
+        version: 0.0.1669207
+      es-module-lexer:
+        specifier: ^2.1.0
+        version: 2.3.1
+      hono:
+        specifier: ^4.13.12
+        version: 4.13.12
+      zod:
+        specifier: ^4.6.6
+        version: 4.6.7
+    devDependencies:
+      '@types/node':
+        specifier: ^25.6.2
+        version: 25.9.5
+      esbuild:
+        specifier: ^0.27.0
+        version: 0.27.7
+      typescript:
+        specifier: ^5.6.0
+        version: 5.9.3
+
+  packages/device-authority: {}
+
+  packages/dom-shim:
+    dependencies:
       '@opentelemetry/api':
         specifier: ^1.9.0
         version: 1.9.1
+      '@parawing/jsrpc-types':
+        specifier: workspace:*
+        version: link:../jsrpc-types
     devDependencies:
       esbuild:
         specifier: ^0.27.0
@@ -78,22 +114,22 @@ importers:
 
   packages/engine:
     dependencies:
-      '@kitesurf/dom-shim':
+      '@parawing/dom-shim':
         specifier: workspace:*
         version: link:../dom-shim
-      '@kitesurf/jsrpc-types':
+      '@parawing/jsrpc-types':
         specifier: workspace:*
         version: link:../jsrpc-types
-      '@kitesurf/page-renderer':
+      '@parawing/page-renderer':
         specifier: workspace:*
         version: link:../page-renderer
-      '@kitesurf/page-script':
+      '@parawing/page-script':
         specifier: workspace:*
         version: link:../page-script
-      '@kitesurf/script-gate':
+      '@parawing/script-gate':
         specifier: workspace:*
         version: link:../script-gate
-      '@kitesurf/worker-script':
+      '@parawing/worker-script':
         specifier: workspace:*
         version: link:../worker-script
       es-module-lexer:
@@ -102,12 +138,12 @@ importers:
       hono:
         specifier: ^4.13.12
         version: 4.13.12
-      kitesurf-core:
-        specifier: workspace:*
-        version: link:../core/pkg
       nanoid:
         specifier: ^6.0.1
         version: 6.0.1
+      parawing-core:
+        specifier: workspace:*
+        version: link:../core/pkg
       web-bot-auth:
         specifier: ^0.1.3
         version: 0.1.3
@@ -150,11 +186,9 @@ importers:
         specifier: ^5.6.0
         version: 5.9.3
 
-  packages/kitesurf-cli: {}
-
   packages/page-renderer:
     dependencies:
-      '@kitesurf/jsrpc-types':
+      '@parawing/jsrpc-types':
         specifier: workspace:*
         version: link:../jsrpc-types
     devDependencies:
@@ -167,13 +201,13 @@ importers:
 
   packages/page-script:
     dependencies:
-      '@kitesurf/dom-shim':
+      '@parawing/dom-shim':
         specifier: workspace:*
         version: link:../dom-shim
-      '@kitesurf/jsrpc-types':
+      '@parawing/jsrpc-types':
         specifier: workspace:*
         version: link:../jsrpc-types
-      '@kitesurf/script-gate':
+      '@parawing/script-gate':
         specifier: workspace:*
         version: link:../script-gate
       fake-indexeddb:
@@ -187,9 +221,26 @@ importers:
         specifier: ^5.6.0
         version: 5.9.3
 
+  packages/parawing-cli: {}
+
+  packages/rpc-transport:
+    dependencies:
+      '@parawing/jsrpc-types':
+        specifier: workspace:*
+        version: link:../jsrpc-types
+    devDependencies:
+      '@types/node':
+        specifier: ^25.6.2
+        version: 25.9.5
+      typescript:
+        specifier: ^5.6.0
+        version: 5.9.3
+
+  packages/rust-host: {}
+
   packages/script-gate:
     dependencies:
-      '@kitesurf/jsrpc-types':
+      '@parawing/jsrpc-types':
         specifier: workspace:*
         version: link:../jsrpc-types
     devDependencies:
@@ -202,10 +253,10 @@ importers:
 
   packages/worker-script:
     dependencies:
-      '@kitesurf/jsrpc-types':
+      '@parawing/jsrpc-types':
         specifier: workspace:*
         version: link:../jsrpc-types
-      '@kitesurf/page-script':
+      '@parawing/page-script':
         specifier: workspace:*
         version: link:../page-script
     devDependencies:
@@ -219,15 +270,15 @@ importers:
 packages:
 
   '@cloudflare/kv-asset-handler@0.5.0':
-    resolution: {integrity: sha512-jxQYkj8dSIzc0cD6cMMNdOc1UVjqSqu8BZdor5s8cGjW2I8BjODt/kWPVdY+u9zj3ms75Q5qaZgnxUad83+eAg==, tarball: https://registry.npmjs.org/@cloudflare/kv-asset-handler/-/kv-asset-handler-0.5.0.tgz}
+    resolution: {integrity: sha512-jxQYkj8dSIzc0cD6cMMNdOc1UVjqSqu8BZdor5s8cGjW2I8BjODt/kWPVdY+u9zj3ms75Q5qaZgnxUad83+eAg==}
     engines: {node: '>=22.0.0'}
 
   '@cloudflare/puppeteer@1.1.0':
-    resolution: {integrity: sha512-lN10En49avRDQvz8Gpv/WiIoGvjjDiP6P+v2y9bA6rfPT5WHfnlg2O6MwjHc1POm8A9LXf1sMdgrsdW8xWapOw==, tarball: https://registry.npmjs.org/@cloudflare/puppeteer/-/puppeteer-1.1.0.tgz}
+    resolution: {integrity: sha512-lN10En49avRDQvz8Gpv/WiIoGvjjDiP6P+v2y9bA6rfPT5WHfnlg2O6MwjHc1POm8A9LXf1sMdgrsdW8xWapOw==}
     engines: {node: '>=18'}
 
   '@cloudflare/unenv-preset@2.16.1':
-    resolution: {integrity: sha512-ECxObrMfyTl5bhQf/lZCXwo5G6xX9IAUo+nDMKK4SZ8m4Jvvxp52vilxyySSWh2YTZz8+HQ07qGH/2rEom1vDw==, tarball: https://registry.npmjs.org/@cloudflare/unenv-preset/-/unenv-preset-2.16.1.tgz}
+    resolution: {integrity: sha512-ECxObrMfyTl5bhQf/lZCXwo5G6xX9IAUo+nDMKK4SZ8m4Jvvxp52vilxyySSWh2YTZz8+HQ07qGH/2rEom1vDw==}
     peerDependencies:
       unenv: 2.0.0-rc.24
       workerd: '>1.20260305.0 <2.0.0-0'
@@ -236,44 +287,44 @@ packages:
         optional: true
 
   '@cloudflare/vitest-plugin@1.1.9':
-    resolution: {integrity: sha512-RzKBjIwoTAgENJ7YBhCStb9F5ZBW3GDv7uQKBMxQWQBoXP+jip2RI+FXwPeRuBEOj41urTmCYrbYLMmp3448lQ==, tarball: https://registry.npmjs.org/@cloudflare/vitest-plugin/-/vitest-plugin-1.1.9.tgz}
+    resolution: {integrity: sha512-RzKBjIwoTAgENJ7YBhCStb9F5ZBW3GDv7uQKBMxQWQBoXP+jip2RI+FXwPeRuBEOj41urTmCYrbYLMmp3448lQ==}
     peerDependencies:
       '@vitest/runner': ^4.1.0
       '@vitest/snapshot': ^4.1.0
       vitest: ^4.1.0
 
   '@cloudflare/workerd-darwin-64@1.20260911.1':
-    resolution: {integrity: sha512-785eaY1bkR1cm4Z/PCUeteZYmTMe6lre2zz63/GdGGimsoMsKxgl4brFPRukim8iv28EyD1XoCB/VPYF20BERA==, tarball: https://registry.npmjs.org/@cloudflare/workerd-darwin-64/-/workerd-darwin-64-1.20260911.1.tgz}
+    resolution: {integrity: sha512-785eaY1bkR1cm4Z/PCUeteZYmTMe6lre2zz63/GdGGimsoMsKxgl4brFPRukim8iv28EyD1XoCB/VPYF20BERA==}
     engines: {node: '>=16'}
     cpu: [x64]
     os: [darwin]
 
   '@cloudflare/workerd-darwin-arm64@1.20260911.1':
-    resolution: {integrity: sha512-WU4bFqEN0H7ndGWxoedegv95DmNVBtv0ncXcHG9nYFTUI78sxEb0qoT3U6Ga4hyBkzsJFBX/zvVBIGX3qKldGA==, tarball: https://registry.npmjs.org/@cloudflare/workerd-darwin-arm64/-/workerd-darwin-arm64-1.20260911.1.tgz}
+    resolution: {integrity: sha512-WU4bFqEN0H7ndGWxoedegv95DmNVBtv0ncXcHG9nYFTUI78sxEb0qoT3U6Ga4hyBkzsJFBX/zvVBIGX3qKldGA==}
     engines: {node: '>=16'}
     cpu: [arm64]
     os: [darwin]
 
   '@cloudflare/workerd-linux-64@1.20260911.1':
-    resolution: {integrity: sha512-0Y2gy62oxQxWa38qinSPE6zNL5+JmumJtDY9AWW1HB8KHuATxN71o5MGzmVFfB8PwZsiHfUd2Sv7O22krCOrhw==, tarball: https://registry.npmjs.org/@cloudflare/workerd-linux-64/-/workerd-linux-64-1.20260911.1.tgz}
+    resolution: {integrity: sha512-0Y2gy62oxQxWa38qinSPE6zNL5+JmumJtDY9AWW1HB8KHuATxN71o5MGzmVFfB8PwZsiHfUd2Sv7O22krCOrhw==}
     engines: {node: '>=16'}
     cpu: [x64]
     os: [linux]
 
   '@cloudflare/workerd-linux-arm64@1.20260911.1':
-    resolution: {integrity: sha512-kttNPnx1r2lCqFUoMH62z7CqGV+j4QBbw5fdtaz4pzOrzBv0AWkNATt7onFUe+SwP8zhcepMtbm2F4kKzTf6VA==, tarball: https://registry.npmjs.org/@cloudflare/workerd-linux-arm64/-/workerd-linux-arm64-1.20260911.1.tgz}
+    resolution: {integrity: sha512-kttNPnx1r2lCqFUoMH62z7CqGV+j4QBbw5fdtaz4pzOrzBv0AWkNATt7onFUe+SwP8zhcepMtbm2F4kKzTf6VA==}
     engines: {node: '>=16'}
     cpu: [arm64]
     os: [linux]
 
   '@cloudflare/workerd-windows-64@1.20260911.1':
-    resolution: {integrity: sha512-5iO/YfoBDOgO3CrHdkiiVP8SL3O2jC+c6Ux3d378TSPKLhU5+CgHjtE/ZSodWQrzr4FzFRqdW8S7n5nbyD1MHQ==, tarball: https://registry.npmjs.org/@cloudflare/workerd-windows-64/-/workerd-windows-64-1.20260911.1.tgz}
+    resolution: {integrity: sha512-5iO/YfoBDOgO3CrHdkiiVP8SL3O2jC+c6Ux3d378TSPKLhU5+CgHjtE/ZSodWQrzr4FzFRqdW8S7n5nbyD1MHQ==}
     engines: {node: '>=16'}
     cpu: [x64]
     os: [win32]
 
   '@cloudflare/workers-types@5.20260911.1':
-    resolution: {integrity: sha512-yiAvknjulcU85B3yB4aKOn9+l+garWP+AbHgsdCFckeRYDdhZ1rPULi64BDf52R3VTaKqxi47kF+o9ZbjsCt5g==, tarball: https://registry.npmjs.org/@cloudflare/workers-types/-/workers-types-5.20260911.1.tgz}
+    resolution: {integrity: sha512-yiAvknjulcU85B3yB4aKOn9+l+garWP+AbHgsdCFckeRYDdhZ1rPULi64BDf52R3VTaKqxi47kF+o9ZbjsCt5g==}
 
   '@cspotcode/source-map-support@0.8.1':
     resolution: {integrity: sha512-IchNf6dN4tHoMFIn/7OE8LWZ19Y6q/67Bmf6vnGREv8RSbBVb9LPJxEcnwrcwX6ixSvaiGoomAUvu4YSxXrVgw==}

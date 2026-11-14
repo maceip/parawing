@@ -95,7 +95,7 @@ js_run_binary(
         "--revision-file",
         exec_path("//:wpt_revision"),
     ],
-    # Reads KITESURF_WPT_DIR when passed with --action_env.
+    # Reads PARAWING_WPT_DIR when passed with --action_env.
     use_default_shell_env = True,
     exec_properties = WPT,
     mnemonic = "WptInventory",

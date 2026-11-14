@@ -93,9 +93,9 @@ index fb4cb81..5b29808 100644
      i64::try_from(n).unwrap_or(i64::MAX)
  }
 
--/// Kitesurf: live compiled code as (name, value) pairs: blocks, those that ran, resident and
+-/// Parawing: live compiled code as (name, value) pairs: blocks, those that ran, resident and
 -/// swapped source texts, store reads and failures, then bytes by kind. Shared strings uncounted.
-+/// Kitesurf: live compiled code as (name, value) pairs: blocks, source texts and bytecode by
++/// Parawing: live compiled code as (name, value) pairs: blocks, source texts and bytecode by
 +/// form (resident, swapped, expanded), store traffic and swap rounds. Shared strings uncounted.
  #[must_use]
 -pub fn ks_code_stats() -> [(&'static str, i64); 13] {
@@ -121,7 +121,7 @@ index 30b35f9..dc782f1 100644
 --- a/src/ks_swap.rs
 +++ b/src/ks_swap.rs
 @@ -1,15 +1,165 @@
- //! Kitesurf: swap rounds, which hand cold code to the embedder's code store (ks_code_store)
+ //! Parawing: swap rounds, which hand cold code to the embedder's code store (ks_code_store)
  //! so it leaves memory that, in wasm, never shrinks.
 
 +use std::cell::{Cell, RefCell};
@@ -131,24 +131,24 @@ index 30b35f9..dc782f1 100644
 +
 +use crate::vm::{CodeBlock, Constant};
 +
-+// Kitesurf: nested functions this deep are left alone; the walk recurses on the shadow stack
++// Parawing: nested functions this deep are left alone; the walk recurses on the shadow stack
 +// because a forced round must not allocate a worklist.
 +const MAX_DEPTH: usize = 512;
 +
 +thread_local! {
-+    // Kitesurf: compile roots since the last idle round, held weakly so a script the GC has
++    // Parawing: compile roots since the last idle round, held weakly so a script the GC has
 +    // collected costs no store write; whether a root's own block is a function to keep.
 +    static ROOTS: RefCell<Vec<(WeakGc<CodeBlock>, bool)>> = const { RefCell::new(Vec::new()) };
-+    // Kitesurf: blocks whose executable bytes a forced round may drop, by address: a block
++    // Parawing: blocks whose executable bytes a forced round may drop, by address: a block
 +    // never moves out of its GcBox, and its drop takes it out of here first.
 +    static FLUSHABLE: RefCell<Option<FxHashSet<usize>>> = const { RefCell::new(None) };
-+    // Kitesurf: set once a block left FLUSHABLE could not be removed (the set was borrowed),
++    // Parawing: set once a block left FLUSHABLE could not be removed (the set was borrowed),
 +    // after which an address in it may dangle, so no round flushes again.
 +    static POISONED: Cell<bool> = const { Cell::new(false) };
 +    static IN_ROUND: Cell<bool> = const { Cell::new(false) };
 +}
 +
-+/// Kitesurf: a compile's top-level block, for the next idle round to walk; `is_function`
++/// Parawing: a compile's top-level block, for the next idle round to walk; `is_function`
 +/// when it is a function (dynamic Function), not run-once top-level code. Kept only with a store.
 +pub(crate) fn remember_root(root: &Gc<CodeBlock>, is_function: bool) {
 +    if crate::ks_code_store::current().is_none() {
@@ -186,7 +186,7 @@ index 30b35f9..dc782f1 100644
 +    }
 +}
 +
-+// Kitesurf: marks a round as running for its lifetime, unwinding included: a forced round
++// Parawing: marks a round as running for its lifetime, unwinding included: a forced round
 +// that lands inside any round would see that round's half-made state.
 +struct RoundGuard;
 +
@@ -205,7 +205,7 @@ index 30b35f9..dc782f1 100644
 +    }
 +}
 +
-+// Kitesurf: swaps every packed block of the tree and stores a copy of each function that
++// Parawing: swaps every packed block of the tree and stores a copy of each function that
 +// already ran, which then counts as flushable; run-once top-level code is not worth one.
 +fn walk(block: &CodeBlock, store: &dyn crate::CodeStore, keep_expanded: bool, depth: usize) -> usize {
 +    if depth > MAX_DEPTH {
@@ -223,7 +223,7 @@ index 30b35f9..dc782f1 100644
 +    freed
 +}
 +
- /// Kitesurf: swaps what outlived its eval since the last call and flushes the store; call it
+ /// Parawing: swaps what outlived its eval since the last call and flushes the store; call it
  /// at quiescent points. Returns how many values went to the store.
  pub fn ks_swap_at_idle() -> usize {
      let Some(store) = crate::ks_code_store::current() else {
@@ -250,7 +250,7 @@ index 30b35f9..dc782f1 100644
      swapped
  }
 +
-+/// Kitesurf: the embedder's answer to memory pressure, safe at an arbitrary allocation:
++/// Parawing: the embedder's answer to memory pressure, safe at an arbitrary allocation:
 +/// it neither runs nor touches the GC. Returns the bytes it moved out of memory.
 +pub fn ks_swap_under_pressure() -> usize {
 +    let Some(store) = crate::ks_code_store::current() else {
@@ -333,7 +333,7 @@ index aa4a1b5..c2ad792 100644
              .push_bytecode(current_pc, frame.code_block().source_info.clone());
 
          self.frames.push(frame);
-+        // Kitesurf: pinned after the push, which can allocate and so run a forced swap round:
++        // Parawing: pinned after the push, which can allocate and so run a forced swap round:
 +        // until here the frame has not run, and a round may still drop the block's bytes.
 +        self.frame().code_block.bytecode.pin();
      }
@@ -362,12 +362,12 @@ index 9c22c7e..396d9e0 100644
      bytes: UnsafeCell<Box<[u8]>>,
 -    packed: Cell<Box<[u8]>>,
 +    packed: Cell<Packed>,
-+    // Kitesurf: the executable length in the low 24 bits; the high 8 count the frames and
++    // Parawing: the executable length in the low 24 bits; the high 8 count the frames and
 +    // readers on the bytes (saturating, then sticky), which must be zero to drop them.
 +    len_pins: Cell<u32>,
 +}
 +
-+// Kitesurf: where the packed form is. Swapped keeps a 12-byte descriptor in a 16-byte chunk,
++// Parawing: where the packed form is. Swapped keeps a 12-byte descriptor in a 16-byte chunk,
 +// so a block swaps only when its packed form is bigger than that.
 +pub(crate) enum Packed {
 +    Resident(Box<[u8]>),
@@ -380,7 +380,7 @@ index 9c22c7e..396d9e0 100644
 +    }
 +}
 +
-+// Kitesurf: a swapped packed form's place in the code store and the hash it must read back
++// Parawing: a swapped packed form's place in the code store and the hash it must read back
 +// with: registers are read unchecked, so bytes that differ must never run.
 +pub(crate) struct SwapDesc {
 +    key: u32,
@@ -391,7 +391,7 @@ index 9c22c7e..396d9e0 100644
 +const LEN_MASK: u32 = 0x00FF_FFFF;
 +const PIN: u32 = 0x0100_0000;
 +const PINS_STICKY: u32 = 0xFF;
-+// Kitesurf: a packed form this small frees less than its descriptor costs, so it stays
++// Parawing: a packed form this small frees less than its descriptor costs, so it stays
 +// resident; most blocks are well over it.
 +const MIN_SWAP_BYTES: usize = 24;
 +
@@ -415,7 +415,7 @@ index 9c22c7e..396d9e0 100644
  impl Clone for Bytecode {
      fn clone(&self) -> Self {
 -        let packed = self.packed.take();
-+        // Kitesurf: a clone gets its own resident packed form, since two owners of one store
++        // Parawing: a clone gets its own resident packed form, since two owners of one store
 +        // key would release it twice.
 +        let packed = match self.peek_packed() {
 +            Packed::Resident(p) => p.clone(),
@@ -462,7 +462,7 @@ index 9c22c7e..396d9e0 100644
      }
  }
 
-+// Kitesurf: unpins on drop, so a reader that returns early or unwinds still lets go of the
++// Parawing: unpins on drop, so a reader that returns early or unwinds still lets go of the
 +// block, and a forced round can drop its bytes again.
 +pub(crate) struct PinGuard<'a>(&'a Bytecode);
 +
@@ -475,7 +475,7 @@ index 9c22c7e..396d9e0 100644
  impl Bytecode {
      fn pack(bytes: &[u8]) -> Self {
 +        let len = bytes.len();
-+        // Kitesurf: the length shares a word with the pins, so a block past 16 MiB stays
++        // Parawing: the length shares a word with the pins, so a block past 16 MiB stays
 +        // expanded and permanently pinned: it is never packed, swapped or dropped.
 +        let bytecode = if len > LEN_MASK as usize {
 +            Self {
@@ -521,7 +521,7 @@ index 9c22c7e..396d9e0 100644
 +        bytes.into_boxed_slice()
 +    }
 +
-+    // Kitesurf: the packed state, read in place. Only `expand`, the swap rounds, clone and
++    // Parawing: the packed state, read in place. Only `expand`, the swap rounds, clone and
 +    // drop replace it, and none of them runs while a caller holds what this returns.
 +    fn peek_packed(&self) -> &Packed {
 +        // SAFETY: see above; every replacement goes through `Cell::take`/`set` on this block,
@@ -529,7 +529,7 @@ index 9c22c7e..396d9e0 100644
 +        unsafe { &*self.packed.as_ptr() }
 +    }
 +
-+    // Kitesurf: the swapped packed form's bytes, checked; the swap rounds keep this
++    // Parawing: the swapped packed form's bytes, checked; the swap rounds keep this
 +    // consistent, so a mismatch is a broken store, and running anything else is unsound.
 +    fn read_swapped(&self, d: &SwapDesc) -> Vec<u8> {
 +        let mut out = Vec::new();
@@ -540,13 +540,13 @@ index 9c22c7e..396d9e0 100644
 +        });
 +        if !ok {
 +            crate::ks_code_stats::update(|s| s.store_failures += 1);
-+            panic!("kitesurf: swapped bytecode could not be read back intact");
++            panic!("parawing: swapped bytecode could not be read back intact");
 +        }
 +        crate::ks_code_stats::update(|s| s.bytecode_reads += 1);
 +        out
      }
 
-     // Kitesurf: adds (sign 1) or refunds (-1) this bytecode's bytes to the code counters,
+     // Parawing: adds (sign 1) or refunds (-1) this bytecode's bytes to the code counters,
 -    // under the form it holds now: packed until it first runs, expanded after.
 +    // under the forms it holds now: resident or swapped packed, and expanded once it ran.
      fn charge(&self, sign: i64) {
@@ -582,7 +582,7 @@ index 9c22c7e..396d9e0 100644
 +        self.len_pins.get() >> 24
 +    }
 +
-+    /// Kitesurf: a frame or a reader is on this block's executable bytes; a forced round
++    /// Parawing: a frame or a reader is on this block's executable bytes; a forced round
 +    /// leaves pinned bytes alone. Saturates and then stays pinned for good.
 +    #[inline]
 +    pub(crate) fn pin(&self) {
@@ -591,7 +591,7 @@ index 9c22c7e..396d9e0 100644
 +        }
 +    }
 +
-+    /// Kitesurf: undoes one `pin`; a block whose count saturated stays pinned, since what it
++    /// Parawing: undoes one `pin`; a block whose count saturated stays pinned, since what it
 +    /// counted is no longer known.
 +    #[inline]
 +    pub(crate) fn unpin(&self) {
@@ -601,7 +601,7 @@ index 9c22c7e..396d9e0 100644
 +        }
 +    }
 +
-+    /// Kitesurf: pins the block for as long as the returned guard lives: what a reader of
++    /// Parawing: pins the block for as long as the returned guard lives: what a reader of
 +    /// the executable bytes outside the dispatch loop holds while it decodes them.
 +    pub(crate) fn pin_guard(&self) -> PinGuard<'_> {
 +        self.pin();
@@ -669,7 +669,7 @@ index 9c22c7e..396d9e0 100644
 +                bytes
 +            }
 +            Packed::Swapped(d) => {
-+                // Kitesurf: back in its cell before the read, so a failed one still leaves a
++                // Parawing: back in its cell before the read, so a failed one still leaves a
 +                // consistent block for unwinding to drop.
 +                let desc: *const SwapDesc = &raw const *d;
 +                self.packed.set(Packed::Swapped(d));
@@ -682,7 +682,7 @@ index 9c22c7e..396d9e0 100644
 +            }
 +            Packed::Resident(empty) => {
 +                self.packed.set(Packed::Resident(empty));
-+                panic!("kitesurf: bytecode has nothing to expand");
++                panic!("parawing: bytecode has nothing to expand");
 +            }
 +        };
 +        debug_assert_eq!(bytes.len(), self.exec_len());
@@ -699,7 +699,7 @@ index 9c22c7e..396d9e0 100644
 +        unsafe { *self.bytes.get() = bytes };
 +    }
 +
-+    /// Kitesurf: moves a never-run block's packed form to the store. Returns the bytes it
++    /// Parawing: moves a never-run block's packed form to the store. Returns the bytes it
 +    /// freed; zero if the block ran, is small, or the store refused.
 +    pub(crate) fn swap_packed(&self, store: &dyn crate::CodeStore) -> usize {
 +        if !self.is_packed() {
@@ -733,7 +733,7 @@ index 9c22c7e..396d9e0 100644
 +        len
 +    }
 +
-+    /// Kitesurf: gives a block that ran before it could swap a copy in the store, so a forced
++    /// Parawing: gives a block that ran before it could swap a copy in the store, so a forced
 +    /// round can drop its executable bytes later. Returns whether it now has one.
 +    pub(crate) fn store_expanded(&self, store: &dyn crate::CodeStore) -> bool {
 +        let expanded = !self.is_packed() && self.exec_len() != 0 && self.pins() < PINS_STICKY;
@@ -765,7 +765,7 @@ index 9c22c7e..396d9e0 100644
 +        true
 +    }
 +
-+    /// Kitesurf: drops the executable bytes of an unpinned block whose packed form is in the
++    /// Parawing: drops the executable bytes of an unpinned block whose packed form is in the
 +    /// store; its next run fetches them back. Returns the bytes freed.
 +    pub(crate) fn flush_executable(&self) -> usize {
 +        if self.pins() != 0 || !matches!(self.peek_packed(), Packed::Swapped(_)) {

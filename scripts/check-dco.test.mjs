@@ -30,7 +30,7 @@ test("rejects a sign-off that is not on its own line", () => {
 });
 
 test("the CLI fails only on unsigned commits in the range", () => {
-  const dir = mkdtempSync(join(tmpdir(), "kitesurf-dco-"));
+  const dir = mkdtempSync(join(tmpdir(), "parawing-dco-"));
   // Isolate from the developer's global git config, hooks and signing.
   const env = { ...process.env, GIT_CONFIG_GLOBAL: "/dev/null", GIT_CONFIG_NOSYSTEM: "1" };
   const git = (...args) => execFileSync("git", args, { cwd: dir, env, encoding: "utf8" }).trim();

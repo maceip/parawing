@@ -31,45 +31,45 @@ index 9085083..13c004d 100644
 --- a/src/ks_code_store.rs
 +++ b/src/ks_code_store.rs
 @@ -1,26 +1,30 @@
- //! Kitesurf: a place outside the heap where an embedder keeps bytes that compiled code
+ //! Parawing: a place outside the heap where an embedder keeps bytes that compiled code
 -//! rarely reads (a script's source text for `toString`), fetched back on demand.
 +//! rarely reads (source text for `toString`, bytecode that has not run), fetched on demand.
 
  use std::{cell::RefCell, rc::Rc};
 
--/// Kitesurf: an embedder's store for cold code bytes. Every method may fail; a refused
+-/// Parawing: an embedder's store for cold code bytes. Every method may fail; a refused
 -/// `put` keeps the bytes resident and a failed `read` falls back the way a reader chooses.
-+/// Kitesurf: an embedder's append-only store for cold code bytes. A refused `put` keeps the
++/// Parawing: an embedder's append-only store for cold code bytes. A refused `put` keeps the
 +/// bytes resident, and a failed `read` falls back the way its reader chooses.
  pub trait CodeStore {
--    /// Kitesurf: values smaller than this stay resident, since a store write and its
+-    /// Parawing: values smaller than this stay resident, since a store write and its
 -    /// later delete cost more than the memory they would free.
-+    /// Kitesurf: source texts smaller than this stay resident, since their write and later
++    /// Parawing: source texts smaller than this stay resident, since their write and later
 +    /// delete cost more than the memory they would free. Bytecode has a floor of its own.
      fn min_bytes(&self) -> usize;
 
--    /// Kitesurf: stores `bytes` and returns the key to read them back with, or None to
+-    /// Parawing: stores `bytes` and returns the key to read them back with, or None to
 -    /// keep them resident (the store is full, failing, or does not want them).
 -    fn put(&self, bytes: &[u8]) -> Option<u64>;
-+    /// Kitesurf: appends `bytes` and returns the key to read them back with, or None to keep
++    /// Parawing: appends `bytes` and returns the key to read them back with, or None to keep
 +    /// them resident. Small values share storage, so a put may only reach it at `flush`.
 +    fn put(&self, bytes: &[u8]) -> Option<u32>;
 
--    /// Kitesurf: replaces `out` with `len` bytes of the value `key` from `offset` on.
+-    /// Parawing: replaces `out` with `len` bytes of the value `key` from `offset` on.
 -    /// Returns false when they cannot be read; `out` is then unspecified.
 -    fn read(&self, key: u64, offset: usize, len: usize, out: &mut Vec<u8>) -> bool;
-+    /// Kitesurf: replaces `out` with `len` bytes of the value `key` from `offset` on. Returns
++    /// Parawing: replaces `out` with `len` bytes of the value `key` from `offset` on. Returns
 +    /// false when they cannot be read; `out` is then unspecified.
 +    fn read(&self, key: u32, offset: usize, len: usize, out: &mut Vec<u8>) -> bool;
 
--    /// Kitesurf: the value's owner is gone, so the store may drop it. Called at most
+-    /// Parawing: the value's owner is gone, so the store may drop it. Called at most
 -    /// once per key, and possibly while the thread tears its state down.
 -    fn release(&self, key: u64);
-+    /// Kitesurf: the `len` bytes stored under `key` lost their owner. Called at most once
++    /// Parawing: the `len` bytes stored under `key` lost their owner. Called at most once
 +    /// per key, and possibly while the thread tears its state down.
 +    fn release(&self, key: u32, len: usize);
 +
-+    /// Kitesurf: persists what earlier puts left pending. Called at the end of every swap
++    /// Parawing: persists what earlier puts left pending. Called at the end of every swap
 +    /// round, so the store is never asked to hold an unbounded amount in waiting.
 +    fn flush(&self);
  }
@@ -78,7 +78,7 @@ index 9085083..13c004d 100644
 @@ -28,11 +32,18 @@ thread_local! {
  }
 
- /// Kitesurf: installs (or, with None, removes) this thread's code store. Values already
+ /// Parawing: installs (or, with None, removes) this thread's code store. Values already
 -/// stored keep the store they went to; source texts made from now on may be swapped.
 +/// stored keep the store they went to; code made from now on may be swapped to this one.
  pub fn ks_set_code_store(store: Option<Rc<dyn CodeStore>>) {
@@ -103,10 +103,10 @@ index 0000000..30b35f9
 --- /dev/null
 +++ b/src/ks_swap.rs
 @@ -0,0 +1,15 @@
-+//! Kitesurf: swap rounds, which hand cold code to the embedder's code store (ks_code_store)
++//! Parawing: swap rounds, which hand cold code to the embedder's code store (ks_code_store)
 +//! so it leaves memory that, in wasm, never shrinks.
 +
-+/// Kitesurf: swaps what outlived its eval since the last call and flushes the store; call it
++/// Parawing: swaps what outlived its eval since the last call and flushes the store; call it
 +/// at quiescent points. Returns how many values went to the store.
 +pub fn ks_swap_at_idle() -> usize {
 +    let Some(store) = crate::ks_code_store::current() else {
@@ -180,7 +180,7 @@ index 02cd197..a6dd1a8 100644
      }
 @@ -146,12 +151,12 @@ impl Drop for Inner {
 
- /// Kitesurf: hands the installed code store every still-live source text registered since
+ /// Parawing: hands the installed code store every still-live source text registered since
  /// the last call. Safe at any point: a text being read is retried at the next call.
 -pub fn ks_swap_source_texts() -> usize {
 +pub(crate) fn swap_source_texts() -> usize {

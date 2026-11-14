@@ -25,7 +25,7 @@ index f2419f9..d75ae83 100644
          }
      }
 
-+    /// Kitesurf: the compacted text as bytes an embedder can store, and whether they are
++    /// Parawing: the compacted text as bytes an embedder can store, and whether they are
 +    /// Latin-1 (else UTF-16LE); None until `compact` has run.
 +    #[must_use]
 +    pub fn stored_form(&self) -> Option<(Cow<'_, [u8]>, bool)> {

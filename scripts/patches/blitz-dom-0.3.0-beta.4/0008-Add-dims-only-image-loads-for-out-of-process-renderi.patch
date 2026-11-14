@@ -16,7 +16,7 @@ RGBA is the dominant page heap cost (4000x3000 jpeg: ~2 MB encoded vs
 pixels for transport on both size and CPU.
 
 A local consumer that does need pixels (canvas drawImage of an <img>)
-calls kitesurf_materialize_node_image to decode in place, damage-marked.
+calls parawing_materialize_node_image to decode in place, damage-marked.
 It decodes at the node's laid-out size the way Chrome decodes at need:
 the final_layout box is the hint, quantized to the largest power-of-two
 downscale of the header dims that still covers it. The ceiling parameter
@@ -28,7 +28,7 @@ sees garbage.
 An embedder that has already sniffed the dimensions can also keep the
 payload out of the document's process entirely. That matters for
 cross-origin images when page JS runs next to the document: bytes there
-are bytes the page can read. kitesurf_set_pending_image stages a
+are bytes the page can read. parawing_set_pending_image stages a
 resource key and, optionally, dimensions immediately around the
 synchronous handler.bytes() call that parses a delivery. Non-zero
 dimensions mean the payload is absent by design, so the dims-only parse
@@ -140,7 +140,7 @@ index d5f1be3..f5996d8 100644
 +    /// two mip of the header dims that still covers it (ceiling as
 +    /// the extreme guard). Decoded dims can therefore differ from
 +    /// header dims; damage + cache clears keep layout honest.
-+    pub fn kitesurf_materialize_node_image(&mut self, node_id: NodeId, ceiling: u32) -> bool {
++    pub fn parawing_materialize_node_image(&mut self, node_id: NodeId, ceiling: u32) -> bool {
 +        let Some(node) = self.get_node_mut(node_id) else {
 +            return false;
 +        };
@@ -158,11 +158,11 @@ index d5f1be3..f5996d8 100644
 +        };
 +        let mut changed = false;
 +        if let SpecialElementData::Image(data) = &mut el.special_data {
-+            changed |= kitesurf_materialize_image_data(data, hint, ceiling);
++            changed |= parawing_materialize_image_data(data, hint, ceiling);
 +        }
 +        for layer in el.background_images.iter_mut().chain(el.mask_images.iter_mut()) {
 +            if let Some(res) = layer {
-+                changed |= kitesurf_materialize_image_data(&mut res.image, hint, ceiling);
++                changed |= parawing_materialize_image_data(&mut res.image, hint, ceiling);
 +            }
 +        }
 +        if changed {
@@ -184,7 +184,7 @@ index d5f1be3..f5996d8 100644
 +/// flagged `encoded`) in place. Shared by the materialize paths.
 +/// hint = painted/laid-out size in device px ((0,0) = none);
 +/// ceiling = extreme guard on either axis.
-+fn kitesurf_materialize_image_data(
++fn parawing_materialize_image_data(
 +    image: &mut ImageData,
 +    hint: (u32, u32),
 +    ceiling: u32,
@@ -204,7 +204,7 @@ index d5f1be3..f5996d8 100644
 +            return true;
 +        }
 +    };
-+    let (tw, th) = kitesurf_mip_dims(decoded.width(), decoded.height(), hint.0, hint.1, ceiling);
++    let (tw, th) = parawing_mip_dims(decoded.width(), decoded.height(), hint.0, hint.1, ceiling);
 +    let scaled = if decoded.width() > tw || decoded.height() > th {
 +        use image::imageops::FilterType;
 +        decoded.resize(tw, th, FilterType::Triangle)
@@ -219,9 +219,9 @@ index d5f1be3..f5996d8 100644
 +
 +/// Chrome-style mip selection: largest power-of-two
 +/// downscale of the header dims still covering the hint, clamped
-+/// to the ceiling. Mirrors scene_replay::mip_dims in kitesurf-core
++/// to the ceiling. Mirrors scene_replay::mip_dims in parawing-core
 +/// (kept in sync by the round-trip parity e2e).
-+fn kitesurf_mip_dims(header_w: u32, header_h: u32, hint_w: u32, hint_h: u32, ceiling: u32) -> (u32, u32) {
++fn parawing_mip_dims(header_w: u32, header_h: u32, hint_w: u32, hint_h: u32, ceiling: u32) -> (u32, u32) {
 +    let (mut w, mut h) = (header_w.max(1), header_h.max(1));
 +    if hint_w > 0 && hint_h > 0 {
 +        while w / 2 >= hint_w && h / 2 >= hint_h {
@@ -330,7 +330,7 @@ index f1b096c..0f42b4b 100644
 +    ///
 +    /// Trailing u64 is the embedder-supplied resource key (0 = none),
 +    /// and the payload is empty when the embedder kept it: see
-+    /// `kitesurf_set_pending_image`.
++    /// `parawing_set_pending_image`.
 +    EncodedImage(ImageType, u32, u32, Arc<Vec<u8>>, u64),
      #[cfg(feature = "svg")]
      Svg(ImageType, crate::node::SvgImageData),
@@ -418,7 +418,7 @@ index f1b096c..0f42b4b 100644
 +    /// before handing bytes to a stashed handler; `parse` runs
 +    /// synchronously inside that call, so a thread-local is enough and
 +    /// no trait signature has to change.
-+    static KITESURF_PENDING_IMAGE: std::cell::Cell<(u64, u32, u32)> =
++    static PARAWING_PENDING_IMAGE: std::cell::Cell<(u64, u32, u32)> =
 +        const { std::cell::Cell::new((0, 0, 0)) };
 +}
 +
@@ -430,12 +430,12 @@ index f1b096c..0f42b4b 100644
 +///
 +/// Always clear it (0, 0, 0) after the delivery, so an unkeyed load
 +/// cannot inherit a stale id or, worse, stale dimensions.
-+pub fn kitesurf_set_pending_image(key: u64, width: u32, height: u32) {
-+    KITESURF_PENDING_IMAGE.with(|k| k.set((key, width, height)));
++pub fn parawing_set_pending_image(key: u64, width: u32, height: u32) {
++    PARAWING_PENDING_IMAGE.with(|k| k.set((key, width, height)));
 +}
 +
-+fn kitesurf_take_pending_image() -> (u64, u32, u32) {
-+    KITESURF_PENDING_IMAGE.with(|k| k.get())
++fn parawing_take_pending_image() -> (u64, u32, u32) {
++    PARAWING_PENDING_IMAGE.with(|k| k.get())
 +}
 +
 +const MAX_IMAGE_RGBA_BYTES: u64 = 128 * 1024 * 1024;
@@ -488,7 +488,7 @@ index f1b096c..0f42b4b 100644
 +        if self.dims_only {
 +            // Embedder-supplied dimensions: the payload is absent by
 +            // design, so there is nothing to sniff and nothing to keep.
-+            let (staged_key, staged_w, staged_h) = kitesurf_take_pending_image();
++            let (staged_key, staged_w, staged_h) = parawing_take_pending_image();
 +            if staged_w > 0 && staged_h > 0 {
 +                return Ok(Resource::EncodedImage(
 +                    self.kind,

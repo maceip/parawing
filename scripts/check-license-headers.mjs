@@ -72,7 +72,7 @@ function licenseRequirements(file) {
 export function copyrightHeaderLines(file) {
   if (file === TODOMVC_SNAPSHOT) {
     return [
-      "TodoMVC Angular snapshot, adapted for Kitesurf regression tests.",
+      "TodoMVC Angular snapshot, adapted for Parawing regression tests.",
       "Copyright Addy Osmani, Sindre Sorhus, Pascal Hartig, and Stephen Sawchuk.",
       "TodoMVC is MIT-licensed; bundled app CSS is CC BY 4.0. See NOTICE and licenses/.",
     ];
@@ -80,7 +80,7 @@ export function copyrightHeaderLines(file) {
   if (GENERATED_WEBIDL.has(file)) {
     return [
       "Copyright (c) 2026 Cloudflare, Inc.",
-      "Kitesurf generator output is licensed under Apache 2.0; see LICENSE.",
+      "Parawing generator output is licensed under Apache 2.0; see LICENSE.",
       "Derived IDL data retains WPT BSD-3-Clause and Webref MIT notices; see NOTICE and licenses/.",
     ];
   }

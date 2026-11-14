@@ -5,10 +5,10 @@
 import puppeteer from "puppeteer-core";
 
 const args = process.argv.slice(2);
-const mode = args.find((a) => a === "--chrome" || a === "--kitesurf");
+const mode = args.find((a) => a === "--chrome" || a === "--parawing");
 const url = args.find((a) => !a.startsWith("--"));
 if (!mode || !url) {
-  console.error("usage: node scripts/ax-dump.mjs --chrome|--kitesurf <url>");
+  console.error("usage: node scripts/ax-dump.mjs --chrome|--parawing <url>");
   process.exit(1);
 }
 
@@ -26,7 +26,7 @@ if (mode === "--chrome") {
   page = await browser.newPage();
   await page.setViewport({ width: 1280, height: 720 });
 } else {
-  const port = process.env.KITESURF_PORT || "41130";
+  const port = process.env.PARAWING_PORT || "41130";
   browser = await puppeteer.connect({
     browserWSEndpoint: `ws://127.0.0.1:${port}/devtools/browser`,
   });
