@@ -1,0 +1,10 @@
+{
+  "name": "@parawing/device-authority",
+  "version": "0.1.0",
+  "private": true,
+  "license": "Apache-2.0",
+  "description": "Device authority, WebAuthn L2/L3, Keychain credential broker, and multi-session supervision engine",
+  "scripts": {
+    "test:unit": "cargo test --manifest-path Cargo.toml"
+  }
+}
