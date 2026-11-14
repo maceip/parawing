@@ -19,4 +19,4 @@ export const WBA_TEST_PUBLIC_JWK = {
 
 export const WBA_TEST_KEYID = "wesWX_rBb5VNY3kXerFNhqMM7ohV-MQYiE5jGyUyg_o";
 
-export const WBA_TEST_SIGNATURE_AGENT = "https://wba-test.kitesurf.invalid";
+export const WBA_TEST_SIGNATURE_AGENT = "https://wba-test.parawing.invalid";

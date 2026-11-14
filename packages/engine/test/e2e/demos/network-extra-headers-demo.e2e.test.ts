@@ -5,13 +5,13 @@
 import { expect, test } from "../harness";
 
 test("network-extra-headers-demo", async ({ page }) => {
-  const ECHO = process.env.KITESURF_FIXTURE ?? "http://127.0.0.1:8787/__fixtures/echo-headers.html";
+  const ECHO = process.env.PARAWING_FIXTURE ?? "http://127.0.0.1:8787/__fixtures/echo-headers.html";
 
   await page.setExtraHTTPHeaders({
     "x-test-flavour": "salty",
     "X-Custom-Auth": "Bearer demo-token",
-    "x-kitesurf-resource-type": "Hostile",
-    "x-kitesurf-test": "should-not-arrive",
+    "x-parawing-resource-type": "Hostile",
+    "x-parawing-test": "should-not-arrive",
   });
 
   await page.goto(ECHO, { timeout: 15000 });
@@ -23,9 +23,9 @@ test("network-extra-headers-demo", async ({ page }) => {
     "doc fetch carries X-Custom-Auth",
   ).toBeTruthy();
   expect(
-    docHeaders["x-kitesurf-resource-type"] !== "Hostile" &&
-      docHeaders["x-kitesurf-test"] === undefined,
-    "x-kitesurf-* sanitised on doc fetch",
+    docHeaders["x-parawing-resource-type"] !== "Hostile" &&
+      docHeaders["x-parawing-test"] === undefined,
+    "x-parawing-* sanitised on doc fetch",
   ).toBeTruthy();
 
   const subHeaders = await page.evaluate(async () => {
@@ -41,9 +41,9 @@ test("network-extra-headers-demo", async ({ page }) => {
     "subresource fetch carries X-Custom-Auth",
   ).toBeTruthy();
   expect(
-    subHeaders["x-kitesurf-resource-type"] !== "Hostile" &&
-      subHeaders["x-kitesurf-test"] === undefined,
-    "x-kitesurf-* sanitised on sub fetch",
+    subHeaders["x-parawing-resource-type"] !== "Hostile" &&
+      subHeaders["x-parawing-test"] === undefined,
+    "x-parawing-* sanitised on sub fetch",
   ).toBeTruthy();
 
   await page.setExtraHTTPHeaders({});

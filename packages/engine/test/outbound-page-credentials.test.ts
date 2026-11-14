@@ -9,11 +9,8 @@
 import { afterEach, describe, expect, it } from "vitest";
 import { registerCookieJar, unregisterCookieJar } from "../src/cdp/cookie-jar-registry.ts";
 import { createCookieJar } from "../src/cookies.ts";
-import {
-  createSandboxOutboundOverride,
-  type SandboxOutboundEnv,
-  type SandboxOutboundExports,
-} from "../src/eval/outbound.ts";
+import { createSandboxOutboundOverride } from "../src/eval/outbound.ts";
+import { createMemoryHostCapabilities } from "../src/host-capabilities.ts";
 
 const KEY = "outbound-page-credentials";
 const ORIGIN = "https://attacker.example";
@@ -32,18 +29,14 @@ async function send(pageRealm: boolean, url: string) {
   jar.setFromHeader(`${new URL(url).origin}/`, "sid=SECRET; Secure; Path=/; SameSite=None");
   registerCookieJar(KEY, jar);
   const seen: Array<string | null> = [];
-  const outbound = createSandboxOutboundOverride(
-    {} as SandboxOutboundExports,
-    {} as SandboxOutboundEnv,
-    {
-      fetch: async (request) => {
-        seen.push(request.headers.get("cookie"));
-        return new Response(BODY, {
-          headers: { "content-type": "text/event-stream", "access-control-allow-origin": "*" },
-        });
-      },
+  const outbound = createSandboxOutboundOverride(createMemoryHostCapabilities(), {
+    fetch: async (request) => {
+      seen.push(request.headers.get("cookie"));
+      return new Response(BODY, {
+        headers: { "content-type": "text/event-stream", "access-control-allow-origin": "*" },
+      });
     },
-  );
+  });
   const fetcher = outbound.parent({
     pageOrigin: ORIGIN,
     pageUrl: PAGE,

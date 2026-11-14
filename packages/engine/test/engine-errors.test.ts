@@ -3,7 +3,7 @@
 // https://opensource.org/licenses/Apache-2.0
 
 import { describe, expect, it } from "vitest";
-import { classifyOrigin, parseKsErrLine } from "../src/engine-errors.ts";
+import { classifyOrigin, parsePwErrLine } from "../src/engine-errors.ts";
 
 describe("classifyOrigin", () => {
   it("attributes by wasm panic surface and module names", () => {
@@ -28,31 +28,31 @@ describe("classifyOrigin", () => {
   });
 });
 
-describe("parseKsErrLine", () => {
+describe("parsePwErrLine", () => {
   it("rejects malformed lines and page origins", () => {
-    expect(parseKsErrLine("[ks-err] not json", "tok")).toBeNull();
-    expect(parseKsErrLine("plain line", "tok")).toBeNull();
+    expect(parsePwErrLine("[pw-err] not json", "tok")).toBeNull();
+    expect(parsePwErrLine("plain line", "tok")).toBeNull();
     expect(
-      parseKsErrLine('[ks-err] {"token":"tok","origin":"page","message":"m"}', "tok"),
+      parsePwErrLine('[pw-err] {"token":"tok","origin":"page","message":"m"}', "tok"),
     ).toBeNull();
-    expect(parseKsErrLine('[ks-err] {"token":"tok","origin":"shim"}', "tok")).toBeNull();
+    expect(parsePwErrLine('[pw-err] {"token":"tok","origin":"shim"}', "tok")).toBeNull();
   });
 
   it("drops spoofed lines: bad, missing, or unknowable token", () => {
-    const spoof = '[ks-err] {"origin":"wasm","message":"pwned"}';
+    const spoof = '[pw-err] {"origin":"wasm","message":"pwned"}';
     // Page JS can emit the prefix but can never read the env-carried
     // token, so its lines fail the comparison (or the channel is off).
-    expect(parseKsErrLine(spoof, "tok")).toBeNull();
+    expect(parsePwErrLine(spoof, "tok")).toBeNull();
     expect(
-      parseKsErrLine('[ks-err] {"token":"guess","origin":"wasm","message":"pwned"}', "tok"),
+      parsePwErrLine('[pw-err] {"token":"guess","origin":"wasm","message":"pwned"}', "tok"),
     ).toBeNull();
-    expect(parseKsErrLine(spoof, undefined)).toBeNull();
+    expect(parsePwErrLine(spoof, undefined)).toBeNull();
   });
 
   it("accepts an authenticated engine error", () => {
     expect(
-      parseKsErrLine(
-        '[ks-err] {"token":"tok","origin":"wasm","message":"panicked at stylo","pageUrl":"https://example.com/"}',
+      parsePwErrLine(
+        '[pw-err] {"token":"tok","origin":"wasm","message":"panicked at stylo","pageUrl":"https://example.com/"}',
         "tok",
       ),
     ).toEqual({
@@ -65,8 +65,8 @@ describe("parseKsErrLine", () => {
   });
 
   it("caps attacker-lengthable fields", () => {
-    const rep = parseKsErrLine(
-      "[ks-err] " +
+    const rep = parsePwErrLine(
+      "[pw-err] " +
         JSON.stringify({
           token: "tok",
           origin: "shim",

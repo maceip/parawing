@@ -59,7 +59,7 @@ export function privateNetworkRefusal(target: URL, initiatorOrigin: string): str
   } catch {}
   if (RANK[targetSpace] >= RANK[initiatorSpace]) return null;
   return (
-    `kitesurf: a ${initiatorSpace} document may not reach the ${targetSpace} address ` +
-    `${target.host} (set KITESURF_ALLOW_PRIVATE_NETWORK=1 to allow it)`
+    `parawing: a ${initiatorSpace} document may not reach the ${targetSpace} address ` +
+    `${target.host} (set PARAWING_ALLOW_PRIVATE_NETWORK=1 to allow it)`
   );
 }

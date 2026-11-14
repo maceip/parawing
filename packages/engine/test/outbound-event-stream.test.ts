@@ -8,11 +8,8 @@
 import { afterEach, describe, expect, it } from "vitest";
 import { NetworkEventTracker } from "../src/cdp/network-events.ts";
 import { registerTracker, unregisterTracker } from "../src/cdp/network-events-registry.ts";
-import {
-  SandboxOutbound,
-  type OutboundProps,
-  type SandboxOutboundEnv,
-} from "../src/eval/outbound.ts";
+import { SandboxOutbound, type OutboundProps } from "../src/eval/outbound.ts";
+import { createMemoryHostCapabilities } from "../src/host-capabilities.ts";
 
 const CONNECTION = "outbound-event-stream";
 const PAGE = "https://page.test/page";
@@ -67,7 +64,7 @@ function gateway(
     connectionId: CONNECTION,
     externalOutbound: { fetch },
   };
-  return SandboxOutbound.handle({} as SandboxOutboundEnv, props, request);
+  return SandboxOutbound.handle(createMemoryHostCapabilities(), props, request);
 }
 
 // The stream never closes: an open connection is exactly what the capture must not wait for.
@@ -91,7 +88,7 @@ describe("Network body capture skips an event stream", () => {
         async () =>
           new Response(openStream("data: hello\n\n"), { headers: { "content-type": contentType } }),
         new Request(SSE_URL, {
-          headers: { "x-kitesurf-resource-type": type, accept: "text/event-stream" },
+          headers: { "x-parawing-resource-type": type, accept: "text/event-stream" },
         }),
       ),
       "the outbound fetch waited for the event stream to end",
@@ -116,7 +113,7 @@ describe("Network body capture skips an event stream", () => {
     const response = await gateway(
       async () =>
         new Response("hello", { headers: { "content-type": "text/plain; charset=utf-8" } }),
-      new Request("https://page.test/text", { headers: { "x-kitesurf-resource-type": "Fetch" } }),
+      new Request("https://page.test/text", { headers: { "x-parawing-resource-type": "Fetch" } }),
     );
     expect(await response.text()).toBe("hello");
     network.tracker.drain();

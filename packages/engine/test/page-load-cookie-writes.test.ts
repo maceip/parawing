@@ -33,7 +33,7 @@ vi.mock("../src/eval/page-script.ts", async (importOriginal) => ({
     pageScripts.get(opts.startupInput?.url ?? ""),
 }));
 
-import type { LoadCompletion } from "@kitesurf/jsrpc-types/page-script";
+import type { LoadCompletion } from "@parawing/jsrpc-types/page-script";
 import type { DispatchCtx } from "../src/cdp/dispatch.ts";
 import { createPageTarget } from "../src/cdp/target.ts";
 import { handlePage } from "../src/cdp/page.ts";
@@ -44,6 +44,8 @@ import { createCookieJar } from "../src/cookies.ts";
 import type { PageScriptStub } from "../src/eval/page-script.ts";
 import type { SandboxOutboundOverride } from "../src/eval/outbound.ts";
 import { DynamicWorkerBudget } from "../src/eval/worker-budget.ts";
+import { createMemoryHostCapabilities } from "../src/host-capabilities.ts";
+import type { HostIsolateLoader } from "../src/isolate-loader.ts";
 
 const FIRST = "https://first.test/";
 const NEXT = "https://next.test/";
@@ -85,7 +87,7 @@ function fakePageScript() {
     killIsolate: () => {},
     queryDom: async () => ({ pumped: -1 }),
   };
-  // oxlint-disable-next-line kitesurf/no-chained-type-assertions -- only the RPC verbs this path calls.
+  // oxlint-disable-next-line parawing/no-chained-type-assertions -- only the RPC verbs this path calls.
   return { stub: stub as unknown as PageScriptStub, load, unload, unloadStarted, hooks };
 }
 
@@ -98,15 +100,15 @@ function setup() {
     new Response("<html><head></head><body></body></html>", {
       headers: { "content-type": "text/html" },
     });
-  // oxlint-disable-next-line kitesurf/no-chained-type-assertions -- only parent().fetch is used by navigate.
+  // oxlint-disable-next-line parawing/no-chained-type-assertions -- only parent().fetch is used by navigate.
   const sandboxOutbound = {
     external: false,
     parent: () => ({ fetch: fetchDocument }),
-    loaded: () => ({ fetch: fetchDocument }),
+    loadedProps: () => ({ pageOrigin: FIRST }),
     session: () => ({}),
     final: async () => new Response(""),
   } as unknown as SandboxOutboundOverride;
-  // oxlint-disable-next-line kitesurf/no-chained-type-assertions -- only fields the navigate path reads.
+  // oxlint-disable-next-line parawing/no-chained-type-assertions -- only fields the navigate path reads.
   const browser = {
     targets: new Map<string, TargetState>(),
     sandboxOutbound,
@@ -132,12 +134,19 @@ function setup() {
     attributionHeaders: {},
     wsClosing: false,
   } as unknown as DispatchCtx["browser"];
-  // oxlint-disable-next-line kitesurf/no-chained-type-assertions -- only the fields dispatch reads.
+  const host = createMemoryHostCapabilities({
+    tasks: {
+      run: (p) => {
+        background.push(p);
+      },
+    },
+  });
+  // oxlint-disable-next-line parawing/no-chained-type-assertions -- only the fields dispatch reads.
   const ctx = {
     browser,
     emit,
-    env: {},
-    ctx: { waitUntil: (p: Promise<unknown>) => background.push(p) },
+    host,
+    isolateLoader: {} as HostIsolateLoader,
     connectionId: CONN,
     analytics: { now: () => 0, sessionAgeMs: () => 0, once: () => false, emit: () => {} },
   } as unknown as DispatchCtx;

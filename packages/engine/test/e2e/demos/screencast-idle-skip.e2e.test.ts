@@ -51,7 +51,7 @@ test("detached pixel-neutral damage returns unchanged for polling callers", asyn
   await page.goto(IDLE_PAGE, { timeout: 25_000 });
   const targetId = await targetIdForSession(cdpSession);
   const record = async (sinceSeq: number, baseSeq: number) => {
-    const reply = await cdpSession.send("Kitesurf.recordScene", {
+    const reply = await cdpSession.send("Parawing.recordScene", {
       targetId,
       producer: "replay",
       sinceSeq,
@@ -118,7 +118,7 @@ test("a plain checkbox toggle ships its state-driven paint", async ({ page, cdpS
     expect(await waitForFrames(count, timeoutMs), "checkbox frame arrives").toBe(true);
   };
   const getPartialCount = async () => {
-    const info = await cdpSession.send("Kitesurf.getRendererInfo");
+    const info = await cdpSession.send("Parawing.getRendererInfo");
     return info.partialFramesRendered;
   };
 
@@ -170,7 +170,7 @@ test("focus and blur state changes do not return unchanged", async ({ page, cdpS
   );
   const targetId = await targetIdForSession(cdpSession);
   const record = async (sinceSeq: number, baseSeq: number) => {
-    const reply = await cdpSession.send("Kitesurf.recordScene", {
+    const reply = await cdpSession.send("Parawing.recordScene", {
       targetId,
       producer: "replay",
       sinceSeq,
@@ -678,7 +678,7 @@ test("an idle cross-origin iframe is not re-rasterized on every tick", async ({
     timeout: 60_000,
   });
   const framesRendered = async () =>
-    (await cdpSession.send("Kitesurf.getRendererInfo")).framesRendered;
+    (await cdpSession.send("Parawing.getRendererInfo")).framesRendered;
   let frames = 0;
   cdpSession.on("Page.screencastFrame", (ev: { sessionId: number }) => {
     frames++;

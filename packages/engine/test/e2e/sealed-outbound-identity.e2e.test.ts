@@ -7,21 +7,21 @@ import { expect, test } from "./harness";
 const HOST = "https://ks.invalid/__fixtures/lifecycle.html";
 const SECRET = "https://ks-other.invalid/__fixtures/no-acao-secret.json";
 
-test("a forged x-kitesurf-page-origin cannot claim the target's origin", async ({ page }) => {
+test("a forged x-parawing-page-origin cannot claim the target's origin", async ({ page }) => {
   await page.goto(HOST, { waitUntil: "domcontentloaded" });
   const out = (await page.evaluate(`
     fetch(${JSON.stringify(SECRET)}, {
-      headers: { "x-kitesurf-page-origin": "https://ks-other.invalid" },
+      headers: { "x-parawing-page-origin": "https://ks-other.invalid" },
     })
       .then((r) => r.text())
       .then((t) => "READ:" + t)
       .catch((e) => "BLOCKED:" + (e && e.name ? e.name : String(e)))
   `)) as string;
-  expect(out).not.toContain("kitesurf-cross-origin-secret");
+  expect(out).not.toContain("parawing-cross-origin-secret");
   expect(out.startsWith("BLOCKED:")).toBe(true);
 }, 120_000);
 
-test("a forged x-kitesurf-cookie-key cannot reach another context's jar", async ({ browser }) => {
+test("a forged x-parawing-cookie-key cannot reach another context's jar", async ({ browser }) => {
   const c1 = await browser.createBrowserContext();
   const c2 = await browser.createBrowserContext();
   const p1 = await c1.newPage();
@@ -40,7 +40,7 @@ test("a forged x-kitesurf-cookie-key cannot reach another context's jar", async 
   });
   const forged = (await p1.evaluate(`
     fetch("/__fixtures/echo-headers.json", {
-      headers: { "x-kitesurf-cookie-key": ${JSON.stringify(`::${c2.id}`)} },
+      headers: { "x-parawing-cookie-key": ${JSON.stringify(`::${c2.id}`)} },
     }).then((r) => r.json())
   `)) as { cookie?: string };
   expect(forged.cookie ?? "").toContain("who=ctx1");
@@ -52,15 +52,15 @@ test("a forged Document resource-type cannot read cross-origin HTML", async ({ p
   const out = (await page.evaluate(`
     fetch("https://ks-other.invalid/__fixtures/no-acao-secret.json", {
       headers: {
-        "x-kitesurf-resource-type": "Document",
-        "x-kitesurf-allow-cross-origin": "1",
+        "x-parawing-resource-type": "Document",
+        "x-parawing-allow-cross-origin": "1",
       },
     })
       .then((r) => r.text())
       .then((t) => "READ:" + t)
       .catch((e) => "BLOCKED:" + (e && e.name ? e.name : String(e)))
   `)) as string;
-  expect(out).not.toContain("kitesurf-cross-origin-secret");
+  expect(out).not.toContain("parawing-cross-origin-secret");
   expect(out.startsWith("BLOCKED:")).toBe(true);
 }, 120_000);
 

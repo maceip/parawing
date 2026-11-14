@@ -2,7 +2,7 @@
 // Licensed under the Apache 2.0 license found in the LICENSE file or at:
 // https://opensource.org/licenses/Apache-2.0
 
-import { buildScriptGateContext } from "@kitesurf/script-gate";
+import { buildScriptGateContext } from "@parawing/script-gate";
 import { describe, expect, it } from "vitest";
 import type { SandboxOutboundOverride } from "../src/eval/outbound.ts";
 import { prefetchExternalScripts } from "../src/eval/prefetch-scripts.ts";
@@ -26,7 +26,7 @@ function outbound(redirects: Record<string, string>, respond?: () => Response) {
       });
     },
   } as Fetcher;
-  // oxlint-disable-next-line kitesurf/no-chained-type-assertions -- only parent and final are used.
+  // oxlint-disable-next-line parawing/no-chained-type-assertions -- only parent and final are used.
   const sandboxOutbound = {
     external: false,
     parent: () => fetcher,

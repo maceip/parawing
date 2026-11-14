@@ -4,7 +4,7 @@
 
 // Streams RBI scene frames and resources with acknowledgement-based backpressure. Clients get
 // recorded vector scenes, not pixels, and rasterize them with the scene-host wasm. Each envelope
-// below reaches CDP clients base64-encoded in a `Kitesurf.sceneFrame` event (cdp/scene-stream.ts).
+// below reaches CDP clients base64-encoded in a `Parawing.sceneFrame` event (cdp/scene-stream.ts).
 
 import type { QueryDomResult } from "./cdp/page-session.ts";
 import { typedArrayLength } from "./rbi-protocol.ts";

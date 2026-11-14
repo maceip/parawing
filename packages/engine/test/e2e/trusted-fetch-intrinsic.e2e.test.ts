@@ -21,7 +21,7 @@ test("a replaced globalThis.fetch sees no loader traffic", async ({ page }) => {
     globalThis.fetch = function (input, init) {
       intercepted++;
       const h = new Headers((init && init.headers) || {});
-      if (h.get("x-kitesurf-allow-cross-origin") === "1") {
+      if (h.get("x-parawing-allow-cross-origin") === "1") {
         sawBypassClaim = true;
       }
       return real(input, init);
@@ -74,7 +74,7 @@ test("the earliest page script a document can run misses the capture", async ({ 
       else seen.loader++;
       try {
         const h = new Headers((init && init.headers) || {});
-        if (h.get("x-kitesurf-allow-cross-origin") === "1") {
+        if (h.get("x-parawing-allow-cross-origin") === "1") {
           seen.bypass = true;
         }
       } catch (e) {}

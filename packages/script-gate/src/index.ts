@@ -44,8 +44,8 @@ export {
   type ModuleType,
 } from "./mime.ts";
 export {
-  KITESURF_CORS_VERDICT_HEADER,
-  KITESURF_NOSNIFF_HEADER,
+  PARAWING_CORS_VERDICT_HEADER,
+  PARAWING_NOSNIFF_HEADER,
   responseIsOpaque,
 } from "./gateway-headers.ts";
 export {

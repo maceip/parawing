@@ -67,7 +67,7 @@ test("a dot pattern across the whole viewport paints in bounded memory", async (
   expect(dots.h).toBeGreaterThan(890);
 
   // Wasm memory never shrinks, so its size is the renderer's peak.
-  const info = await cdpSession.send("Kitesurf.getRendererInfo");
+  const info = await cdpSession.send("Parawing.getRendererInfo");
   expect(info.framesRendered).toBeGreaterThanOrEqual(1);
   expect(info.rendererWasmBytes).not.toBeNull();
   expect(info.rendererWasmBytes).toBeLessThan(RENDERER_WASM_LIMIT);

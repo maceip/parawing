@@ -86,7 +86,7 @@ const html = `<table><tbody id=tb></tbody></table><div id=d>text</div><template 
     // usvg turns svg <text> into outlines, so a parse that can create one
     // asks for the full fonts, as innerHTML does.
     var demands = 0;
-    var ksInternals = globalThis[Symbol.for("kitesurf.internals")];
+    var ksInternals = globalThis[Symbol.for("parawing.internals")];
     var origDemand = ksInternals.demandFontOutlines;
     ksInternals.demandFontOutlines = function () {
       demands++;

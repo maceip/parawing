@@ -59,7 +59,7 @@ async function nodeCount(page: Page): Promise<number> {
   const session = await page.createCDPSession();
   try {
     const targetId = await targetIdForSession(session);
-    const stats = await session.send("Kitesurf.getMemoryStats", { targetId });
+    const stats = await session.send("Parawing.getMemoryStats", { targetId });
     if (typeof stats.domNodes !== "number") throw new Error("missing DOM node count");
     return stats.domNodes;
   } finally {

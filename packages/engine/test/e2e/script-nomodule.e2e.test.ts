@@ -2,7 +2,7 @@
 // Licensed under the Apache 2.0 license found in the LICENSE file or at:
 // https://opensource.org/licenses/Apache-2.0
 
-// Kitesurf runs modules, so a classic script marked nomodule (a legacy fallback build) must
+// Parawing runs modules, so a classic script marked nomodule (a legacy fallback build) must
 // neither run nor fire events, from the parser or from an insert. A module ignores nomodule.
 import { expect, test } from "./harness";
 

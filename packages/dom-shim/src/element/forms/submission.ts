@@ -115,7 +115,7 @@ function generateMultipartBoundary() {
   for (let i = 0; i < bytes.length; i++) {
     hex += bytes[i].toString(16).padStart(2, "0");
   }
-  return "----kitesurfFormBoundary" + hex;
+  return "----parawingFormBoundary" + hex;
 }
 // Capture TextEncoder before page code can replace the global constructor.
 const _MPEncoder = new ksGlobal.TextEncoder();

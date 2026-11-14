@@ -19,7 +19,7 @@ function wasmModule(size: number): Uint8Array {
 const miss = async () => new Response(null, { status: 404 });
 function stubOutbound(routes: Record<string, () => Response>) {
   const fetcher = { fetch: async (req: Request) => routes[req.url]?.() ?? miss() } as Fetcher;
-  const base = { external: false, parent: () => fetcher, loaded: () => fetcher };
+  const base = { external: false, parent: () => fetcher, loadedProps: () => ({ pageOrigin: "" }) };
   return { ...base, session: () => miss, final: miss };
 }
 
@@ -44,7 +44,7 @@ it("bounds concurrent wasm prefetch memory", async () => {
       "https://site.test/c.wasm": () =>
         new Response("x".repeat(8 * 1024), {
           status: 403,
-          headers: { "x-kitesurf-blocked": "policy" },
+          headers: { "x-parawing-blocked": "policy" },
         }),
     }),
   });

@@ -31,7 +31,7 @@ export type CdpRequest = {
   [M in CdpMethod]: {
     id: number;
     method: M;
-    params?: M extends `Kitesurf.${string}` ? Unvalidated<CdpParamsOf<M>> : CdpParamsOf<M>;
+    params?: M extends `Parawing.${string}` ? Unvalidated<CdpParamsOf<M>> : CdpParamsOf<M>;
     sessionId?: string;
   };
 }[CdpMethod];
@@ -77,6 +77,7 @@ export function parseCdpRequest(
   for (const key of ["params", "sessionId"]) {
     if (Reflect.get(message, key) === null) Reflect.deleteProperty(message, key);
   }
+  Reflect.deleteProperty(message, "_actorRole");
   const id: unknown = Reflect.get(message, "id");
   const method: unknown = Reflect.get(message, "method");
   const params: unknown = Reflect.get(message, "params");
@@ -144,6 +145,23 @@ export interface BrowserState {
   wsClosing: boolean;
 
   attributionHeaders: Record<string, string>;
+  sessionId?: SessionId;
+  userId?: UserId;
+  sessionEpoch?: number;
+  connectionRole?: ConnectionRole;
+  persistentSession: boolean;
+  delegatedAgent: boolean;
+  policyEngine: PolicyEngine;
+  controllerLeases: ControllerLeaseManager;
+  store: SessionStore;
+  webStorage: WebStoragePersistenceBridge;
+  auditLog?: SignedAuditLog;
+  authority?: AuthorityVaultAndChannel;
+  tokenizedVault?: import("../authority/mandates.ts").TokenizedFillVault;
+  mandateTracker?: import("../authority/mandates.ts").MandateTracker;
+  approvalGate?: ApprovalGate;
+  keyLease?: KeyLeaseManager;
+  emitSink: EventEmitter;
 }
 
 export interface ScreencastState {
@@ -265,9 +283,19 @@ export interface StyleSheetEntry {
   parsed: ParsedStyleSheet | null;
 }
 
-import type { ParsedStyleSheet } from "@kitesurf/jsrpc-types/query-dom";
-import type { SandboxRestrictions } from "@kitesurf/script-gate";
-import type { CommittedOrigin } from "@kitesurf/jsrpc-types/frame-origin";
+import type { ParsedStyleSheet } from "@parawing/jsrpc-types/query-dom";
+import type { SandboxRestrictions } from "@parawing/script-gate";
+import type { CommittedOrigin } from "@parawing/jsrpc-types/frame-origin";
+import type { AuthorityVaultAndChannel } from "../authority/authority-service.ts";
+import type { ApprovalGate } from "../authority/approval-gate.ts";
+import type { SignedAuditLog } from "../policy/audit-log.ts";
+import type { ControllerLeaseManager } from "../policy/controller-lease.ts";
+import type { PolicyEngine } from "../policy/policy-engine.ts";
+import type { Tier1FormDraft } from "../session/checkpoint.ts";
+import type { ConnectionRole, SessionId, UserId } from "../session/identities.ts";
+import type { KeyLeaseManager } from "../state/key-lease.ts";
+import type { SessionStore } from "../state/session-store.ts";
+import type { WebStoragePersistenceBridge } from "../state/web-storage-bridge.ts";
 export type { ParsedStyleSheet, SandboxRestrictions };
 
 export interface NavigationHistoryEntry {
@@ -276,6 +304,7 @@ export interface NavigationHistoryEntry {
   userTypedURL: string;
   title: string;
   transitionType: Protocol.Page.TransitionType;
+  method?: string;
 }
 
 export interface TargetState {
@@ -343,6 +372,15 @@ export interface TargetState {
   screencastAckCount?: number;
   extraHttpHeaders: Record<string, string>;
   userAgentOverride: string;
+  sealedOrigin: string | null;
+  lastNavigationMethod: string;
+  lastSafeGetUrl: string | null;
+  pendingUnsafeNavigationUrl: string | null;
+  lastAckedInputSeq: number;
+  lastScrollX?: number;
+  lastScrollY?: number;
+  lastFocusedFieldKey?: string | null;
+  lastFormDrafts?: Tier1FormDraft[];
 }
 
 export interface CompiledScriptMeta {
@@ -362,7 +400,7 @@ export interface CompiledScriptMeta {
 
 export const ISOLATED_WORLD_CONTEXT_ID = 2;
 
-export const SKIP_SPECULATIVE_RASTER_HEADER = "x-kitesurf-skip-raster";
+export const SKIP_SPECULATIVE_RASTER_HEADER = "x-parawing-skip-raster";
 
 export function makeTargetId(): string {
   return crypto.randomUUID().replace(/-/g, "");

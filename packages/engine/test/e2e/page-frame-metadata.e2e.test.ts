@@ -5,7 +5,7 @@
 import type { Protocol } from "devtools-protocol";
 import { expect, test } from "./harness";
 
-const URL_BASE = process.env.KITESURF_FIXTURE_BASE ?? "http://127.0.0.1:8787";
+const URL_BASE = process.env.PARAWING_FIXTURE_BASE ?? "http://127.0.0.1:8787";
 
 function withoutIds(frame: Protocol.Page.Frame): Omit<Protocol.Page.Frame, "id" | "loaderId"> {
   const { id: _id, loaderId: _loaderId, ...rest } = frame;

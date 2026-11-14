@@ -5,7 +5,7 @@
 // Implements CDP DOM commands and coordinates PageScript setup and mutation events.
 
 import type { Protocol } from "devtools-protocol";
-import type { CdpMutation } from "@kitesurf/jsrpc-types/shared";
+import type { CdpMutation } from "@parawing/jsrpc-types/shared";
 
 import type { CdpEvent, CdpRequest, TargetState } from "./types.ts";
 import type { DispatchCtx } from "./dispatch.ts";
@@ -31,6 +31,7 @@ import {
 import { traceSpan } from "../tracing.ts";
 import { emitSessionStart } from "../observability.ts";
 import { reconcileTools } from "./webmcp.ts";
+import { asTargetId } from "../session/identities.ts";
 
 export async function handleDom(ctx: DispatchCtx, req: CdpRequest): Promise<unknown> {
   const target = resolveTarget(ctx, req.sessionId);
@@ -265,6 +266,9 @@ export async function handleDom(ctx: DispatchCtx, req: CdpRequest): Promise<unkn
         const id = numericNodeId(req.params);
         if (id != null) {
           await session.call.focus({ nodeId: id });
+          if (!target.sealedOrigin) {
+            target.lastFocusedFieldKey = `node:${id}`;
+          }
         }
       }
       return {};
@@ -539,12 +543,12 @@ export function ensurePageScript(
   let stub: PageScriptStub;
   try {
     stub = traceSpan(
-      dctx.env.HOST_TRACER,
+      dctx.host.tracer,
       "init.bake_isolate",
       () =>
         getOrCreatePageScript({
-          env: dctx.env,
-          ctx: dctx.ctx,
+          host: dctx.host,
+          isolateLoader: dctx.isolateLoader,
           key: {
             connectionId: dctx.connectionId,
             targetId: target.targetId,
@@ -567,7 +571,7 @@ export function ensurePageScript(
     );
   } catch (err) {
     console.warn(
-      "kitesurf: getOrCreatePageScript failed:",
+      "parawing: getOrCreatePageScript failed:",
       err instanceof Error ? err.message : String(err),
     );
     return null;
@@ -623,7 +627,7 @@ export function ensurePageScript(
           await stub.evaluate(source, {});
         } catch (err) {
           console.warn(
-            "kitesurf: blank-page pre-nav script failed:",
+            "parawing: blank-page pre-nav script failed:",
             err instanceof Error ? err.message : String(err),
           );
         }
@@ -632,7 +636,7 @@ export function ensurePageScript(
     })
     .catch((err) => {
       console.warn(
-        "kitesurf: lazy PageScript.navigate failed:",
+        "parawing: lazy PageScript.navigate failed:",
         err instanceof Error ? err.message : String(err),
       );
     });
@@ -656,6 +660,12 @@ export function emitMutations(
 ): void {
   if (!mutations || mutations.length === 0) return;
   syncStyleSheetsFromMutations(ctx, target, mutations);
+  if (
+    ctx.connectionRole !== "viewer" &&
+    ctx.browser.controllerLeases?.isAgentObservationPaused(asTargetId(target.targetId)) === true
+  ) {
+    return;
+  }
   if (target.domEnabledSessions.size === 0) return;
   const staleParents = new Set<number>();
   for (const m of mutations) {
@@ -734,6 +744,12 @@ function mutationEvent(mutation: CdpMutation, sessionId: string | undefined): Cd
 }
 
 function scheduleChildRebinds(ctx: DispatchCtx, target: TargetState, parentIds: Set<number>): void {
+  if (
+    ctx.connectionRole !== "viewer" &&
+    ctx.browser.controllerLeases?.isAgentObservationPaused(asTargetId(target.targetId)) === true
+  ) {
+    return;
+  }
   const pageScript = target.pageScript;
   if (!pageScript) return;
   const work = (async () => {
@@ -752,6 +768,12 @@ function scheduleChildRebinds(ctx: DispatchCtx, target: TargetState, parentIds: 
       }),
     );
     if (target.pageScript !== pageScript) return;
+    if (
+      ctx.connectionRole !== "viewer" &&
+      ctx.browser.controllerLeases?.isAgentObservationPaused(asTargetId(target.targetId)) === true
+    ) {
+      return;
+    }
     for (const { id, node } of reads) {
       const nodes = childNodesForRebind(node);
       if (!nodes) continue;
@@ -764,7 +786,7 @@ function scheduleChildRebinds(ctx: DispatchCtx, target: TargetState, parentIds: 
       }
     }
   })();
-  ctx.ctx.waitUntil(work);
+  ctx.host.tasks.run(work);
 }
 
 function childNodesForRebind(node: unknown): Protocol.DOM.Node[] | null {

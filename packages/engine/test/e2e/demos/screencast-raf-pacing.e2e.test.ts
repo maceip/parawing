@@ -148,7 +148,7 @@ test("a driver tick runs a rAF a timer queued just before it", async ({ page, cd
     requestAnimationFrame(step);
   }, rearmDelayMs);
   const driverTick = () =>
-    cdpSession.send("Kitesurf.recordScene", {
+    cdpSession.send("Parawing.recordScene", {
       pumpRaf: true,
       frameIntervalMs,
     });

@@ -5,7 +5,7 @@
 // Parses the HTML iframe `sandbox` attribute into the capabilities this engine enforces.
 // https://html.spec.whatwg.org/multipage/iframe-embed-object.html#attr-iframe-sandbox
 
-import type { SandboxRestrictions } from "@kitesurf/jsrpc-types/sandbox";
+import type { SandboxRestrictions } from "@parawing/jsrpc-types/sandbox";
 
 export type { SandboxRestrictions };
 

@@ -14,17 +14,17 @@ import {
 describe("inspectorBaseUrlOrNull", () => {
   it("disables the inspector when the variable is unset or not a string", () => {
     expect(inspectorBaseUrlOrNull({})).toBeNull();
-    expect(inspectorBaseUrlOrNull({ KITESURF_INSPECTOR_BASE_URL: 123 })).toBeNull();
+    expect(inspectorBaseUrlOrNull({ PARAWING_INSPECTOR_BASE_URL: 123 })).toBeNull();
   });
 
   it("disables the inspector for an empty or blank value", () => {
-    expect(inspectorBaseUrlOrNull({ KITESURF_INSPECTOR_BASE_URL: "" })).toBeNull();
-    expect(inspectorBaseUrlOrNull({ KITESURF_INSPECTOR_BASE_URL: "  " })).toBeNull();
+    expect(inspectorBaseUrlOrNull({ PARAWING_INSPECTOR_BASE_URL: "" })).toBeNull();
+    expect(inspectorBaseUrlOrNull({ PARAWING_INSPECTOR_BASE_URL: "  " })).toBeNull();
   });
 
   it("returns a configured value trimmed", () => {
     expect(
-      inspectorBaseUrlOrNull({ KITESURF_INSPECTOR_BASE_URL: " https://example.com/ui " }),
+      inspectorBaseUrlOrNull({ PARAWING_INSPECTOR_BASE_URL: " https://example.com/ui " }),
     ).toBe("https://example.com/ui");
   });
 });
@@ -64,7 +64,7 @@ describe("inspectorTargetUrl", () => {
         host: "ks.invalid",
       }),
     ).toBe(
-      "https://ks.invalid/inspector/inspector.html?wss=ks.invalid%2Fdevtools%2Fpage%2Fkitesurf",
+      "https://ks.invalid/inspector/inspector.html?wss=ks.invalid%2Fdevtools%2Fpage%2Fparawing",
     );
     expect(
       inspectorTargetUrl("/inspector/inspector.html", {
@@ -72,7 +72,7 @@ describe("inspectorTargetUrl", () => {
         host: "localhost:8787",
       }),
     ).toBe(
-      "http://localhost:8787/inspector/inspector.html?ws=localhost%3A8787%2Fdevtools%2Fpage%2Fkitesurf",
+      "http://localhost:8787/inspector/inspector.html?ws=localhost%3A8787%2Fdevtools%2Fpage%2Fparawing",
     );
   });
 
@@ -82,11 +82,11 @@ describe("inspectorTargetUrl", () => {
       new URL(
         inspectorTargetUrl(appspot, { url: new URL(`http://${host}/`), host }),
       ).searchParams.get("ws");
-    expect(endpoint("localhost:8787")).toBe("127.0.0.1:8787/devtools/page/kitesurf");
-    expect(endpoint("LocalHost:8787")).toBe("127.0.0.1:8787/devtools/page/kitesurf");
-    expect(endpoint("127.0.0.1:8787")).toBe("127.0.0.1:8787/devtools/page/kitesurf");
+    expect(endpoint("localhost:8787")).toBe("127.0.0.1:8787/devtools/page/parawing");
+    expect(endpoint("LocalHost:8787")).toBe("127.0.0.1:8787/devtools/page/parawing");
+    expect(endpoint("127.0.0.1:8787")).toBe("127.0.0.1:8787/devtools/page/parawing");
     expect(endpoint("localhost.example:8787")).toBe(
-      "localhost.example:8787/devtools/page/kitesurf",
+      "localhost.example:8787/devtools/page/parawing",
     );
   });
 
@@ -100,7 +100,7 @@ describe("inspectorTargetUrl", () => {
     );
     expect(target.origin + target.pathname).toBe("https://example.com/devtools");
     expect(target.searchParams.get("wss")).toBe(
-      "ks.invalid/devtools/page/kitesurf?initialUrl=" +
+      "ks.invalid/devtools/page/parawing?initialUrl=" +
         encodeURIComponent("https://example.com/?a=1&b=2"),
     );
   });
@@ -125,12 +125,12 @@ describe("resolveInspectorBaseUrl", () => {
   it("never reads the assets without a fallback, or for a hosted base", async () => {
     const store = assets(404);
     expect(
-      await resolveInspectorBaseUrl({ KITESURF_INSPECTOR_BASE_URL: bundled, FONT_ASSETS: store }),
+      await resolveInspectorBaseUrl({ PARAWING_INSPECTOR_BASE_URL: bundled, FONT_ASSETS: store }),
     ).toBe(bundled);
     expect(
       await resolveInspectorBaseUrl({
-        KITESURF_INSPECTOR_BASE_URL: hosted,
-        KITESURF_INSPECTOR_FALLBACK_URL: "https://example.com/devtools",
+        PARAWING_INSPECTOR_BASE_URL: hosted,
+        PARAWING_INSPECTOR_FALLBACK_URL: "https://example.com/devtools",
         FONT_ASSETS: store,
       }),
     ).toBe(hosted);
@@ -142,8 +142,8 @@ describe("resolveInspectorBaseUrl", () => {
       const store = assets(status);
       expect(
         await resolveInspectorBaseUrl({
-          KITESURF_INSPECTOR_BASE_URL: bundled,
-          KITESURF_INSPECTOR_FALLBACK_URL: hosted,
+          PARAWING_INSPECTOR_BASE_URL: bundled,
+          PARAWING_INSPECTOR_FALLBACK_URL: hosted,
           FONT_ASSETS: store,
         }),
         String(status),
@@ -157,20 +157,20 @@ describe("resolveInspectorBaseUrl", () => {
     for (const store of [assets(404), assets(new Error("boom"))]) {
       expect(
         await resolveInspectorBaseUrl({
-          KITESURF_INSPECTOR_BASE_URL: bundled,
-          KITESURF_INSPECTOR_FALLBACK_URL: hosted,
+          PARAWING_INSPECTOR_BASE_URL: bundled,
+          PARAWING_INSPECTOR_FALLBACK_URL: hosted,
           FONT_ASSETS: store,
         }),
       ).toBe(hosted);
     }
-    expect(await resolveInspectorBaseUrl({ KITESURF_INSPECTOR_FALLBACK_URL: hosted })).toBe(hosted);
+    expect(await resolveInspectorBaseUrl({ PARAWING_INSPECTOR_FALLBACK_URL: hosted })).toBe(hosted);
   });
 
   it("reads the assets once per binding", async () => {
     const store = assets(404);
     const env = {
-      KITESURF_INSPECTOR_BASE_URL: bundled,
-      KITESURF_INSPECTOR_FALLBACK_URL: hosted,
+      PARAWING_INSPECTOR_BASE_URL: bundled,
+      PARAWING_INSPECTOR_FALLBACK_URL: hosted,
       FONT_ASSETS: store,
     };
     await resolveInspectorBaseUrl(env);
@@ -185,7 +185,7 @@ describe("cdpUpgradeOriginAllowed", () => {
   const upgrade = (origin?: string): Request => {
     const headers: Record<string, string> = { upgrade: "websocket" };
     if (origin !== undefined) headers.origin = origin;
-    return new Request("http://engine.test/devtools/browser/kitesurf", { headers });
+    return new Request("http://engine.test/devtools/browser/parawing", { headers });
   };
 
   it("admits no Origin, the engine's own origin and the bundled inspector", () => {
@@ -195,7 +195,7 @@ describe("cdpUpgradeOriginAllowed", () => {
   });
 
   it("admits an absolute inspector base and refuses another origin", () => {
-    const env = { KITESURF_INSPECTOR_BASE_URL: "https://inspector.example/ui/inspector.html" };
+    const env = { PARAWING_INSPECTOR_BASE_URL: "https://inspector.example/ui/inspector.html" };
     expect(cdpUpgradeOriginAllowed(upgrade("https://inspector.example"), env)).toBe(true);
     expect(cdpUpgradeOriginAllowed(upgrade("https://page.example"), env)).toBe(false);
   });
@@ -204,8 +204,8 @@ describe("cdpUpgradeOriginAllowed", () => {
     // env.local: `/inspector/inspector.html` when the devtools build staged it, else the
     // hosted frontend, whose page opens the upgrade from its own origin.
     const env = {
-      KITESURF_INSPECTOR_BASE_URL: "/inspector/inspector.html",
-      KITESURF_INSPECTOR_FALLBACK_URL: hosted,
+      PARAWING_INSPECTOR_BASE_URL: "/inspector/inspector.html",
+      PARAWING_INSPECTOR_FALLBACK_URL: hosted,
     };
     expect(
       cdpUpgradeOriginAllowed(upgrade("https://chrome-devtools-frontend.appspot.com"), env),

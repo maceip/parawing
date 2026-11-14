@@ -24,7 +24,7 @@ test("a public page cannot reach a loopback address, directly or through a redir
   const viaRedirect = `https://ks.invalid/__fixtures/cors-redirect?to=${encodeURIComponent(LOOPBACK_JSON)}`;
   expect(await status(page, viaRedirect)).toBe("failed");
   const ws = await page.evaluate(`new Promise((resolve) => {
-    const s = new WebSocket("ws://127.0.0.1:8787/devtools/browser/kitesurf");
+    const s = new WebSocket("ws://127.0.0.1:8787/devtools/browser/parawing");
     s.onopen = () => { s.close(); resolve("open"); };
     s.onerror = () => resolve("error");
   })`);

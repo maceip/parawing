@@ -10,7 +10,7 @@ test.for([false, true])(
   async (text, { page, cdpSession }) => {
     const frames: number[] = [];
     let heartbeats = 0;
-    cdpSession.on("Kitesurf.sceneFrame", (event) => {
+    cdpSession.on("Parawing.sceneFrame", (event) => {
       const bytes = Uint8Array.from(atob(event.data), (char) => char.charCodeAt(0));
       if (bytes[0] === 2) {
         const info = JSON.parse(new TextDecoder().decode(bytes.subarray(11))) as { t?: string };
@@ -19,9 +19,9 @@ test.for([false, true])(
       if (bytes[0] !== 3 && bytes[0] !== 5) return;
       const seq = new DataView(bytes.buffer).getUint32(3, true);
       frames.push(seq);
-      void cdpSession.send("Kitesurf.sceneFrameAck", { seq, painted: true }).catch(() => {});
+      void cdpSession.send("Parawing.sceneFrameAck", { seq, painted: true }).catch(() => {});
     });
-    await cdpSession.send("Kitesurf.startSceneStream", {
+    await cdpSession.send("Parawing.startSceneStream", {
       width: 800,
       height: 600,
       fps: 60,
@@ -93,7 +93,7 @@ test.for([false, true])(
           deviceScaleFactor: 1,
           mobile: false,
         });
-        await cdpSession.send("Kitesurf.startSceneStream", {
+        await cdpSession.send("Parawing.startSceneStream", {
           width: 640,
           height: 480,
           fps: 60,
@@ -103,7 +103,7 @@ test.for([false, true])(
         });
       });
     } finally {
-      await cdpSession.send("Kitesurf.stopSceneStream");
+      await cdpSession.send("Parawing.stopSceneStream");
     }
   },
 );
@@ -114,18 +114,18 @@ test("idle scene streams wake for rAF and CSS animation and coexist with screenc
 }) => {
   let scenes = 0;
   let screenshots = 0;
-  cdpSession.on("Kitesurf.sceneFrame", (event) => {
+  cdpSession.on("Parawing.sceneFrame", (event) => {
     const bytes = Uint8Array.from(atob(event.data), (char) => char.charCodeAt(0));
     if (bytes[0] !== 3 && bytes[0] !== 5) return;
     scenes++;
     const seq = new DataView(bytes.buffer).getUint32(3, true);
-    void cdpSession.send("Kitesurf.sceneFrameAck", { seq, painted: true }).catch(() => {});
+    void cdpSession.send("Parawing.sceneFrameAck", { seq, painted: true }).catch(() => {});
   });
   cdpSession.on("Page.screencastFrame", (event) => {
     screenshots++;
     void cdpSession.send("Page.screencastFrameAck", { sessionId: event.sessionId }).catch(() => {});
   });
-  await cdpSession.send("Kitesurf.startSceneStream", {
+  await cdpSession.send("Parawing.startSceneStream", {
     width: 800,
     height: 600,
     fps: 30,
@@ -175,23 +175,23 @@ test("idle scene streams wake for rAF and CSS animation and coexist with screenc
       if (box) box.className = "";
     });
   } finally {
-    await cdpSession.send("Kitesurf.stopSceneStream");
+    await cdpSession.send("Parawing.stopSceneStream");
     await cdpSession.send("Page.stopScreencast");
   }
 });
 
 test("offscreen mutations do not flood the terminal scene stream", async ({ page, cdpSession }) => {
   const frames: number[] = [];
-  cdpSession.on("Kitesurf.sceneFrame", (event) => {
+  cdpSession.on("Parawing.sceneFrame", (event) => {
     const binary = atob(event.data);
     if (binary.charCodeAt(0) !== 3) return;
     const seq = new DataView(
       Uint8Array.from(binary, (char) => char.charCodeAt(0)).buffer,
     ).getUint32(3, true);
     frames.push(seq);
-    void cdpSession.send("Kitesurf.sceneFrameAck", { seq, painted: true }).catch(() => {});
+    void cdpSession.send("Parawing.sceneFrameAck", { seq, painted: true }).catch(() => {});
   });
-  await cdpSession.send("Kitesurf.startSceneStream", {
+  await cdpSession.send("Parawing.startSceneStream", {
     width: 800,
     height: 600,
     fps: 30,
@@ -242,7 +242,7 @@ test("offscreen mutations do not flood the terminal scene stream", async ({ page
     await page.evaluate(() => {
       Reflect.set(window, "running", false);
     });
-    await cdpSession.send("Kitesurf.stopSceneStream");
+    await cdpSession.send("Parawing.stopSceneStream");
   }
 });
 
@@ -262,7 +262,7 @@ test("terminal wheel bursts coalesce without losing scroll distance", async ({
     });
   </script>`,
   );
-  await cdpSession.send("Kitesurf.startSceneStream", {
+  await cdpSession.send("Parawing.startSceneStream", {
     width: 800,
     height: 600,
     fps: 10,
@@ -285,7 +285,7 @@ test("terminal wheel bursts coalesce without losing scroll distance", async ({
     await cdpSession.send("Input.dispatchKeyEvent", { type: "rawKeyDown", key: "ArrowDown" });
     expect(await page.evaluate(() => scrollY)).toBe(840);
   } finally {
-    await cdpSession.send("Kitesurf.stopSceneStream");
+    await cdpSession.send("Parawing.stopSceneStream");
   }
   const before = await page.evaluate(() => Reflect.get(window, "wheelEvents"));
   await cdpSession.send("Input.dispatchMouseEvent", {

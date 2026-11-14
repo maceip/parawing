@@ -3,8 +3,8 @@
 // https://opensource.org/licenses/Apache-2.0
 
 import { describe, it, expect, vi } from "vitest";
-import type { RenderPortStub } from "@kitesurf/jsrpc-types/page-renderer";
-import type { PageScriptMethod, WireMeta } from "@kitesurf/jsrpc-types/page-script";
+import type { RenderPortStub } from "@parawing/jsrpc-types/page-renderer";
+import type { PageScriptMethod, WireMeta } from "@parawing/jsrpc-types/page-script";
 import {
   openPageScriptRpcSession,
   type RpcSessionCallable,
@@ -263,10 +263,10 @@ describe("PageScriptRpcSession", () => {
     await s.syncCookies("warm=up");
     const seen: Array<[string, unknown]> = [];
     s.setUpstreamEventHandler((event, params) => seen.push([event, params]));
-    fake.fireUpstream("kitesurf.frameAttached", { frameId: "f1" });
+    fake.fireUpstream("parawing.frameAttached", { frameId: "f1" });
     s.setUpstreamEventHandler(null);
-    fake.fireUpstream("kitesurf.frameAttached", { frameId: "f2" });
-    expect(seen).toEqual([["kitesurf.frameAttached", { frameId: "f1" }]]);
+    fake.fireUpstream("parawing.frameAttached", { frameId: "f2" });
+    expect(seen).toEqual([["parawing.frameAttached", { frameId: "f1" }]]);
   });
 
   it("unload replies first, then closes on the next macrotask", async () => {

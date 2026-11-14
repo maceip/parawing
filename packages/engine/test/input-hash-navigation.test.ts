@@ -18,7 +18,7 @@ function setup(url: string, hashNavigateTo: string, pageScriptUrl: string | unde
     defaultPrevented: false,
     hashNavigateTo,
   };
-  // oxlint-disable-next-line kitesurf/no-chained-type-assertions -- only the fields input dispatch reads are set.
+  // oxlint-disable-next-line parawing/no-chained-type-assertions -- only the fields input dispatch reads are set.
   const target = {
     type: "page",
     targetId: "T",

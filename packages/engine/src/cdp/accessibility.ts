@@ -9,7 +9,7 @@ import type { Protocol } from "devtools-protocol";
 import type { CdpRequest, TargetState } from "./types.ts";
 import type { DispatchCtx } from "./dispatch.ts";
 import { sessionOf, type SessionSoftOps } from "./page-session.ts";
-import type { ReadStamp } from "@kitesurf/jsrpc-types/query-dom";
+import type { ReadStamp } from "@parawing/jsrpc-types/query-dom";
 import { ensureTargetDom } from "./dom-release.ts";
 import { assertDomReplyGraph } from "./dom.ts";
 
@@ -46,6 +46,11 @@ export interface DomNode {
 export async function handleAccessibility(ctx: DispatchCtx, req: CdpRequest): Promise<unknown> {
   const target = pickTarget(ctx, req.sessionId);
   if (!target) return emptyReply(req.method);
+  if (target.sealedOrigin) {
+    throw new Error(
+      `Policy denied (sealed-target-blocked): Command '${req.method}' is blocked while target has an active A1 sealed origin`,
+    );
+  }
   const session = sessionOf(ctx, target);
   const ps = session.available() ? session : null;
 
@@ -937,6 +942,7 @@ function computeValue(
   const live = typeof backendId === "number" ? ctx.liveValues.get(backendId) : undefined;
   if (tag === "input") {
     const type = (attrs.get("type") || "text").toLowerCase();
+    if (type === "password") return undefined;
     const v = live !== undefined ? live : attrs.get("value");
     if (type === "range" || type === "number") {
       if (v != null && v !== "") return { type: "number", value: Number(v) };

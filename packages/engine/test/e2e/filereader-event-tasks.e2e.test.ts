@@ -43,7 +43,7 @@ const MARKUP = `<script>
       });
     });
     reader.addEventListener("loadend", () => order.push("loadend"));
-    reader.readAsText(new Blob(["kitesurf"]));
+    reader.readAsText(new Blob(["parawing"]));
     await new Promise((r) => reader.addEventListener("loadend", r, { once: true }));
     await new Promise((r) => setTimeout(r, 10));
     window.__out = { order, afterProgress, afterLoad, finalResult: reader.result };
@@ -61,7 +61,7 @@ test("FileReader fires load and loadend in later tasks than progress", async ({ 
   expect(r.order).toEqual(["loadstart", "progress", "load", "loadend"]);
   expect(r.afterProgress).toEqual([{ result: null, readyState: 1, loaded: 8 }]);
   expect(r.afterLoad).toEqual([{ resultSet: true, readyState: 2, seenLoadend: false }]);
-  expect(r.finalResult).toBe("kitesurf");
+  expect(r.finalResult).toBe("parawing");
 });
 
 test("FileReader reports an invalid Blob when DOMException is unavailable", async ({ page }) => {

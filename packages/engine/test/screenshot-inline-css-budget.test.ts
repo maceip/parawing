@@ -22,7 +22,7 @@ import type { DomHandle } from "../src/wasm.ts";
 async function capture(links: number, chars: number): Promise<string[]> {
   const copied: string[] = [];
   let next = links + 1;
-  // oxlint-disable-next-line kitesurf/no-chained-type-assertions -- only the inlining sink is modelled.
+  // oxlint-disable-next-line parawing/no-chained-type-assertions -- only the inlining sink is modelled.
   const dom = {
     querySelectorAll: (selector: string) =>
       selector === "link[rel='stylesheet']"
@@ -42,7 +42,7 @@ async function capture(links: number, chars: number): Promise<string[]> {
   setDomFactory(() => dom);
   const cache = new StyleCache();
   cache.set("https://page.test/x.css", { css: "a".repeat(chars), fetchedAt: Date.now() });
-  // oxlint-disable-next-line kitesurf/no-chained-type-assertions -- only the fallback fields are set.
+  // oxlint-disable-next-line parawing/no-chained-type-assertions -- only the fallback fields are set.
   const target = {
     type: "page",
     targetId: "T",
@@ -52,7 +52,7 @@ async function capture(links: number, chars: number): Promise<string[]> {
     dom: null,
     domEpoch: 0,
   } as unknown as TargetState;
-  // oxlint-disable-next-line kitesurf/no-chained-type-assertions -- only the fallback fields are set.
+  // oxlint-disable-next-line parawing/no-chained-type-assertions -- only the fallback fields are set.
   const ctx = {
     browser: {
       targets: new Map([["T", target]]),

@@ -234,7 +234,7 @@ describe("buildScriptBundle.moduleScriptUrls + additionalModules", () => {
     ]);
     expect(bundle.moduleScriptUrls).toHaveLength(1);
     const errUrl = bundle.moduleScriptUrls[0]!;
-    expect(errUrl).toMatch(/kitesurf-error\.invalid/);
+    expect(errUrl).toMatch(/parawing-error\.invalid/);
     const body = bundle.additionalModules[errUrl]!;
     expect(body).toContain("module prefetch failed");
     expect(body).toContain("/broken.js");

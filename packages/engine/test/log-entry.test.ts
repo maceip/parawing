@@ -8,11 +8,8 @@ import { NetworkEventTracker } from "../src/cdp/network-events.ts";
 import { registerTracker, unregisterTracker } from "../src/cdp/network-events-registry.ts";
 import type { DispatchCtx } from "../src/cdp/dispatch.ts";
 import type { CdpEvent, CdpRequest } from "../src/cdp/types.ts";
-import {
-  SandboxOutbound,
-  type CallerOutboundProps,
-  type SandboxOutboundEnv,
-} from "../src/eval/outbound.ts";
+import { SandboxOutbound, type CallerOutboundProps } from "../src/eval/outbound.ts";
+import { createMemoryHostCapabilities } from "../src/host-capabilities.ts";
 
 const CONNECTION = "log-conn";
 const PAGE_SESSION = "sess-page";
@@ -46,7 +43,7 @@ function logEntries(events: CdpEvent[]) {
 // Drives the real gateway as a page-realm fetch; only the host transport is faked.
 function pageFetch(props: Partial<CallerOutboundProps> = {}, url = BLOCKED_URL): Promise<Response> {
   return SandboxOutbound.handle(
-    {} as SandboxOutboundEnv,
+    createMemoryHostCapabilities(),
     {
       pageOrigin: PAGE_ORIGIN,
       connectionId: CONNECTION,
@@ -58,14 +55,14 @@ function pageFetch(props: Partial<CallerOutboundProps> = {}, url = BLOCKED_URL):
       },
       ...props,
     },
-    new Request(url, { headers: { "x-kitesurf-resource-type": "Fetch" } }),
+    new Request(url, { headers: { "x-parawing-resource-type": "Fetch" } }),
   );
 }
 
 describe("Log domain", () => {
   it("tracks Log.enable and Log.disable per session", async () => {
     const { tracker } = tracked();
-    // oxlint-disable-next-line kitesurf/no-chained-type-assertions -- only the ledger is read.
+    // oxlint-disable-next-line parawing/no-chained-type-assertions -- only the ledger is read.
     const ctx = { browser: { networkEvents: tracker } } as unknown as DispatchCtx;
     const enable = { id: 1, method: "Log.enable", sessionId: PAGE_SESSION } as CdpRequest;
     const disable = { id: 2, method: "Log.disable", sessionId: PAGE_SESSION } as CdpRequest;
@@ -88,7 +85,7 @@ describe("Log domain", () => {
 
     expect(response.status).toBe(403);
     // The page gets the generic rejection: the detailed body names the blocked target.
-    expect(await response.text()).toBe("kitesurf: blocked by CORS policy (cors-missing-origin)");
+    expect(await response.text()).toBe("parawing: blocked by CORS policy (cors-missing-origin)");
     expect(events.some((ev) => ev.method === "Runtime.consoleAPICalled")).toBe(false);
 
     const entries = logEntries(events);
@@ -138,13 +135,13 @@ describe("Log domain", () => {
     const { tracker, events } = tracked();
     tracker.setLogEnabled(PAGE_SESSION, true);
 
-    const response = await pageFetch({ pageOrigin: "https://kitesurf.local" });
+    const response = await pageFetch({ pageOrigin: "https://parawing.local" });
     tracker.drain();
 
     expect(response.status).toBe(403);
-    expect(response.headers.get("x-kitesurf-blocked")).toBe("synthetic-origin");
+    expect(response.headers.get("x-parawing-blocked")).toBe("synthetic-origin");
     expect(await response.text()).toBe(
-      "kitesurf: synthetic-origin fetch dropped (no network during bench)",
+      "parawing: synthetic-origin fetch dropped (no network during bench)",
     );
     const entries = logEntries(events);
     expect(entries).toHaveLength(1);

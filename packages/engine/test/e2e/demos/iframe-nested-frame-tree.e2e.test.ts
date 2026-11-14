@@ -5,7 +5,7 @@
 import { expect, test } from "../harness";
 
 test("iframe-nested-frame-tree", async ({ browser }) => {
-  const URL_BASE = process.env.KITESURF_FIXTURE_BASE ?? "http://127.0.0.1:8787";
+  const URL_BASE = process.env.PARAWING_FIXTURE_BASE ?? "http://127.0.0.1:8787";
 
   const page = await browser.newPage();
   const attached: any[] = [];

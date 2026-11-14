@@ -58,7 +58,7 @@ test("a pixel-free session retains nothing: the face is substituted, not kept", 
   browserFactory,
 }) => {
   const browser = await browserFactory({
-    headers: { "x-kitesurf-skip-raster": "1" },
+    headers: { "x-parawing-skip-raster": "1" },
   });
   const r = await loadWebfont(browser);
   expect(r.wf).toBeGreaterThan(r.fallback * 1.1);

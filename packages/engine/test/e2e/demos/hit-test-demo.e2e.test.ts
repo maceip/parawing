@@ -7,7 +7,7 @@ import { expect, test } from "../harness";
 
 test("hit-test-demo", async ({ page }) => {
   const FIXTURE_URL =
-    process.env.KITESURF_FIXTURE ?? "http://127.0.0.1:8787/__fixtures/events.html";
+    process.env.PARAWING_FIXTURE ?? "http://127.0.0.1:8787/__fixtures/events.html";
 
   await page.goto(FIXTURE_URL, { timeout: 15000 });
 
@@ -31,7 +31,7 @@ test("hit-test-demo", async ({ page }) => {
   console.log("[ht] dispatching click at (", cx, ",", cy, ")");
 
   await session.send("Input.dispatchMouseEvent", {
-    // oxlint-disable-next-line kitesurf/no-chained-type-assertions -- input.ts maps click.
+    // oxlint-disable-next-line parawing/no-chained-type-assertions -- input.ts maps click.
     type: "click" as unknown as Protocol.Input.DispatchMouseEventRequest["type"],
     x: cx,
     y: cy,

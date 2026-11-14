@@ -124,7 +124,7 @@ const nativeReaderRead = protoMethod(
 // authentication, policy, or which bytes the page observes.
 function requireIntrinsic<T>(value: T | undefined, name: string): T {
   if (value === undefined) {
-    throw new TypeError(`kitesurf: native ${name} is unavailable`);
+    throw new TypeError(`parawing: native ${name} is unavailable`);
   }
   return value;
 }

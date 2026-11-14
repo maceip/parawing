@@ -17,7 +17,7 @@ interface Stats {
 async function stats(page: Page): Promise<Stats> {
   const session = await page.createCDPSession();
   const targetId = await targetIdForSession(session);
-  const s = await session.send("Kitesurf.getMemoryStats", { targetId });
+  const s = await session.send("Parawing.getMemoryStats", { targetId });
   await session.detach().catch(() => {});
   const domNodes = s.domNodes;
   const wrappers = s.wrappers;

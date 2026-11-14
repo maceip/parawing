@@ -47,7 +47,7 @@ function openDropdown(select: HTMLSelectElement): void {
   const pageY = (win.scrollY | 0) + rect.bottom;
 
   const overlay = doc.createElement("div");
-  overlay.setAttribute("data-kitesurf-ua", "select-dropdown");
+  overlay.setAttribute("data-parawing-ua", "select-dropdown");
   overlay.setAttribute(
     "style",
     "position:absolute;" +
@@ -64,7 +64,7 @@ function openDropdown(select: HTMLSelectElement): void {
   for (let i = 0; i < count; i++) {
     const opt = options[i];
     const row = doc.createElement("div");
-    row.setAttribute("data-kitesurf-ua", "select-option");
+    row.setAttribute("data-parawing-ua", "select-option");
     const selected = !!opt.selected;
     const disabled = isOptionEffectivelyDisabled(opt);
     row.setAttribute(

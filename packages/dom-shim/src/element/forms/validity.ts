@@ -261,7 +261,7 @@ function willValidate(control: Element): boolean {
   return true;
 }
 
-const ValidityStateToken = Symbol("kitesurfValidityState");
+const ValidityStateToken = Symbol("parawingValidityState");
 class ValidityStateImpl implements Idl.ValidityState {
   readonly #control: Element;
   constructor(control: Element, token?: symbol) {

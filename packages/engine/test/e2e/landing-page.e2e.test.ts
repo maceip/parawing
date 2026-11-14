@@ -17,8 +17,8 @@ function engine(path: string, init?: RequestInit): Promise<Response> {
 
 function exampleHref(frontend: string, scheme: "ws" | "wss", host: string): string {
   const endpoint =
-    `${host}/devtools/page/kitesurf?initialUrl=` +
-    encodeURIComponent("https://en.wikipedia.org/wiki/Kitesurfing");
+    `${host}/devtools/page/parawing?initialUrl=` +
+    encodeURIComponent("https://en.wikipedia.org/wiki/Parawinging");
   const href = `${frontend}?${scheme}=${encodeURIComponent(endpoint)}`;
   return `href="${href.replaceAll("&", "&amp;")}"`;
 }
@@ -37,7 +37,7 @@ test("/ without inspector params, or with a non-http(s) url, serves the landing 
     expect(html, path).toContain(exampleHref("https://example.com/devtools", "wss", "ks.invalid"));
     expect(html, path).toContain("DevTools loads from <code>example.com</code>");
     expect(html, path).toContain("wss://ks.invalid/devtools/browser");
-    expect(html, path).toContain("wss://ks.invalid/devtools/page/kitesurf");
+    expect(html, path).toContain("wss://ks.invalid/devtools/page/parawing");
     expect(html, path).toContain('<a href="/json/version">');
     // chrome://inspect cannot discover an HTTPS engine.
     expect(html, path).not.toContain("chrome://inspect/#devices");
@@ -77,6 +77,6 @@ test("without a frontend, / leaves only the CDP endpoints", async () => {
   expect(html).not.toContain("<form");
   expect(html).toContain("serves no DevTools frontend");
   expect(html).toContain("wss://ks.invalid/devtools/browser");
-  expect(html).toContain("wss://ks.invalid/devtools/page/kitesurf");
+  expect(html).toContain("wss://ks.invalid/devtools/page/parawing");
   expect(html).toContain("browserWSEndpoint");
 });

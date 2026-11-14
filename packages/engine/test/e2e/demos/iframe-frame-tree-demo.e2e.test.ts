@@ -6,7 +6,7 @@ import type { Frame } from "@cloudflare/puppeteer";
 import { expect, test } from "../harness";
 
 test("iframe-frame-tree-demo", async ({ page }) => {
-  const URL_BASE = process.env.KITESURF_FIXTURE_BASE ?? "http://127.0.0.1:8787";
+  const URL_BASE = process.env.PARAWING_FIXTURE_BASE ?? "http://127.0.0.1:8787";
 
   const attached = [];
   const navigated = [];

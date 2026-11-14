@@ -323,3 +323,45 @@ test("Accessibility.getFullAXTree reports live value/checked, not attributes", a
   expect(checkedOf(ctl("radio", "Pro"))).toBe("true");
   expect(checkedOf(ctl("radio", "Free"))).toBe("false");
 }, 120_000);
+
+test("Accessibility.getFullAXTree omits live and attribute values for type=password inputs", async ({
+  page,
+}) => {
+  await page.goto("https://ks.invalid/__fixtures/accessibility.html", {
+    waitUntil: "domcontentloaded",
+  });
+  const session = await page.createCDPSession();
+  const tree = (await session.send("Page.getFrameTree")) as {
+    frameTree: { frame: { id: string } };
+  };
+  await session.send("Page.setDocumentContent", {
+    frameId: tree.frameTree.frame.id,
+    html:
+      '<!doctype html><form><label for="u">User</label>' +
+      '<input id="u" type="text" value="alice">' +
+      '<label for="pw">Password</label>' +
+      '<input id="pw" type="password" value="attr-secret"></form>',
+  });
+  await page.evaluate(() => {
+    const u = document.querySelector("#u") as HTMLInputElement;
+    u.value = "live-alice";
+    const pw = document.querySelector("#pw") as HTMLInputElement;
+    pw.value = "live-hunter2-secret";
+  });
+
+  const { nodes } = (await session.send("Accessibility.getFullAXTree")) as {
+    nodes: AXNode[];
+  };
+  expect(JSON.stringify(nodes)).not.toContain("attr-secret");
+  expect(JSON.stringify(nodes)).not.toContain("live-hunter2-secret");
+  const userNode = nodes.find(
+    (n) => !n.ignored && n.role?.value === "textbox" && n.name?.value === "User",
+  );
+  const pwNode = nodes.find(
+    (n) => !n.ignored && n.role?.value === "textbox" && n.name?.value === "Password",
+  );
+  expect(userNode).toBeTruthy();
+  expect(pwNode).toBeTruthy();
+  expect(userNode?.value?.value).toBe("live-alice");
+  expect(pwNode?.value).toBeUndefined();
+}, 120_000);

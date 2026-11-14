@@ -48,7 +48,7 @@ async function connection() {
 test("CDP supplies its deployed manifest and Wasm before page attachment", async () => {
   const { ws, send } = await connection();
   try {
-    const reply = await send("Kitesurf.getSceneHostManifest");
+    const reply = await send("Parawing.getSceneHostManifest");
     expect(reply.error).toBeUndefined();
     const manifest = reply.result;
     if (!manifest || typeof manifest.sha256 !== "string" || typeof manifest.bytes !== "number") {
@@ -61,7 +61,7 @@ test("CDP supplies its deployed manifest and Wasm before page attachment", async
     const received = new Uint8Array(manifest.bytes);
     const chunkBytes = 4 * 1024 * 1024;
     for (let offset = 0; offset < received.length; offset += chunkBytes) {
-      const chunk = await send("Kitesurf.readSceneHost", {
+      const chunk = await send("Parawing.readSceneHost", {
         sha256: manifest.sha256,
         offset,
         length: chunkBytes,
@@ -81,7 +81,7 @@ test("CDP supplies its deployed manifest and Wasm before page attachment", async
       await engine.fetch("https://ks.invalid/rbi/scene_host.wasm")
     ).arrayBuffer();
     expect(received).toEqual(new Uint8Array(deployed));
-    const smallChunk = await send("Kitesurf.readSceneHost", {
+    const smallChunk = await send("Parawing.readSceneHost", {
       sha256: manifest.sha256,
       offset: 2,
       length: 4,
@@ -102,7 +102,7 @@ test("CDP supplies its deployed manifest and Wasm before page attachment", async
 test("CDP scene-host reads reject invalid ranges, hashes, and asset paths", async () => {
   const { ws, send } = await connection();
   try {
-    const manifest = (await send("Kitesurf.getSceneHostManifest")).result;
+    const manifest = (await send("Parawing.getSceneHostManifest")).result;
     if (!manifest || typeof manifest.sha256 !== "string" || typeof manifest.bytes !== "number") {
       throw new Error("invalid scene-host manifest");
     }
@@ -118,7 +118,7 @@ test("CDP scene-host reads reject invalid ranges, hashes, and asset paths", asyn
       { sha256: "../../other" },
       { path: "/fonts/NotoSans.ttf" },
     ]) {
-      const reply = await send("Kitesurf.readSceneHost", {
+      const reply = await send("Parawing.readSceneHost", {
         sha256: manifest.sha256,
         offset: 0,
         length: 16,

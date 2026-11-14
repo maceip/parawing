@@ -6,6 +6,7 @@ import type { DispatchCtx } from "../src/cdp/dispatch.ts";
 import { sceneStreamCommand, type SceneStreamRequest } from "../src/cdp/scene-stream.ts";
 import type { TargetState } from "../src/cdp/types.ts";
 import type { PageScriptStub } from "../src/eval/page-script.ts";
+import { createMemoryHostCapabilities } from "../src/host-capabilities.ts";
 // One font-data entry (hash 5) with a one-byte inline body.
 const fontBatch = new Uint8Array([1, 0, 0, 0, 3, 5, 0, 0, 0, 0, 0, 0, 0, 1, 0, 0, 0, 0]);
 test("delivered scene resources reset per navigation generation", async () => {
@@ -23,22 +24,22 @@ test("delivered scene resources reset per navigation generation", async () => {
     pageScript: stub,
     navigateGeneration: 0,
   } as TargetState;
-  // oxlint-disable-next-line kitesurf/no-chained-type-assertions -- partial dispatch context fixture.
+  // oxlint-disable-next-line parawing/no-chained-type-assertions -- partial dispatch context fixture.
   const ctx = {
     browser: { targets: new Map([["t", target]]) },
     emit: () => {},
-    ctx: { waitUntil: () => {} },
+    host: createMemoryHostCapabilities(),
   } as unknown as DispatchCtx;
   const send = (method: SceneStreamRequest["method"], params: Record<string, unknown> = {}) =>
     sceneStreamCommand(ctx, { id: 1, method, params } as SceneStreamRequest);
   try {
-    await send("Kitesurf.startSceneStream", { width: 800, height: 600 });
+    await send("Parawing.startSceneStream", { width: 800, height: 600 });
     await vi.waitFor(() => expect(records.at(-1)?.haveFonts?.length).toBe(8));
     const before = records.length;
     target.navigateGeneration = 1;
     await vi.waitFor(() => expect(records.length).toBeGreaterThan(before));
     expect(records[before]?.haveFonts?.length).toBe(0);
   } finally {
-    await send("Kitesurf.stopSceneStream");
+    await send("Parawing.stopSceneStream");
   }
 });

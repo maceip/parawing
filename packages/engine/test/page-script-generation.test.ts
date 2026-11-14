@@ -259,7 +259,11 @@ describe("disposeStub", () => {
       stub,
       { unload: "none", reason: "test" },
       {
-        waitUntil: (promise) => background.push(promise),
+        tasks: {
+          run: (promise) => {
+            background.push(promise);
+          },
+        },
       },
     );
 

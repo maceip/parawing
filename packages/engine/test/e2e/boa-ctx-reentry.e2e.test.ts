@@ -4,7 +4,7 @@
 
 // V8 callbacks re-enter Boa under the live Context borrow; nested access
 // must reborrow rather than create a sibling `&mut`. The bridge's re-entry counters from
-// `Kitesurf.getMemoryStats` show whether nested access stayed chaperoned.
+// `Parawing.getMemoryStats` show whether nested access stayed chaperoned.
 
 import { expect, test } from "./harness";
 import { setContent } from "./set-content";
@@ -20,7 +20,7 @@ interface ReentryStats {
 async function reentry(page: Page): Promise<ReentryStats> {
   const session = await page.createCDPSession();
   const targetId = await targetIdForSession(session);
-  const stats = await session.send("Kitesurf.getMemoryStats", { targetId });
+  const stats = await session.send("Parawing.getMemoryStats", { targetId });
   await session.detach().catch(() => {});
   const bridge = stats.bridge;
   if (
@@ -98,7 +98,7 @@ test("the chaperone counter names an unwrapped boa->V8 call site", async ({ page
       __cb: () => number;
     };
     g.__probe = { marker: 7 };
-    const internals: unknown = Reflect.get(globalThis, Symbol.for("kitesurf.internals"));
+    const internals: unknown = Reflect.get(globalThis, Symbol.for("parawing.internals"));
     if (typeof internals !== "object" || internals === null) throw new Error("no internals record");
     const original: unknown = Reflect.get(internals, "wrapBoaFunction");
     if (typeof original !== "function") throw new Error("no wrapBoaFunction hook");

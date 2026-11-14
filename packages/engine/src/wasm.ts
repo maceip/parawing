@@ -4,8 +4,8 @@
 
 // Initializes core WebAssembly on demand and exposes document, render, and font helpers.
 
-import wasmModule from "../../core/pkg/kitesurf_core_bg.wasm";
-import type { ParsedStyleSheet } from "@kitesurf/jsrpc-types/query-dom";
+import wasmModule from "../../core/pkg/parawing_core_bg.wasm";
+import type { ParsedStyleSheet } from "@parawing/jsrpc-types/query-dom";
 import { registerEngineWasmProbe } from "./engine-wasm-probe.ts";
 import { setDomFactory } from "./cdp/dom-release.ts";
 import {
@@ -16,7 +16,7 @@ import {
   ks_scan_document,
   stripFontForShaping as ks_strip_font_for_shaping,
   __setBridgeFetchResource,
-} from "kitesurf-core";
+} from "parawing-core";
 
 let coreWasmMemory: WebAssembly.Memory | null = null;
 let coreWasmInitialBytes = 0;
@@ -59,7 +59,7 @@ function ensureInit(): void {
   // SAFETY: The wrapper returns a native instance and preserves its prototype.
   // TypeScript cannot infer a constructor signature from this function expression.
   // Verified by: packages/engine/test/e2e/target-dom-reclaim.e2e.test.ts.
-  // eslint-disable-next-line kitesurf/no-chained-type-assertions -- Dynamic wasm constructor bridge.
+  // eslint-disable-next-line parawing/no-chained-type-assertions -- Dynamic wasm constructor bridge.
   wasmNs.Instance = instrumentedInstance as unknown as typeof WebAssembly.Instance;
   try {
     initSync({ module: wasmModule });

@@ -52,7 +52,7 @@ export type RedirectWalkResult =
 
 export class InvalidRedirectError extends Error {
   constructor(location: string, reason: string) {
-    super(`kitesurf: invalid redirect Location (${reason}): ${location}`);
+    super(`parawing: invalid redirect Location (${reason}): ${location}`);
     this.name = "InvalidRedirectError";
   }
 }
@@ -181,9 +181,9 @@ export async function walkRedirects(opts: RedirectWalkOptions): Promise<Redirect
       }
       if (originTainted) {
         deleteHeader(headers, "origin");
-        deleteHeader(headers, "x-kitesurf-page-origin");
+        deleteHeader(headers, "x-parawing-page-origin");
         headers["origin"] = "null";
-        headers["x-kitesurf-page-origin"] = "null";
+        headers["x-parawing-page-origin"] = "null";
       }
     }
 

@@ -1192,8 +1192,8 @@ function isNode(v: unknown): v is XNode {
   return !!v && typeof v === "object" && typeof (v as { nodeType?: unknown }).nodeType === "number";
 }
 
-const INTERNAL_CONSTRUCT = Symbol("kitesurfInternalConstruct");
-const INTERNAL_REFILL = Symbol("kitesurfInternalRefill");
+const INTERNAL_CONSTRUCT = Symbol("parawingInternalConstruct");
+const INTERNAL_REFILL = Symbol("parawingInternalRefill");
 const xpathResultInstances = new WeakSet<object>();
 
 function need(ok: boolean, what: string): void {

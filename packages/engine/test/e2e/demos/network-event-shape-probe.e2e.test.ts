@@ -6,7 +6,7 @@ import { expect, test } from "../harness";
 
 test("network-event-shape-probe", async ({ page }) => {
   const URL_TO_NAV =
-    process.env.KITESURF_FIXTURE ?? "http://127.0.0.1:8787/__fixtures/lifecycle.html";
+    process.env.PARAWING_FIXTURE ?? "http://127.0.0.1:8787/__fixtures/lifecycle.html";
 
   const session = await page.target().createCDPSession();
 

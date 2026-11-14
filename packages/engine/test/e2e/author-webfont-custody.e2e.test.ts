@@ -55,7 +55,7 @@ test("author-font custody survives ack, relaunch and late canvas", async ({ page
   expect(second, "post-ack paint lost the webfont").toEqual(first);
 
   const session = await page.createCDPSession();
-  await session.send("Kitesurf.disposeRenderer");
+  await session.send("Parawing.disposeRenderer");
   const third = await redInkIn(page, wf.top, wf.bottom);
   expect(third, "post-relaunch paint lost the webfont").toEqual(first);
 

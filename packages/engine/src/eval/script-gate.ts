@@ -9,7 +9,7 @@ import {
   checkScriptBeforeFetch,
   scriptGateIsNoop,
   type ScriptGateContext,
-} from "@kitesurf/script-gate";
+} from "@parawing/script-gate";
 import type { DocScan, ParentScriptDescriptor } from "../wasm.ts";
 
 export type { ScriptGateContext };
@@ -71,11 +71,11 @@ export async function applyImportMapGate(
         module: false,
       });
       if (decision.reportOnly) {
-        console.warn(`[kitesurf-csp] ${decision.reportOnly}`);
+        console.warn(`[parawing-csp] ${decision.reportOnly}`);
       }
       if (!decision.allowed) {
         console.warn(
-          `[kitesurf-csp] blocked (${decision.reason ?? "csp"}) import map: ` +
+          `[parawing-csp] blocked (${decision.reason ?? "csp"}) import map: ` +
             (decision.message ?? "blocked by policy"),
         );
         continue;
@@ -112,7 +112,7 @@ export async function applyPreFetchScriptGate(
         module: d.kind === "module",
       });
       if (decision.reportOnly) {
-        console.warn(`[kitesurf-csp] ${decision.reportOnly}`);
+        console.warn(`[parawing-csp] ${decision.reportOnly}`);
       }
       if (!decision.allowed) {
         d.blocked = {

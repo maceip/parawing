@@ -121,7 +121,7 @@ describe("walkRedirects", () => {
         fetchHop,
       });
       expect(seen[1]?.headers["origin"]).toBe("null");
-      expect(seen[1]?.headers["x-kitesurf-page-origin"]).toBe("null");
+      expect(seen[1]?.headers["x-parawing-page-origin"]).toBe("null");
       expect(seen[2]?.headers["origin"]).toBe("null");
     });
 
@@ -131,10 +131,10 @@ describe("walkRedirects", () => {
       });
       await walkRedirects({
         url: "https://a.test/1",
-        headers: { "x-kitesurf-page-origin": "https://a.test" },
+        headers: { "x-parawing-page-origin": "https://a.test" },
         fetchHop,
       });
-      expect(seen[1]?.headers["x-kitesurf-page-origin"]).toBe("https://a.test");
+      expect(seen[1]?.headers["x-parawing-page-origin"]).toBe("https://a.test");
     });
   });
 

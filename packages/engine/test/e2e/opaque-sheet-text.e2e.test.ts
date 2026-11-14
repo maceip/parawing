@@ -54,7 +54,7 @@ test("an outbound filter also applies to the engine's opaque-sheet fetch", async
   cdpSession,
 }) => {
   const filter = () =>
-    cdpSession.send("Kitesurf.setOutboundFilters", {
+    cdpSession.send("Parawing.setOutboundFilters", {
       rejectRequestPattern: ["^https://ks-alt\\.invalid/"],
     });
   expect(await opaqueSheetText(page, cdpSession, filter)).toBe("");
@@ -80,7 +80,7 @@ function pushHook() {
 Array.prototype.push = pushHook;
 // The engine answers selector matches through the DomHandle page code can reach, but calls the
 // prototype method it captured before page code ran, so shadowing the instance must not be seen.
-var dom = globalThis[Symbol.for("kitesurf.internals")].domDebug;
+var dom = globalThis[Symbol.for("parawing.internals")].domDebug;
 function matchesHook(nodeId, selector) { s.shadow = true; return true; }
 dom.matchesInSubtreeBytes = matchesHook;
 hooks.installed.matchesInSubtreeBytes = dom.matchesInSubtreeBytes === matchesHook;

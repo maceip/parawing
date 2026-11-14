@@ -8,11 +8,11 @@ import { WorkerEntrypoint } from "cloudflare:workers";
 import { getTailTrace } from "./tail-trace-registry.ts";
 import { attachChunked } from "./carrier-spans.ts";
 import { notifyIsolateLimit } from "./limit-registry.ts";
-import { parseKsErrLine, type TailExceptionReport } from "../engine-errors.ts";
+import { parsePwErrLine, type TailExceptionReport } from "../engine-errors.ts";
 import type { Tracer } from "../tracing.ts";
-import type { IsolateKillMarker } from "@kitesurf/jsrpc-types/shared";
+import type { IsolateKillMarker } from "@parawing/jsrpc-types/shared";
 
-const ISOLATE_KILL_MARKER: IsolateKillMarker = "[ks-kill]";
+const ISOLATE_KILL_MARKER: IsolateKillMarker = "[pw-kill]";
 /** workerd's message when an invocation can no longer produce a result. */
 const HUNG_INVOCATION_TEXT = "detected that your Worker's code had hung";
 
@@ -149,9 +149,9 @@ export class PageScriptTail extends WorkerEntrypoint<
         console.log(tag, note);
         return;
       }
-      if (line.startsWith("[ks-otel-span] ")) {
+      if (line.startsWith("[pw-otel-span] ")) {
         if (spanRecs.length >= SPAN_REC_CAP) spanRecsDropped++;
-        else spanRecs.push(line.slice("[ks-otel-span] ".length));
+        else spanRecs.push(line.slice("[pw-otel-span] ".length));
         return;
       }
       // Retain panic-hook output for error reports, then mirror it as console output.
@@ -159,7 +159,7 @@ export class PageScriptTail extends WorkerEntrypoint<
         lastPanicBlob = line;
       }
       // Authenticated engine errors enter the error channel, then follow normal console handling.
-      const ksErr = parseKsErrLine(line, ksErrToken);
+      const ksErr = parsePwErrLine(line, ksErrToken);
       if (ksErr) {
         this.reportException({
           scriptName,

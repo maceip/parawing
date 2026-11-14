@@ -15,6 +15,9 @@ import { resolveInspectorBaseUrl } from "./inspector.ts";
 import { landingPage } from "./landing.ts";
 import type { RequestBlocker } from "./request-blocker.ts";
 import { MemorySessionStore, type SessionStore } from "./state/session-store.ts";
+import type { HostCapabilities } from "./host-capabilities.ts";
+import type { HostIsolateLoader } from "./isolate-loader.ts";
+import type { SessionManager } from "./session/session-manager.ts";
 
 export interface ConnectionOptions {
   /**
@@ -47,7 +50,7 @@ export interface EngineHost {
    */
   attributionHeaders?: readonly string[];
   /**
-   * Creates one handler per connection for unhandled Kitesurf methods.
+   * Creates one handler per connection for unhandled Parawing methods.
    * The handler returns `{ handled: false }` for method-not-found; its errors become CDP errors.
    */
   createCdpCommandExtension?(env: Env): EngineCdpCommandExtension;
@@ -74,6 +77,16 @@ export interface EngineHost {
     modules?: Record<string, string>;
     hostClassName?: string;
   };
+  /** Creates host capabilities; defaults to Workers Env/ExecutionContext capabilities. */
+  createCapabilities?(env: Env, ctx: ExecutionContext): HostCapabilities | undefined;
+  /** Creates the host isolate loader; defaults to Workers LOADER and ctx.exports loader. */
+  createIsolateLoader?(
+    env: Env,
+    ctx: ExecutionContext,
+    capabilities: HostCapabilities,
+  ): HostIsolateLoader | undefined;
+  /** Persistent session manager enabling Tier 0/1 continuity across WS reconnects. */
+  sessionManager?: SessionManager;
 }
 
 /** The store for this connection: the host's, or one on the heap. */

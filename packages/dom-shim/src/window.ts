@@ -484,8 +484,8 @@ function buildWindow(document: DocumentImpl) {
   };
 
   const navigator = {
-    userAgent: (opts && typeof opts.userAgent === "string" && opts.userAgent) || "Kitesurf/0.0.1",
-    appName: "Kitesurf",
+    userAgent: (opts && typeof opts.userAgent === "string" && opts.userAgent) || "Parawing/0.0.1",
+    appName: "Parawing",
     appVersion: "0.0.1",
     platform: "Cloudflare Workers",
     language: "en-US",
@@ -1145,7 +1145,7 @@ function buildWindow(document: DocumentImpl) {
           const dataJson = pmSerialize(args[0]);
           pmSerializeWithTransfer(undefined, transfer);
           sendUpstreamEvent({
-            event: "kitesurf.postMessage",
+            event: "parawing.postMessage",
             params: {
               toParent: true,
               dataJson,

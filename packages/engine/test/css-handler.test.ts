@@ -12,15 +12,12 @@ import {
 import { ensureInterception, unregisterInterception } from "../src/cdp/fetch-interception.ts";
 import { registerOutboundFilters } from "../src/cdp/outbound-filter-registry.ts";
 import { MAX_CONNECTION_READ_BYTES, readCappedBytes } from "../src/read-capped.ts";
-import {
-  createSandboxOutboundOverride,
-  type SandboxOutboundEnv,
-  type SandboxOutboundExports,
-} from "../src/eval/outbound.ts";
+import { createSandboxOutboundOverride } from "../src/eval/outbound.ts";
+import { createMemoryHostCapabilities } from "../src/host-capabilities.ts";
 import type { DispatchCtx } from "../src/cdp/dispatch.ts";
 import type { CdpParamsOf, CdpRequest, CdpResultOf, TargetState } from "../src/cdp/types.ts";
 import type { PageScriptStub } from "../src/eval/page-script.ts";
-import type { QueryDomArgs, QueryDomMethod, QueryDomResult } from "@kitesurf/jsrpc-types/query-dom";
+import type { QueryDomArgs, QueryDomMethod, QueryDomResult } from "@parawing/jsrpc-types/query-dom";
 
 type StubReplies = Partial<{ [M in QueryDomMethod]: QueryDomResult<M> }>;
 
@@ -66,7 +63,7 @@ function makeTarget(stub: PageScriptStub): TargetState {
 function makeCtx(target: TargetState): DispatchCtx {
   return {
     browser: { targets: new Map([["t1", target]]) },
-    env: {},
+    host: createMemoryHostCapabilities(),
   } as DispatchCtx;
 }
 
@@ -167,11 +164,11 @@ describe("CSS replies from the isolate", () => {
           ],
         },
       } as QueryDomResult<"parseStyleSheet">,
-      // oxlint-disable-next-line kitesurf/no-chained-type-assertions -- the reply imitates a stub where an array belongs.
+      // oxlint-disable-next-line parawing/no-chained-type-assertions -- the reply imitates a stub where an array belongs.
       matchSelectorList: {
         matches: callable("matches"),
       } as unknown as QueryDomResult<"matchSelectorList">,
-      // oxlint-disable-next-line kitesurf/no-chained-type-assertions -- the reply imitates a stub where an array belongs.
+      // oxlint-disable-next-line parawing/no-chained-type-assertions -- the reply imitates a stub where an array belongs.
       getAncestorElementIds: {
         ancestorIds: callable("ancestors"),
       } as unknown as QueryDomResult<"getAncestorElementIds">,
@@ -292,7 +289,7 @@ describe("CSS stylesheet owner reconciliation", () => {
     const events: string[] = [];
     const ctx = makeCtx(target);
     ctx.emit = (e) => void events.push(e.method);
-    // oxlint-disable-next-line kitesurf/no-chained-type-assertions -- only the walled fetch is read.
+    // oxlint-disable-next-line parawing/no-chained-type-assertions -- only the walled fetch is read.
     ctx.browser.sandboxOutbound = {
       external: true,
       parent: () => ({
@@ -324,14 +321,9 @@ describe("CSS stylesheet owner reconciliation", () => {
 describe("CSS.enable opaque stylesheet fetches", () => {
   const SHEET = "https://cdn.test/a.css";
   const HOP = "https://blocked.test/b.css";
-  const env: SandboxOutboundEnv = {
-    FONT_ASSETS: { fetch: async () => new Response(null, { status: 404 }) },
-  };
-  const outboundExports: SandboxOutboundExports = {
-    SandboxOutbound: () => {
-      throw new Error("loaded outbound is not used here");
-    },
-  };
+  const host = createMemoryHostCapabilities({
+    assets: { fetch: async () => new Response(null, { status: 404 }) },
+  });
   const css = (body: string) => new Response(body, { headers: { "content-type": "text/css" } });
   let connectionSeq = 0;
 
@@ -375,8 +367,7 @@ describe("CSS.enable opaque stylesheet fetches", () => {
     target.nextStyleSheetRev = new Map();
     const connectionId = `css-sheet-${++connectionSeq}`;
     const sandboxOutbound = createSandboxOutboundOverride(
-      outboundExports,
-      env,
+      host,
       walled ? transport : undefined,
       walled ? undefined : transport,
     );
@@ -391,7 +382,7 @@ describe("CSS.enable opaque stylesheet fetches", () => {
         },
       } as typeof inner;
     };
-    // oxlint-disable-next-line kitesurf/no-chained-type-assertions -- only the fields CSS.enable reads are set.
+    // oxlint-disable-next-line parawing/no-chained-type-assertions -- only the fields CSS.enable reads are set.
     const ctx = {
       browser: {
         targets: new Map([["t1", target]]),
@@ -399,7 +390,7 @@ describe("CSS.enable opaque stylesheet fetches", () => {
       },
       connectionId,
       emit: () => {},
-      env: {},
+      host,
     } as unknown as DispatchCtx;
     ctx.emit = (event) => {
       events.push(event.method);
@@ -669,7 +660,7 @@ describe("CSS opaque stylesheet read bounds", () => {
         }),
       );
     };
-    // oxlint-disable-next-line kitesurf/no-chained-type-assertions -- only the fields the fetch path reads are set.
+    // oxlint-disable-next-line parawing/no-chained-type-assertions -- only the fields the fetch path reads are set.
     const ctx = {
       browser: {
         targets: new Map([["t1", target]]),
@@ -685,7 +676,7 @@ describe("CSS opaque stylesheet read bounds", () => {
       },
       connectionId: "c1",
       emit: () => {},
-      env: {},
+      host: createMemoryHostCapabilities(),
     } as unknown as DispatchCtx;
     const sync = async (ownerNodeId: number, sourceURL: string) => {
       replies.enumerateStyleSheets = {

@@ -18,13 +18,13 @@ async function targetSession(page: Page) {
 
 async function forceCollect(page: Page): Promise<void> {
   const { session, targetId } = await targetSession(page);
-  await session.send("Kitesurf.boaForceCollect", { targetId });
+  await session.send("Parawing.boaForceCollect", { targetId });
   await session.detach().catch(() => {});
 }
 
 async function bridgeStats(page: Page) {
   const { session, targetId } = await targetSession(page);
-  const stats = await session.send("Kitesurf.getMemoryStats", { targetId });
+  const stats = await session.send("Parawing.getMemoryStats", { targetId });
   await session.detach().catch(() => {});
   if (!stats.bridge) throw new Error("no bridge gauges in getMemoryStats");
   return stats.bridge;

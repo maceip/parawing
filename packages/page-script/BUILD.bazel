@@ -10,9 +10,9 @@ js_library(
     name = "srcs",
     srcs = ["package.json", "tsconfig.json"] + glob(["src/**"]),
     deps = [
-        ":node_modules/@kitesurf/dom-shim",
-        ":node_modules/@kitesurf/jsrpc-types",
-        ":node_modules/@kitesurf/script-gate",
+        ":node_modules/@parawing/dom-shim",
+        ":node_modules/@parawing/jsrpc-types",
+        ":node_modules/@parawing/script-gate",
         ":node_modules/fake-indexeddb",
     ],
     visibility = [
@@ -24,7 +24,7 @@ js_library(
 js_library(
     name = "internal_state",
     srcs = ["src/internal-state.ts"],
-    deps = [":node_modules/@kitesurf/jsrpc-types"],
+    deps = [":node_modules/@parawing/jsrpc-types"],
     visibility = ["//packages/dom-shim:__pkg__"],
 )
 

@@ -11,7 +11,7 @@ async function upgradeStatus(origin?: string): Promise<number> {
   const headers: Record<string, string> = { upgrade: "websocket" };
   if (origin !== undefined) headers.origin = origin;
   const res = await engine.fetch(
-    new Request("http://engine.test/devtools/browser/kitesurf", { headers }),
+    new Request("http://engine.test/devtools/browser/parawing", { headers }),
   );
   const ws = upgradedSocket(res);
   ws?.accept();

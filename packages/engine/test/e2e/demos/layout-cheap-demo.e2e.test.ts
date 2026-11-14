@@ -16,7 +16,7 @@ test("cheap layout returns ordered rectangles and restores full mode", async ({ 
   `;
 
   try {
-    const offMode = await session.send("Kitesurf.setLayoutMode", { mode: "off" });
+    const offMode = await session.send("Parawing.setLayoutMode", { mode: "off" });
     expect(offMode.mode, "layout mode is off before measuring cheap rectangles").toBe("off");
     await setContent(page, html);
 
@@ -49,7 +49,7 @@ test("cheap layout returns ordered rectangles and restores full mode", async ({ 
       "inline span shares a line with its paragraph",
     ).toBeTruthy();
 
-    await session.send("Kitesurf.setLayoutMode", { mode: "full" });
+    await session.send("Parawing.setLayoutMode", { mode: "full" });
     await setContent(page, html);
 
     const fullRects = await page.evaluate(() => {
@@ -65,8 +65,8 @@ test("cheap layout returns ordered rectangles and restores full mode", async ({ 
       "full mode rectangles remain non-zero after switching modes",
     ).toBe(true);
 
-    const reply = await session.send("Kitesurf.getLayoutMode", {});
-    expect(reply.mode, "Kitesurf.getLayoutMode reports full mode").toBe("full");
+    const reply = await session.send("Parawing.getLayoutMode", {});
+    expect(reply.mode, "Parawing.getLayoutMode reports full mode").toBe("full");
   } finally {
     await session.detach();
   }

@@ -21,16 +21,26 @@ import { handleNetwork } from "./network.ts";
 import { handleLog } from "./log.ts";
 import { handleFetch } from "./fetch.ts";
 import { handleInput } from "./input.ts";
-import { handleKitesurf } from "./kitesurf.ts";
+import { handleParawing } from "./parawing.ts";
 import { handleWebMcp } from "./webmcp.ts";
 import { handleDebugger } from "./debugger.ts";
 import { handleCss } from "./css.ts";
 import { handleAccessibility } from "./accessibility.ts";
 import { sessionOf } from "./page-session.ts";
 import { clampViewport } from "./viewport.ts";
-import type { KitesurfAnalytics } from "../observability.ts";
-import type { Tracer } from "../tracing.ts";
-import type { HostClock } from "../eval/host-clock.ts";
+import type { ParawingAnalytics } from "../observability.ts";
+import type { HostCapabilities } from "../host-capabilities.ts";
+import type { HostIsolateLoader } from "../isolate-loader.ts";
+import type { DispatchActorRole } from "../policy/controller-lease.ts";
+import { PolicyDecisionError } from "../policy/policy-engine.ts";
+import {
+  asConnectionId,
+  asTargetId,
+  StaleEpochError,
+  type ConnectionRole,
+  type TargetId,
+} from "../session/identities.ts";
+import type { SessionManager } from "../session/session-manager.ts";
 
 export interface EngineCdpCommandRequest {
   id: number;
@@ -49,26 +59,163 @@ export type EngineCdpCommandExtension = (
 export interface DispatchCtx {
   browser: BrowserState;
   emit: EventEmitter;
+  isClosed?: () => boolean;
   commandExtension?: EngineCdpCommandExtension;
   /** Host request blocker for this connection; also registered for SandboxOutbound. */
   requestBlocker?: RequestBlocker;
-  env: {
-    LOADER: WorkerLoader;
-    FONT_ASSETS: Fetcher;
-    KITESURF_SIMULATE_PROD_EVAL?: string;
-    KITESURF_RESOURCE_DRAIN_QUIET_TURNS?: string;
-    KITESURF_LAG_WATCHDOG?: string;
-    // Per-page-isolate deployment budgets: CPU cap on LOADER.load,
-    // wall-clock kill timer per generation. See eval/page-script.ts.
-    KITESURF_PAGE_CPU_MS_CAP?: string;
-    KITESURF_PAGE_WALL_MS_CAP?: string;
-    KITESURF_ALLOW_PRIVATE_NETWORK?: string;
-    HOST_TRACER?: Tracer;
-    HOST_CLOCK?: HostClock;
-  };
-  ctx: ExecutionContext;
+  host: HostCapabilities;
+  isolateLoader: HostIsolateLoader;
   connectionId: string;
-  analytics: KitesurfAnalytics;
+  actorConnectionId?: string;
+  analytics: ParawingAnalytics;
+  sessionManager?: SessionManager;
+  connectionEpoch?: number;
+  connectionRole?: ConnectionRole;
+  actorRole?: DispatchActorRole;
+}
+
+const VIEWER_READ_ONLY_METHODS = new Set<string>([
+  "Browser.getVersion",
+  "Target.getTargets",
+  "Target.getTargetInfo",
+  "Page.getFrameTree",
+  "Page.getResourceTree",
+  "Page.getNavigationHistory",
+  "Page.getLayoutMetrics",
+  "Parawing.getSessionInfo",
+  "Parawing.getConnectionInfo",
+  "Parawing.getControllerLease",
+  "Parawing.getPageState",
+  "Parawing.getScreencastStatus",
+  "Parawing.getLayoutMode",
+  "Parawing.getRendererInfo",
+  "Parawing.getMemoryStats",
+]);
+
+const VIEWER_CHANNEL_METHODS = new Set<string>([
+  "Target.attachToTarget",
+  "Target.detachFromTarget",
+  "Parawing.startSceneStreamV2",
+  "Parawing.stopSceneStreamV2",
+  "Parawing.recordSceneV2",
+  "Parawing.getHandlerRegions",
+  "Parawing.getInputJournalState",
+  "Parawing.requestControllerLease",
+]);
+
+const VIEWER_TAKEOVER_HUMAN_METHODS = new Set<string>([
+  "Input.dispatchMouseEvent",
+  "Input.dispatchKeyEvent",
+  "Input.insertText",
+  "Parawing.releaseControllerLease",
+  "Parawing.revokeControllerLease",
+]);
+
+const TARGET_LESS_COMMANDS = new Set<string>([
+  "Browser.getVersion",
+  "Target.getTargets",
+  "Target.createTarget",
+  "Target.createBrowserContext",
+  "Target.disposeBrowserContext",
+  "Target.getBrowserContexts",
+  "Target.setDiscoverTargets",
+  "Target.setAutoAttach",
+  "Parawing.destroySession",
+  "Parawing.checkpointSession",
+  "Parawing.suspendSession",
+  "Parawing.resumeSession",
+  "Parawing.roamSession",
+  "Parawing.issueAttestedKeyLease",
+  "Parawing.releaseDbscCredential",
+  "Parawing.submitApprovalDecision",
+  "Parawing.getSessionInfo",
+  "Parawing.getConnectionInfo",
+]);
+
+function resolveTargetForDispatch(ctx: DispatchCtx, req: CdpRequest): TargetState | null {
+  if (req.sessionId) {
+    for (const t of ctx.browser.targets.values()) {
+      if (t.sessions.has(req.sessionId)) return t;
+    }
+    const oopif = findOopifFrameBySession(ctx, req.sessionId);
+    if (oopif) return oopif.target;
+  }
+  const paramsObj =
+    req.params && typeof req.params === "object" ? (req.params as Record<string, unknown>) : null;
+  const explicitTargetId =
+    paramsObj && typeof paramsObj["targetId"] === "string" ? paramsObj["targetId"] : null;
+  if (explicitTargetId) {
+    return ctx.browser.targets.get(explicitTargetId) ?? null;
+  }
+  if (TARGET_LESS_COMMANDS.has(req.method)) return null;
+  for (const t of ctx.browser.targets.values()) {
+    if (t.type === "page") return t;
+  }
+  return null;
+}
+
+const internalHumanRequests = new WeakSet<CdpRequest>();
+
+/** Marks an internal request constructed after validating an active human ControllerLease. */
+export function markInternalHumanRequest(req: CdpRequest): void {
+  internalHumanRequests.add(req);
+}
+
+export function isInternalHumanRequest(req: CdpRequest): boolean {
+  return internalHumanRequests.has(req);
+}
+
+export function isAttachedViewer(ctx: DispatchCtx): boolean {
+  if (ctx.sessionManager && ctx.browser.sessionId) {
+    const rec = ctx.sessionManager.get(ctx.browser.sessionId);
+    const conn = rec?.connections.get(asConnectionId(ctx.actorConnectionId ?? ctx.connectionId));
+    if (conn) return conn.role === "viewer";
+  }
+  return ctx.connectionRole === "viewer";
+}
+
+export function hasActiveTakeoverForRequest(
+  ctx: DispatchCtx,
+  req: CdpRequest,
+  targetId: TargetId | null,
+): boolean {
+  const leases = ctx.browser.controllerLeases;
+  if (!leases) return false;
+  if (targetId && leases.getActiveLease(targetId) !== null) return true;
+  if (
+    req.method === "Parawing.releaseControllerLease" ||
+    req.method === "Parawing.revokeControllerLease"
+  ) {
+    const paramsObj =
+      req.params && typeof req.params === "object" ? (req.params as Record<string, unknown>) : null;
+    const leaseId = typeof paramsObj?.["leaseId"] === "string" ? paramsObj["leaseId"] : "";
+    if (leaseId && leases.getLeaseById(leaseId)?.status === "active") return true;
+  }
+  return false;
+}
+
+function isViewerMethodPermitted(method: string, takeoverActive: boolean): boolean {
+  if (VIEWER_READ_ONLY_METHODS.has(method) || VIEWER_CHANNEL_METHODS.has(method)) return true;
+  return takeoverActive && VIEWER_TAKEOVER_HUMAN_METHODS.has(method);
+}
+
+export function resolveDispatchActorRole(
+  ctx: DispatchCtx,
+  req: CdpRequest,
+  viewerConn: boolean,
+  takeoverActive: boolean,
+): DispatchActorRole {
+  const raw = Reflect.get(req, "_actorRole");
+  if (
+    takeoverActive &&
+    (internalHumanRequests.has(req) ||
+      raw === "human" ||
+      (viewerConn && isViewerMethodPermitted(req.method, true)))
+  ) {
+    return "human";
+  }
+  if (raw === "agent") return "agent";
+  return ctx.actorRole ?? "agent";
 }
 
 export async function dispatch(ctx: DispatchCtx, req: CdpRequest): Promise<CdpResponse> {
@@ -77,13 +224,58 @@ export async function dispatch(ctx: DispatchCtx, req: CdpRequest): Promise<CdpRe
   ctx.browser.networkEvents.drain();
 
   try {
+    const viewerConn = isAttachedViewer(ctx);
+    const dispatchTarget = resolveTargetForDispatch(ctx, req);
+    const targetId: TargetId | null = dispatchTarget ? asTargetId(dispatchTarget.targetId) : null;
+    const takeoverActive = hasActiveTakeoverForRequest(ctx, req, targetId);
+
+    if (
+      ctx.browser.persistentSession &&
+      ctx.sessionManager &&
+      ctx.browser.sessionId &&
+      req.method !== "Browser.getVersion"
+    ) {
+      const callerConnId = asConnectionId(ctx.actorConnectionId ?? ctx.connectionId);
+      try {
+        ctx.sessionManager.validateEpoch(ctx.browser.sessionId, callerConnId, ctx.connectionEpoch);
+      } catch (err) {
+        if (!(err instanceof StaleEpochError)) throw err;
+        const rec = ctx.sessionManager.get(ctx.browser.sessionId);
+        const attached =
+          rec !== undefined && rec.status !== "destroyed" && rec.connections.has(callerConnId);
+        const permittedInternalHuman = takeoverActive && internalHumanRequests.has(req);
+        if (
+          !attached ||
+          (!isViewerMethodPermitted(req.method, takeoverActive) && !permittedInternalHuman)
+        ) {
+          throw err;
+        }
+      }
+    }
+
+    const actorRole = resolveDispatchActorRole(ctx, req, viewerConn, takeoverActive);
+
+    if (req.method !== "Browser.getVersion") {
+      ctx.browser.controllerLeases?.assertAgentDispatchAllowed(targetId, req.method, actorRole);
+      const policyDecision = ctx.browser.policyEngine?.evaluateCommand({
+        method: req.method,
+        sessionId: ctx.browser.sessionId,
+        targetId,
+        sealedOrigin: dispatchTarget?.sealedOrigin ?? null,
+        actorRole,
+      });
+      if (policyDecision && !policyDecision.allowed) {
+        throw new PolicyDecisionError(policyDecision);
+      }
+    }
+
     if (req.method === "Browser.getVersion") {
       return {
         id: req.id,
         result: {
           protocolVersion: "1.3",
           product: "Chrome/145.0.0.0",
-          revision: "@kitesurf",
+          revision: "@parawing",
           userAgent:
             "Mozilla/5.0 (X11; Linux x86_64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/145.0.0.0 Safari/537.36",
           jsVersion: "12.0.0",
@@ -136,8 +328,8 @@ export async function dispatch(ctx: DispatchCtx, req: CdpRequest): Promise<CdpRe
       case "Input":
         result = await handleInput(ctx, req, undefined, { replyOnDispatch: true });
         break;
-      case "Kitesurf": {
-        result = await handleKitesurf(ctx, req);
+      case "Parawing": {
+        result = await handleParawing(ctx, req);
         if (result === CDP_COMMAND_UNHANDLED) {
           // Public handlers win; the host only sees commands they decline.
           const extension = ctx.commandExtension;

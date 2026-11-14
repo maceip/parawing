@@ -25,7 +25,7 @@ test("page globals match the pinned WebIDL, up to the gap ledger", async ({ page
   );
   const rawReport = await readJsonReport(cdpSession, "globalThis.__idlConformance");
   // The fixture emits this schema; readJsonReport checks only the outer JSON object.
-  // oxlint-disable-next-line kitesurf/no-chained-type-assertions -- shallow JSON boundary.
+  // oxlint-disable-next-line parawing/no-chained-type-assertions -- shallow JSON boundary.
   const report = rawReport as unknown as ConformanceReport;
   expect(Object.keys(report.interfaces)).toEqual(Object.keys(JSON.parse(request).interfaces));
 

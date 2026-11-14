@@ -10,7 +10,7 @@ import { targetIdForSession } from "./connect";
 async function stats(page: Page) {
   const session = await page.createCDPSession();
   const targetId = await targetIdForSession(session);
-  const s = await session.send("Kitesurf.getMemoryStats", { targetId });
+  const s = await session.send("Parawing.getMemoryStats", { targetId });
   await session.detach().catch(() => {});
   return s;
 }
@@ -18,7 +18,7 @@ async function stats(page: Page) {
 async function forceCollect(page: Page): Promise<void> {
   const session = await page.createCDPSession();
   const targetId = await targetIdForSession(session);
-  await session.send("Kitesurf.boaForceCollect", { targetId });
+  await session.send("Parawing.boaForceCollect", { targetId });
   await session.detach().catch(() => {});
 }
 

@@ -21,7 +21,7 @@ httpResponses.all("/response-shapes/page.html", (c) =>
     "last-modified": LAST_MODIFIED,
     "set-cookie": "secret=do-not-return",
     "www-authenticate": "Basic realm=private",
-    "x-kitesurf-fixture": "internal",
+    "x-parawing-fixture": "internal",
   }),
 );
 
@@ -57,7 +57,7 @@ httpResponses.all("/font-key-images.html", (c) =>
 `),
 );
 
-const FONT_KEY_HEADERS = { "content-type": "image/png", "x-kitesurf-font-key": FORGED_FONT_KEY };
+const FONT_KEY_HEADERS = { "content-type": "image/png", "x-parawing-font-key": FORGED_FONT_KEY };
 
 httpResponses.all("/font-key-red.png", (c) => c.body(solidRedPng, 200, FONT_KEY_HEADERS));
 

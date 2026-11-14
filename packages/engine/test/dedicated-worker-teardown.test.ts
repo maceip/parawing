@@ -4,6 +4,8 @@
 
 import { describe, expect, it } from "vitest";
 import { spawnDedicatedWorker } from "../src/eval/dedicated-worker.ts";
+import { createMemoryHostCapabilities } from "../src/host-capabilities.ts";
+import type { HostIsolateLoader, IsolateLoadSpec } from "../src/isolate-loader.ts";
 
 function harness(opts: { openError?: Error; deliverError?: Error } = {}) {
   const kills: string[] = [];
@@ -19,32 +21,31 @@ function harness(opts: { openError?: Error; deliverError?: Error } = {}) {
       if (opts.openError) throw opts.openError;
       return session;
     },
-    killIsolate: async (reason: string) => {
-      kills.push(reason);
-    },
   };
-  const env = { LOADER: { load: () => ({ getEntrypoint: () => entrypoint }) } };
-  const ctx = { exports: { PageScriptTail: () => ({}) } };
-  const handle = spawnDedicatedWorker(
-    // oxlint-disable-next-line kitesurf/no-chained-type-assertions -- partial WorkerLoader fixture.
-    env as unknown as { LOADER: WorkerLoader },
-    // oxlint-disable-next-line kitesurf/no-chained-type-assertions -- partial loader context fixture.
-    ctx as unknown as ExecutionContext,
-    {
-      connectionId: "c1",
-      cookieKey: "k1",
-      label: "worker-1",
-      origin: "https://example.test",
-      creatorUrl: "https://example.test/",
-      frameId: "f1",
-      loaderId: "l1",
-      extraHeaders: {},
-      cpuMs: 1_000,
-      source: "postMessage(1)",
-      sandboxOutbound: { loaded: () => ({}), session: () => ({}) } as never,
-      onUpstream: () => {},
-    },
-  );
+  const isolateLoader: HostIsolateLoader = {
+    load: ((spec: IsolateLoadSpec) => ({
+      kind: spec.kind,
+      entrypoint,
+      async terminate(reason?: string) {
+        kills.push(reason ?? "");
+      },
+      [Symbol.dispose]() {},
+    })) as HostIsolateLoader["load"],
+  };
+  const handle = spawnDedicatedWorker(createMemoryHostCapabilities(), isolateLoader, {
+    connectionId: "c1",
+    cookieKey: "k1",
+    label: "worker-1",
+    origin: "https://example.test",
+    creatorUrl: "https://example.test/",
+    frameId: "f1",
+    loaderId: "l1",
+    extraHeaders: {},
+    cpuMs: 1_000,
+    source: "postMessage(1)",
+    sandboxOutbound: { loadedProps: () => ({}), session: () => ({}) } as never,
+    onUpstream: () => {},
+  });
   return { handle, kills };
 }
 

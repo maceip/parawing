@@ -30,7 +30,7 @@ test("font-face-variable-demo", async ({ browser }) => {
     faceCount: number;
     faces: FaceInfo[];
   }
-  const dump = await cdp.send("Kitesurf.getFontFaces");
+  const dump = await cdp.send("Parawing.getFontFaces");
   let varProbe: FamilyInfo | null = null;
   for (const entry of Object.values("byTarget" in dump ? dump.byTarget : {})) {
     if (!entry || typeof entry.json !== "string") continue;

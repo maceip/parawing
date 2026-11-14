@@ -20,8 +20,8 @@ const INDEX_OUT = resolve(DIST_DIR, "index.js");
 const TYPES_OUT = resolve(DIST_DIR, "index.d.ts");
 const BYTES_PER_KIB = 1024;
 
-const MEMPROF = Boolean(process.env.KITESURF_MEMPROF);
-const MANIFEST_PATH = resolve(PKG_ROOT, "../core/pkg/kitesurf_core_bg.wasm.memprof.json");
+const MEMPROF = Boolean(process.env.PARAWING_MEMPROF);
+const MANIFEST_PATH = resolve(PKG_ROOT, "../core/pkg/parawing_core_bg.wasm.memprof.json");
 
 function generateHookClosure(t) {
   const key = JSON.stringify(`posthook_${t.wasm_name}`);
@@ -42,7 +42,7 @@ function memprofBanner() {
   if (!MEMPROF) return "";
   if (!existsSync(MANIFEST_PATH)) {
     throw new Error(
-      `KITESURF_MEMPROF=1 but manifest missing at ${MANIFEST_PATH}. ` +
+      `PARAWING_MEMPROF=1 but manifest missing at ${MANIFEST_PATH}. ` +
         `Run \`pnpm run dev:memprof\`, which builds it first.`,
     );
   }
@@ -51,7 +51,7 @@ function memprofBanner() {
   // Install the sampling heap recorder before wasm initialization, on the internals record
   // (internal-state.js evaluates before this bundle's body). The startup WebAssembly.Instance
   // wrapper reads memprofImports.
-  return `// ---- wasm-memprof recorder (injected by build.mjs, KITESURF_MEMPROF=1) ----
+  return `// ---- wasm-memprof recorder (injected by build.mjs, PARAWING_MEMPROF=1) ----
 const __memprofSampleRate = parseInt(globalThis.MEMPROF_SAMPLE_RATE || "2048", 10);
 let __memprofNextSample = __memprofSampleRate;
 const __memprofInUse = new Map();
@@ -95,7 +95,7 @@ function __memprofRecordFree(ptr) {
 }
 const __memprofImports = {};
 ${hookClosures}
-const __memprofInternals = globalThis[Symbol.for("kitesurf.internals")];
+const __memprofInternals = globalThis[Symbol.for("parawing.internals")];
 __memprofInternals.memprofImports = __memprofImports;
 __memprofInternals.memprofDump = function() {
   const groups = new Map();

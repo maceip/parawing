@@ -72,7 +72,7 @@ test("mouse-events-demo", async ({ page }) => {
   const cx = rects.target.x + rects.target.width / 2;
   const cy = rects.target.y + rects.target.height / 2;
   await session.send("Input.dispatchMouseEvent", {
-    // oxlint-disable-next-line kitesurf/no-chained-type-assertions -- input.ts maps click.
+    // oxlint-disable-next-line parawing/no-chained-type-assertions -- input.ts maps click.
     type: "click" as unknown as Protocol.Input.DispatchMouseEventRequest["type"],
     x: cx,
     y: cy,

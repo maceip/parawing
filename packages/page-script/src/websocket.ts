@@ -164,7 +164,7 @@ export function installWebSocketFacade(): void {
     private _fail(message: string): void {
       if (this._settled) return;
       try {
-        console.warn("[kitesurf] " + message);
+        console.warn("[parawing] " + message);
       } catch {}
       this._emit("error", mkEvent("error", { message }));
       this._finishClose(WEBSOCKET_ABNORMAL_CLOSURE_CODE, "", false);
@@ -187,7 +187,7 @@ export function installWebSocketFacade(): void {
           handler.call(this, event);
         } catch (error) {
           try {
-            console.error("[kitesurf] WebSocket on" + type + " threw:", error);
+            console.error("[parawing] WebSocket on" + type + " threw:", error);
           } catch {}
         }
       }
@@ -198,7 +198,7 @@ export function installWebSocketFacade(): void {
             listener.call(this, event);
           } catch (error) {
             try {
-              console.error("[kitesurf] WebSocket listener threw:", error);
+              console.error("[parawing] WebSocket listener threw:", error);
             } catch {}
           }
         }
@@ -236,7 +236,7 @@ export function installWebSocketFacade(): void {
         this._socket.send(data as Parameters<WebSocket["send"]>[0]);
       } catch (e) {
         try {
-          console.warn("[kitesurf] WebSocket.send failed:", e);
+          console.warn("[parawing] WebSocket.send failed:", e);
         } catch {}
       }
     }

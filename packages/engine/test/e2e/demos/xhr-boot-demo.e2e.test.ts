@@ -18,7 +18,7 @@ test("xhr-boot-demo", async ({ page }) => {
   expect(title.startsWith("XHRBOOT:"), "fixture never reported (title=" + title + ")").toBeTruthy();
 
   const out = JSON.parse(title.slice("XHRBOOT:".length));
-  expect(out.text, "responseText").toBe("kitesurf-xhr-ok");
+  expect(out.text, "responseText").toBe("parawing-xhr-ok");
   expect(out.status, "status").toBe(200);
   expect(out.ctype, "content-type readback").toBe(true);
   expect(out.responseUrlOk, "responseURL").toBe(true);

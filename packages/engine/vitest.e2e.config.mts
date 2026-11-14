@@ -43,7 +43,7 @@ function distModules(root: string, entry: string, rules: ModuleRule[]) {
 }
 
 const otlpCaptureWorker = {
-  name: "kitesurf-otlp-capture",
+  name: "parawing-otlp-capture",
   modules: true,
   modulesRoot: resolve(HERE, "test/e2e"),
   scriptPath: resolve(HERE, "test/e2e/otlp-capture-worker.mjs"),
@@ -52,18 +52,18 @@ const otlpCaptureWorker = {
 
 const CORE_PKG = resolve(HERE, "../core/pkg");
 const coreWasmWorker = {
-  name: "kitesurf-core-wasm",
+  name: "parawing-core-wasm",
   modulesRoot: resolve(HERE, ".."),
   modules: [
     { type: "ESModule", path: resolve(HERE, "test/e2e/core-wasm-worker.mjs") },
-    { type: "ESModule", path: resolve(CORE_PKG, "kitesurf_core.js") },
-    { type: "CompiledWasm", path: resolve(CORE_PKG, "kitesurf_core_bg.wasm") },
+    { type: "ESModule", path: resolve(CORE_PKG, "parawing_core.js") },
+    { type: "CompiledWasm", path: resolve(CORE_PKG, "parawing_core_bg.wasm") },
   ],
   compatibilityDate: "2026-09-11",
 };
 
 const sceneHostWorker = {
-  name: "kitesurf-scene-host",
+  name: "parawing-scene-host",
   modulesRoot: HERE,
   modules: [
     { type: "ESModule", path: resolve(HERE, "test/e2e/scene-host-worker.mjs") },
@@ -83,7 +83,7 @@ const FIXTURES_RULES: ModuleRule[] = [
 ];
 
 const fixturesWorker = {
-  name: "kitesurf-fixtures",
+  name: "parawing-fixtures",
   modulesRoot: FIXTURES_DIST,
   compatibilityDate: "2026-09-11",
   get modules() {
@@ -138,16 +138,16 @@ export function engineE2EConfig(opts: EngineE2EOptions): ReturnType<typeof defin
   }
   wo.serviceBindings = {
     ...(wo.serviceBindings as Record<string, unknown> | undefined),
-    FIXTURES: "kitesurf-fixtures",
+    FIXTURES: "parawing-fixtures",
     ...opts.engineServiceBindings,
-    OTLP_CAPTURE: "kitesurf-otlp-capture",
+    OTLP_CAPTURE: "parawing-otlp-capture",
   };
   const engineBindings = {
     ...(wo.bindings as Record<string, unknown> | undefined),
-    KITESURF_ENV: "local",
+    PARAWING_ENV: "local",
     // Route tests cover a configured hosted inspector on the main engine
     // and Chrome's bundled frontend on the no-inspector engine.
-    KITESURF_INSPECTOR_BASE_URL: "https://example.com/devtools",
+    PARAWING_INSPECTOR_BASE_URL: "https://example.com/devtools",
     WEB_BOT_AUTH_JWK: JSON.stringify(WBA_TEST_PRIVATE_JWK),
     WEB_BOT_AUTH_SIGNATURE_AGENT: WBA_TEST_SIGNATURE_AGENT,
     ...opts.engineBindings,
@@ -175,7 +175,7 @@ export function engineE2EConfig(opts: EngineE2EOptions): ReturnType<typeof defin
     };
   }
 
-  const engineWorker = engineWorkerOptions("kitesurf-engine", "kitesurf-engine");
+  const engineWorker = engineWorkerOptions("parawing-engine", "parawing-engine");
 
   const fixtureWorkers: object[] = (opts.fixtureWorkers ?? []).map((fixtureWorker) => ({
     name: fixtureWorker.name,
@@ -192,15 +192,15 @@ export function engineE2EConfig(opts: EngineE2EOptions): ReturnType<typeof defin
   // Keep modules lazy: global setup replaces the dist before the pool starts.
   // Spreading these options would snapshot the previous build's module paths.
   const noInspectorEngineWorker = engineWorkerOptions(
-    "kitesurf-engine-no-inspector",
-    "kitesurf-engine-no-inspector",
-    { ...engineBindings, KITESURF_INSPECTOR_BASE_URL: "" },
+    "parawing-engine-no-inspector",
+    "parawing-engine-no-inspector",
+    { ...engineBindings, PARAWING_INSPECTOR_BASE_URL: "" },
   );
   // The same-origin frontend copy that the bundle_devtools build stages; the routes need no assets.
   const sameOriginInspectorEngineWorker = engineWorkerOptions(
-    "kitesurf-engine-same-origin-inspector",
-    "kitesurf-engine-same-origin-inspector",
-    { ...engineBindings, KITESURF_INSPECTOR_BASE_URL: "/inspector/inspector.html" },
+    "parawing-engine-same-origin-inspector",
+    "parawing-engine-same-origin-inspector",
+    { ...engineBindings, PARAWING_INSPECTOR_BASE_URL: "/inspector/inspector.html" },
   );
 
   const extraEngineWorkers = (opts.extraEngines ?? []).map((engine) =>
@@ -217,13 +217,13 @@ export function engineE2EConfig(opts: EngineE2EOptions): ReturnType<typeof defin
           compatibilityDate: "2026-09-11",
           bindings: opts.bindings ?? {},
           serviceBindings: {
-            ENGINE: "kitesurf-engine",
-            ENGINE_NO_INSPECTOR: "kitesurf-engine-no-inspector",
-            ENGINE_SAME_ORIGIN_INSPECTOR: "kitesurf-engine-same-origin-inspector",
+            ENGINE: "parawing-engine",
+            ENGINE_NO_INSPECTOR: "parawing-engine-no-inspector",
+            ENGINE_SAME_ORIGIN_INSPECTOR: "parawing-engine-same-origin-inspector",
             ...opts.serviceBindings,
-            OTLP_CAPTURE: "kitesurf-otlp-capture",
-            CORE_WASM: "kitesurf-core-wasm",
-            SCENE_HOST_WASM: "kitesurf-scene-host",
+            OTLP_CAPTURE: "parawing-otlp-capture",
+            CORE_WASM: "parawing-core-wasm",
+            SCENE_HOST_WASM: "parawing-scene-host",
           },
           workers: [
             engineWorker as never,

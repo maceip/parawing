@@ -7,7 +7,7 @@ import { expect, test } from "../harness";
 
 test("events-demo", async ({ page }) => {
   const FIXTURE_URL =
-    process.env.KITESURF_FIXTURE ?? "http://127.0.0.1:8787/__fixtures/events.html";
+    process.env.PARAWING_FIXTURE ?? "http://127.0.0.1:8787/__fixtures/events.html";
 
   const expectedPath = [
     "window:capture",
@@ -43,7 +43,7 @@ test("events-demo", async ({ page }) => {
   ).toBeTruthy();
   const session = await page.target().createCDPSession();
   await session.send("Input.dispatchMouseEvent", {
-    // oxlint-disable-next-line kitesurf/no-chained-type-assertions -- input.ts maps click.
+    // oxlint-disable-next-line parawing/no-chained-type-assertions -- input.ts maps click.
     type: "click" as unknown as Protocol.Input.DispatchMouseEventRequest["type"],
     x: btnRect.x + btnRect.width / 2,
     y: btnRect.y + btnRect.height / 2,

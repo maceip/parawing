@@ -13,7 +13,7 @@ const EXTRA = 6;
 test("inserted external scripts stop at the per-navigate cap", async ({ page }) => {
   const skipped: string[] = [];
   page.on("console", (m) => {
-    if (m.text().includes("[ks-inserted-script] budget: skipping")) skipped.push(m.text());
+    if (m.text().includes("[pw-inserted-script] budget: skipping")) skipped.push(m.text());
   });
   await setContent(
     page,

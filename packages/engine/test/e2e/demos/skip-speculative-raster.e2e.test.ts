@@ -6,7 +6,7 @@ import { readChildFrameCount, readRendererInfo } from "../cdp-read";
 import { expect, test, type BrowserFactory } from "../harness";
 import { decodePng, near, sample } from "./png";
 
-const SKIP_SPECULATIVE_RASTER_HEADER = "x-kitesurf-skip-raster";
+const SKIP_SPECULATIVE_RASTER_HEADER = "x-parawing-skip-raster";
 
 const FIXTURE = "https://ks.invalid/__fixtures/oopif-host-color-swap.html";
 

@@ -9,7 +9,7 @@ import { expect, test } from "../harness";
 
 test("screenshot-demo", async ({ page }) => {
   const OUT_PATH =
-    process.env.KITESURF_PNG_OUT ??
+    process.env.PARAWING_PNG_OUT ??
     fileURLToPath(new URL("./screenshot-demo-output.png", import.meta.url));
 
   const HTML = `<!doctype html>
@@ -23,7 +23,7 @@ test("screenshot-demo", async ({ page }) => {
   .footer { margin-top: 24px; color: #666; font-size: 14px; }
 </style></head>
 <body>
-  <h1>kitesurf screenshots are real</h1>
+  <h1>parawing screenshots are real</h1>
   <p>This page is rendered inside workerd via Blitz: stylo for cascade, taffy for layout, vello_cpu for raster, png for encoding.</p>
   <div class="row">
     <div class="card">First card</div>

@@ -29,12 +29,12 @@ test("a malformed envelope gets -32600 and echoes the id", async () => {
   ws.close();
 });
 
-test("Kitesurf.setOutboundFilters rejects a non-string filter entry", async () => {
+test("Parawing.setOutboundFilters rejects a non-string filter entry", async () => {
   const { ws, next } = await openCdpWireSession(engine);
   ws.send(
     JSON.stringify({
       id: 1,
-      method: "Kitesurf.setOutboundFilters",
+      method: "Parawing.setOutboundFilters",
       params: { allowRequestPattern: ["^https://a/", null] },
     }),
   );
@@ -46,7 +46,7 @@ test("Kitesurf.setOutboundFilters rejects a non-string filter entry", async () =
   ws.send(
     JSON.stringify({
       id: 2,
-      method: "Kitesurf.setOutboundFilters",
+      method: "Parawing.setOutboundFilters",
       params: { allowRequestPattern: ["^https://a/"] },
     }),
   );

@@ -7,15 +7,15 @@
 import type { DispatchCtx } from "./dispatch.ts";
 import type { TargetState } from "./types.ts";
 import type { PageScriptStub } from "../eval/page-script.ts";
-import type { PageScriptSession } from "@kitesurf/jsrpc-types/page-script";
+import type { PageScriptSession } from "@parawing/jsrpc-types/page-script";
 export type {
   EnumeratedStyleSheet,
   QueryDomArgs,
   QueryDomMethod,
   QueryDomMethods,
   QueryDomResult,
-} from "@kitesurf/jsrpc-types/query-dom";
-import type { QueryDomArgs, QueryDomMethod, QueryDomResult } from "@kitesurf/jsrpc-types/query-dom";
+} from "@parawing/jsrpc-types/query-dom";
+import type { QueryDomArgs, QueryDomMethod, QueryDomResult } from "@parawing/jsrpc-types/query-dom";
 
 export type QueryDomCarrier = Pick<PageScriptSession, "queryDom">;
 

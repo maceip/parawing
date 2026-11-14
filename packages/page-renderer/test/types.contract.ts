@@ -2,7 +2,7 @@
 // Licensed under the Apache 2.0 license found in the LICENSE file or at:
 // https://opensource.org/licenses/Apache-2.0
 
-import type { RenderFrameOpts, RenderPdfOpts } from "@kitesurf/jsrpc-types/page-renderer";
+import type { RenderFrameOpts, RenderPdfOpts } from "@parawing/jsrpc-types/page-renderer";
 
 const frameOptions: RenderFrameOpts = {
   format: "png",

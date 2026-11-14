@@ -5,7 +5,7 @@
 import { expect, test } from "../harness";
 
 test("cookies-demo", async ({ page }) => {
-  const URL1 = process.env.KITESURF_FIXTURE ?? "http://127.0.0.1:8787/__fixtures/cookies.html";
+  const URL1 = process.env.PARAWING_FIXTURE ?? "http://127.0.0.1:8787/__fixtures/cookies.html";
   const URL2 = URL1;
 
   await page.goto(URL1, { timeout: 15000 });

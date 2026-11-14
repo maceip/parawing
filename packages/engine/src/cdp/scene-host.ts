@@ -11,9 +11,9 @@ import type { CdpRequest } from "./types.ts";
 const CHUNK_BYTES = 4 * 1024 * 1024;
 const MANIFEST_BYTES = 16 * 1024;
 const HOST_BYTES = 32 * 1024 * 1024;
-const ASSET_BASE = "https://kitesurf.invalid/rbi/";
+const ASSET_BASE = "https://parawing.invalid/rbi/";
 // Retain validated metadata, not I/O promises or Wasm bodies, for each CDP connection.
-const manifests = new WeakMap<object, Protocol.Kitesurf.SceneHostManifest>();
+const manifests = new WeakMap<object, Protocol.Parawing.SceneHostManifest>();
 const Sha256 = z.string().regex(/^[0-9a-f]{64}$/);
 const Manifest = z.object({
   abi: z.number().int().positive(),
@@ -51,10 +51,12 @@ async function readSpan(response: Response, limit: number): Promise<Uint8Array> 
   return bytes.subarray(0, written);
 }
 
+import type { AssetCapability } from "../host-capabilities.ts";
+
 async function manifest(
-  assets: Pick<Fetcher, "fetch">,
+  assets: AssetCapability,
   session: object,
-): Promise<Protocol.Kitesurf.SceneHostManifest> {
+): Promise<Protocol.Parawing.SceneHostManifest> {
   const cached = manifests.get(session);
   if (cached) return cached;
   const response = await assets.fetch(new Request(ASSET_BASE + "scene_host.json"));
@@ -73,15 +75,15 @@ async function manifest(
 
 type SceneHostRequest = Extract<
   CdpRequest,
-  { method: "Kitesurf.getSceneHostManifest" | "Kitesurf.readSceneHost" }
+  { method: "Parawing.getSceneHostManifest" | "Parawing.readSceneHost" }
 >;
 
 export async function sceneHostCommand(
-  assets: Pick<Fetcher, "fetch">,
+  assets: AssetCapability,
   req: SceneHostRequest,
   session: object,
-): Promise<Protocol.Kitesurf.SceneHostManifest | Protocol.Kitesurf.ReadSceneHostResponse> {
-  if (req.method === "Kitesurf.getSceneHostManifest") return manifest(assets, session);
+): Promise<Protocol.Parawing.SceneHostManifest | Protocol.Parawing.ReadSceneHostResponse> {
+  if (req.method === "Parawing.getSceneHostManifest") return manifest(assets, session);
   const parsed = ReadParams.safeParse(req.params);
   if (!parsed.success) throw new Error("invalid scene-host chunk parameters");
   const { sha256, offset, length } = parsed.data;

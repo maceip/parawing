@@ -59,9 +59,9 @@ describe("Authorization same-origin gate", () => {
 });
 
 describe("header shaping basics", () => {
-  it("strips x-kitesurf-* plumbing headers", () => {
+  it("strips x-parawing-* plumbing headers", () => {
     const original = new Request("https://cdn.example.com/x.js", {
-      headers: { "x-kitesurf-resource-type": "Script", "x-real": "keep" },
+      headers: { "x-parawing-resource-type": "Script", "x-real": "keep" },
     });
     const req = buildForwardRequest({
       original,
@@ -69,7 +69,7 @@ describe("header shaping basics", () => {
       pageOrigin: PAGE_ORIGIN,
       extraHeaders: {},
     });
-    expect(req.headers.get("x-kitesurf-resource-type")).toBeNull();
+    expect(req.headers.get("x-parawing-resource-type")).toBeNull();
     expect(req.headers.get("x-real")).toBe("keep");
   });
 
@@ -228,7 +228,7 @@ describe("Origin stamping", () => {
 });
 
 describe("UA override via extras channel", () => {
-  const OVERRIDE = "KitesurfOverride/1.0";
+  const OVERRIDE = "ParawingOverride/1.0";
 
   it("replaces the injected browser-shaped UA default", () => {
     const req = forward("https://cdn.example.com/x.js", {

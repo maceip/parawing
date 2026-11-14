@@ -3,7 +3,7 @@
 // https://opensource.org/licenses/Apache-2.0
 
 // Manages RBI scene streams, frame acknowledgements, resources, and terminal wheel input. CDP
-// surface: `Kitesurf.startSceneStream` / `stopSceneStream`, `sceneFrame` events, `sceneFrameAck`
+// surface: `Parawing.startSceneStream` / `stopSceneStream`, `sceneFrame` events, `sceneFrameAck`
 // to return credit (`painted:false` asks for a full frame), and `getSceneResources`. Navigation,
 // viewport and input use standard CDP on the same connection; see rbi.ts for the frame wire.
 
@@ -12,6 +12,7 @@ import { z } from "zod";
 import type { DispatchCtx } from "./dispatch.ts";
 import type { BrowserState, CdpRequest, TargetState } from "./types.ts";
 import { stubQueryDom } from "./page-session.ts";
+import { asTargetId } from "../session/identities.ts";
 import {
   claimSceneAck,
   runSceneLoop,
@@ -33,8 +34,8 @@ import {
   typedArrayLength,
 } from "../rbi-protocol.ts";
 import { getFontBytes, getImageBytes } from "../eval/resource-store.ts";
+import { stopRbiV2Streams } from "../rbi-v2-server.ts";
 import { MAX_CONCURRENT_READ_BYTES } from "../read-capped.ts";
-import { makeWallClock } from "../eval/host-clock.ts";
 import { MAX_SIDE } from "./viewport.ts";
 import { TTY_CELL_PX_MAX, TTY_CELL_PX_MIN } from "../tty/nav-params.ts";
 
@@ -59,7 +60,12 @@ export function wakeSceneStream(browser: BrowserState, targetId: string): void {
   if (stream && !stream.closed) wakeSceneFlow(stream.flow);
 }
 
-export function stopSceneStreams(browser: BrowserState, targetId?: string): void {
+export function stopSceneStreams(
+  browser: BrowserState,
+  targetId?: string,
+  opts?: { preserveInputJournals?: boolean },
+): void {
+  stopRbiV2Streams(browser, targetId, opts);
   const byTarget = streams.get(browser);
   if (!byTarget) return;
   for (const [id, stream] of byTarget) {
@@ -116,7 +122,7 @@ function warnSceneBudget(stream: Stream, sceneBytes: number): void {
   if (stream.warnedSceneBudget) return;
   stream.warnedSceneBudget = true;
   console.warn(
-    `kitesurf: scene of ${sceneBytes} bytes over ${MAX_CONCURRENT_READ_BYTES} bytes; sending an empty scene`,
+    `parawing: scene of ${sceneBytes} bytes over ${MAX_CONCURRENT_READ_BYTES} bytes; sending an empty scene`,
   );
 }
 
@@ -176,10 +182,10 @@ export type SceneStreamRequest = Extract<
   CdpRequest,
   {
     method:
-      | "Kitesurf.startSceneStream"
-      | "Kitesurf.stopSceneStream"
-      | "Kitesurf.sceneFrameAck"
-      | "Kitesurf.getSceneResources";
+      | "Parawing.startSceneStream"
+      | "Parawing.stopSceneStream"
+      | "Parawing.sceneFrameAck"
+      | "Parawing.getSceneResources";
   }
 >;
 
@@ -197,12 +203,12 @@ export async function sceneStreamCommand(
     streams.set(ctx.browser, byTarget);
   }
   const active = byTarget.get(target.targetId);
-  if (req.method === "Kitesurf.stopSceneStream") {
+  if (req.method === "Parawing.stopSceneStream") {
     stopSceneStreams(ctx.browser, target.targetId);
     await active?.done;
     return {};
   }
-  if (req.method === "Kitesurf.sceneFrameAck") {
+  if (req.method === "Parawing.sceneFrameAck") {
     const params = AckParams.safeParse(req.params);
     if (active && params.success) {
       if (claimSceneAck(active.flow, params.data.seq) && params.data.painted === false) {
@@ -212,7 +218,7 @@ export async function sceneStreamCommand(
     }
     return {};
   }
-  if (req.method === "Kitesurf.getSceneResources") {
+  if (req.method === "Parawing.getSceneResources") {
     if (!active || !target.pageScript) throw new Error("scene stream not running");
     if (active.needInFlight >= MAX_IN_FLIGHT_RESOURCE_REQUESTS) {
       throw new Error("too many resource requests");
@@ -263,7 +269,7 @@ export async function sceneStreamCommand(
       });
       // A reply from the retired document names resources the successor may not have.
       if (target.navigateGeneration !== generation || target.pageScript !== ps) {
-        return { batchB64: "" } satisfies Protocol.Kitesurf.GetSceneResourcesResponse;
+        return { batchB64: "" } satisfies Protocol.Parawing.GetSceneResourcesResponse;
       }
       const batch = reply.batch
         ? supplyEngineResources(
@@ -272,7 +278,7 @@ export async function sceneStreamCommand(
             (key) => getFontBytes(key, ctx.connectionId),
           )
         : new Uint8Array();
-      return { batchB64: base64(batch) } satisfies Protocol.Kitesurf.GetSceneResourcesResponse;
+      return { batchB64: base64(batch) } satisfies Protocol.Parawing.GetSceneResourcesResponse;
     } finally {
       active.needInFlight--;
     }
@@ -327,14 +333,32 @@ export async function sceneStreamCommand(
   }
   const ownerSessionId = req.sessionId;
   const send = (bytes: Uint8Array) => {
+    if (
+      Boolean(target.sealedOrigin) ||
+      ctx.browser.controllerLeases?.isAgentObservationPaused(asTargetId(target.targetId)) === true
+    ) {
+      return;
+    }
     ctx.emit({
-      method: "Kitesurf.sceneFrame",
+      method: "Parawing.sceneFrame",
       params: { data: base64(bytes) },
       sessionId: ownerSessionId,
     });
   };
   const loop = runSceneLoop(
     async (args) => {
+      if (
+        Boolean(target.sealedOrigin) ||
+        ctx.browser.controllerLeases?.isAgentObservationPaused(asTargetId(target.targetId)) === true
+      ) {
+        return {
+          unchanged: true,
+          idle: true,
+          seq: 0,
+          scene: new Uint8Array(0),
+          resourceBatch: null,
+        };
+      }
       const generation = target.navigateGeneration;
       const ps = target.pageScript;
       if (!ps) throw new Error("page not ready");
@@ -388,7 +412,7 @@ export async function sceneStreamCommand(
       fps: fps ?? DEFAULT_SCENE_STREAM_FPS,
       text,
       allowPartial: allowPartial !== false,
-      now: makeWallClock(ctx.env),
+      now: () => ctx.host.clock.now(),
       // Child isolates cannot currently wake the parent when their own pixels change.
       canIdle: () => ![...target.frames.values()].some((frame) => frame.pageScript),
     },
@@ -398,6 +422,6 @@ export async function sceneStreamCommand(
     if (byTarget.get(target.targetId) === stream) byTarget.delete(target.targetId);
   });
   stream.done = loop;
-  ctx.ctx.waitUntil(loop);
+  ctx.host.tasks.run(loop);
   return { heartbeatMs: SCENE_HEARTBEAT_MS };
 }

@@ -49,7 +49,7 @@ export async function connectEngine(
 }
 
 export async function targetIdForSession(session: CDPSession): Promise<Protocol.Target.TargetID> {
-  // Kitesurf resolves Target.getTargetInfo without an ID to the browser even on a page session.
+  // Parawing resolves Target.getTargetInfo without an ID to the browser even on a page session.
   if (!(session instanceof CdpCDPSession)) {
     throw new TypeError("Expected a CDP session created by the engine harness");
   }

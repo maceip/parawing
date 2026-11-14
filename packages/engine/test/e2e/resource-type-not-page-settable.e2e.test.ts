@@ -16,7 +16,7 @@ async function acceptFor(page: Page, claim: string | null): Promise<string> {
     claim === null
       ? "{}"
       : JSON.stringify({
-          "x-kitesurf-resource-type": claim,
+          "x-parawing-resource-type": claim,
         });
   const raw: unknown = await page.evaluate(`
     (async () => {
@@ -44,7 +44,7 @@ test("a Proxy init cannot discover and forge trusted metadata", async ({ page })
   await page.goto(PAGE, { waitUntil: "domcontentloaded" });
   const raw: unknown = await page.evaluate(`(async () => {
     const init = new Proxy({
-      headers: { "x-kitesurf-allow-cross-origin": "1" },
+      headers: { "x-parawing-allow-cross-origin": "1" },
     }, {
       get(target, key, receiver) {
         // A module-private Symbol is still disclosed to a Proxy trap.
@@ -59,7 +59,7 @@ test("a Proxy init cannot discover and forge trusted metadata", async ({ page })
     try {
       const r = await fetch(${JSON.stringify(SECRET)}, init);
       const body = await r.text();
-      return body.includes("kitesurf-cross-origin-secret")
+      return body.includes("parawing-cross-origin-secret")
         ? "READABLE"
         : "opaque";
     } catch (e) {
@@ -81,12 +81,12 @@ test("patched WeakMap methods cannot forge trusted metadata", async ({ page }) =
     const patchIsLive = control.get(controlKey).resourceType === "Stylesheet";
     try {
       const r = await fetch(${JSON.stringify(SECRET)}, {
-        headers: { "x-kitesurf-allow-cross-origin": "1" },
+        headers: { "x-parawing-allow-cross-origin": "1" },
       });
       const body = await r.text();
       return {
         patchIsLive,
-        result: body.includes("kitesurf-cross-origin-secret")
+        result: body.includes("parawing-cross-origin-secret")
           ? "READABLE"
           : "opaque",
       };
@@ -114,12 +114,12 @@ test("patched Function.call cannot forge trusted metadata", async ({ page }) => 
     WeakMap.prototype.get.call(new WeakMap(), {});
     try {
       const r = await fetch(${JSON.stringify(SECRET)}, {
-        headers: { "x-kitesurf-allow-cross-origin": "1" },
+        headers: { "x-parawing-allow-cross-origin": "1" },
       });
       const body = await r.text();
       return {
         patchIsLive,
-        result: body.includes("kitesurf-cross-origin-secret")
+        result: body.includes("parawing-cross-origin-secret")
           ? "READABLE"
           : "opaque",
       };
@@ -168,7 +168,7 @@ test("Object.prototype getters cannot exfiltrate a trusted init", async ({ page 
       return {
         patchIsLive,
         captured: true,
-        result: body.includes("kitesurf-cross-origin-secret")
+        result: body.includes("parawing-cross-origin-secret")
           ? "READABLE"
           : "opaque",
       };
@@ -193,7 +193,7 @@ test("patched Function.apply cannot intercept a trusted init", async ({ page }) 
       patchIsLive = true;
       const init = args && args[1];
       if (init && init.headers &&
-          init.headers["x-kitesurf-allow-cross-origin"] === "1") {
+          init.headers["x-parawing-allow-cross-origin"] === "1") {
         captured = init;
       }
       return Reflect.apply(realApply, this, [receiver, args]);
@@ -221,7 +221,7 @@ test("patched Function.apply cannot intercept a trusted init", async ({ page }) 
       return {
         patchIsLive,
         captured: true,
-        result: body.includes("kitesurf-cross-origin-secret")
+        result: body.includes("parawing-cross-origin-secret")
           ? "READABLE"
           : "opaque",
       };
@@ -245,7 +245,7 @@ type CustodyProbe = { live: boolean; captured: boolean; result: string; style: s
 const FETCH_ACTION = `
         try {
           const r = await fetch(${JSON.stringify(SECRET)});
-          out.result = (await r.text()).includes("kitesurf-cross-origin-secret")
+          out.result = (await r.text()).includes("parawing-cross-origin-secret")
             ? "READABLE"
             : "opaque";
         } catch (e) {
@@ -280,7 +280,7 @@ const POISON_REQUEST = `
       Request = function (input, init) {
         live = true;
         const h = init && init.headers;
-        if (h && h.get("x-kitesurf-page-origin") !== null) forge(h);
+        if (h && h.get("x-parawing-page-origin") !== null) forge(h);
         return Reflect.construct(real, [input, init]);
       };
       control = () => new Request("https://ks.invalid/");
@@ -291,7 +291,7 @@ const POISON_REQUEST_HEADERS = `
       Object.defineProperty(proto, "headers", { configurable: true, enumerable: desc.enumerable, get() {
         const h = desc.get.call(this);
         live = true;
-        if (h.get("x-kitesurf-page-origin") !== null) forge(h);
+        if (h.get("x-parawing-page-origin") !== null) forge(h);
         return h;
       } });
       control = () => new Request("https://ks.invalid/").headers;
@@ -327,8 +327,8 @@ test("page intrinsics cannot take custody of the transport request or response",
       let live = false, captured = false, control = () => {}, restore = () => {};
       const forge = (h) => {
         captured = true;
-        h.set("x-kitesurf-resource-type", "Stylesheet");
-        h.set("x-kitesurf-allow-cross-origin", "1");
+        h.set("x-parawing-resource-type", "Stylesheet");
+        h.set("x-parawing-allow-cross-origin", "1");
       };
       const out = { live: false, captured: false, result: "", style: "" };
       ${poison}

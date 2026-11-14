@@ -11,8 +11,8 @@ import {
   checkScriptResponse,
   type ModuleType,
   type ScriptGateContext,
-} from "@kitesurf/script-gate";
-import { KITESURF_NOSNIFF_HEADER } from "@kitesurf/script-gate/gateway-headers";
+} from "@parawing/script-gate";
+import { PARAWING_NOSNIFF_HEADER } from "@parawing/script-gate/gateway-headers";
 import type { ParentScriptDescriptor, ScannedModulePreload } from "../wasm.ts";
 import type { SandboxOutboundOverride } from "./outbound.ts";
 import { scriptCredentialsMode } from "./cors.ts";
@@ -29,10 +29,10 @@ function isPageModuleUrl(url: string): boolean {
 
 function inlineModuleUrl(pageUrl: string, index: number): string {
   try {
-    const url = new URL(`__kitesurf_inline_${index}.js`, pageUrl).toString();
+    const url = new URL(`__parawing_inline_${index}.js`, pageUrl).toString();
     if (isPageModuleUrl(url)) return url;
   } catch {}
-  return `https://kitesurf-inline.invalid/${index}.js`;
+  return `https://parawing-inline.invalid/${index}.js`;
 }
 
 function pageOriginFromUrl(pageUrl: string): string {
@@ -134,7 +134,7 @@ function degradeImportMap(budget: ImportMapBudget, limit: string): void {
   if (budget.degraded) return;
   budget.degraded = true;
   console.warn(
-    `[kitesurf-walk] import map ${limit} budget exceeded; ` +
+    `[parawing-walk] import map ${limit} budget exceeded; ` +
       "imports that need the map fail closed for the rest of the document",
   );
 }
@@ -1016,7 +1016,7 @@ export async function walkModuleGraph({
       if (importMapBudget.records >= MAX_RECORDED_RESOLUTIONS) {
         recordsExhausted = true;
         console.warn(
-          "[kitesurf-walk] import map recorded resolution budget exceeded; " +
+          "[parawing-walk] import map recorded resolution budget exceeded; " +
             "later import maps are ignored for the rest of the document",
         );
       } else {
@@ -1056,7 +1056,7 @@ export async function walkModuleGraph({
       // loads; the counts it consumed are released for the document's other maps.
       importMapBudget.entries = entriesBefore;
       importMapBudget.scopes = scopesBefore;
-      console.warn(`[kitesurf-walk] ignoring import map: ${err.message}`);
+      console.warn(`[parawing-walk] ignoring import map: ${err.message}`);
       continue;
     }
     if (parsed) documentOrder.push({ index: m.scriptDomIndex, kind: "map", map: parsed });
@@ -1193,7 +1193,7 @@ export async function walkModuleGraph({
         failed.set(
           resolved,
           "wasm modules in the ES-module graph are not supported " +
-            "(kitesurf bakes page wasm for the WebAssembly.* APIs, " +
+            "(parawing bakes page wasm for the WebAssembly.* APIs, " +
             "not ESM-integration)",
         );
         continue;
@@ -1324,7 +1324,7 @@ export async function walkModuleGraph({
         runtimeInserted: viaTrustedImporter.has(url),
         module: true,
       });
-      if (pre.reportOnly) console.warn(`[kitesurf-csp] ${pre.reportOnly}`);
+      if (pre.reportOnly) console.warn(`[parawing-csp] ${pre.reportOnly}`);
       if (!pre.allowed) {
         return { ok: false, error: pre.message ?? `module blocked: ${url}` };
       }
@@ -1334,14 +1334,14 @@ export async function walkModuleGraph({
     const timer = setTimeout(() => ctrl.abort(), FETCH_TIMEOUT_MS);
     try {
       const headers: Record<string, string> = {
-        "x-kitesurf-resource-type": "Script",
-        "x-kitesurf-script-cors": "cors",
-        "x-kitesurf-credentials": credentialsByUrl.get(url) ?? "same-origin",
-        "x-kitesurf-initiator": "module-graph",
-        "x-kitesurf-page-origin": pageOrigin,
+        "x-parawing-resource-type": "Script",
+        "x-parawing-script-cors": "cors",
+        "x-parawing-credentials": credentialsByUrl.get(url) ?? "same-origin",
+        "x-parawing-initiator": "module-graph",
+        "x-parawing-page-origin": pageOrigin,
       };
-      if (connectionId) headers["x-kitesurf-connection-id"] = connectionId;
-      if (mainFrameId) headers["x-kitesurf-frame-id"] = mainFrameId;
+      if (connectionId) headers["x-parawing-connection-id"] = connectionId;
+      if (mainFrameId) headers["x-parawing-frame-id"] = mainFrameId;
       if (pageOrigin) headers["origin"] = pageOrigin;
       const walk = await walkRedirects({
         url: fetchUrl,
@@ -1371,7 +1371,7 @@ export async function walkModuleGraph({
         return { ok: false, error: `module fetch too many redirects for ${url}` };
       }
       const res = walk.response;
-      const blocked = res.headers.get("x-kitesurf-blocked");
+      const blocked = res.headers.get("x-parawing-blocked");
       if (res.status === 403 && blocked) {
         await res.body?.cancel().catch(() => {});
         return {
@@ -1406,7 +1406,7 @@ export async function walkModuleGraph({
         { url, integrity, module: true },
         {
           contentType: res.headers.get("content-type"),
-          contentTypeOptions: res.headers.get(KITESURF_NOSNIFF_HEADER),
+          contentTypeOptions: res.headers.get(PARAWING_NOSNIFF_HEADER),
           bytes,
           opaque: false,
         },
@@ -1529,7 +1529,7 @@ export async function walkModuleGraph({
       }
       if (isAssetExtension(url)) {
         // Not the url: a "*/" in its query would end the comment.
-        modules.set(url, "/* kitesurf: asset-import side-effect stub */\nexport {};\n");
+        modules.set(url, "/* parawing: asset-import side-effect stub */\nexport {};\n");
         continue;
       }
       keep.push(item);
@@ -1711,7 +1711,7 @@ export async function walkModuleGraph({
       }
       if (bakedChunks > 0) {
         console.log(
-          `[kitesurf-walk] webpack chunk crawl: ${bakedChunks} chunk(s) baked from ${composeBase}`,
+          `[parawing-walk] webpack chunk crawl: ${bakedChunks} chunk(s) baked from ${composeBase}`,
         );
       }
     }
@@ -2020,7 +2020,7 @@ export async function walkModuleGraph({
       );
     }
     parts.push(`${Date.now() - walkStartedAt}ms`);
-    console.log(`[kitesurf-walk] ${parts.join(", ")}`);
+    console.log(`[parawing-walk] ${parts.join(", ")}`);
   }
 
   const additionalModules: Record<string, BakedModule> = {};

@@ -16,7 +16,7 @@ import { setContentAttrHydrator } from "../events/dispatch.js";
 
 const idlEventHandlerNames = ALL_EVENT_HANDLERS;
 
-const idlHandlerSym = Symbol.for("kitesurf.idlEventHandlers");
+const idlHandlerSym = Symbol.for("parawing.idlEventHandlers");
 
 type HandlerWrapper = (this: HandlerSlotOwner, event: unknown) => unknown;
 type HandlerSlot = { fn: Function; wrapper: HandlerWrapper };

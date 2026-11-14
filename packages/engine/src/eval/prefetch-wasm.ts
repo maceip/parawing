@@ -149,7 +149,7 @@ export function scanForWasmUrls(sources: Array<{ body: string; baseUrl: string }
       if (!literal || seenLiterals.has(literal)) continue;
       if (resolutions >= MAX_WASM_LITERAL_RESOLUTIONS) {
         console.warn(
-          `[kitesurf-wasm] MAX_WASM_LITERAL_RESOLUTIONS=${MAX_WASM_LITERAL_RESOLUTIONS} reached; ` +
+          `[parawing-wasm] MAX_WASM_LITERAL_RESOLUTIONS=${MAX_WASM_LITERAL_RESOLUTIONS} reached; ` +
             `later .wasm literals not prefetched`,
         );
         return found;
@@ -226,12 +226,12 @@ export async function prefetchWasmModules({
         deadlineCtrl.signal.addEventListener("abort", onDeadline);
         try {
           const headers: Record<string, string> = {
-            "x-kitesurf-resource-type": "Fetch",
-            "x-kitesurf-initiator": "wasm-prefetch",
-            "x-kitesurf-page-origin": pageOrigin,
+            "x-parawing-resource-type": "Fetch",
+            "x-parawing-initiator": "wasm-prefetch",
+            "x-parawing-page-origin": pageOrigin,
           };
-          if (connectionId) headers["x-kitesurf-connection-id"] = connectionId;
-          if (mainFrameId) headers["x-kitesurf-frame-id"] = mainFrameId;
+          if (connectionId) headers["x-parawing-connection-id"] = connectionId;
+          if (mainFrameId) headers["x-parawing-frame-id"] = mainFrameId;
           let cross = false;
           try {
             cross = new URL(wasmUrl).origin !== new URL(pageUrl).origin;
@@ -249,7 +249,7 @@ export async function prefetchWasmModules({
             return;
           }
           const res = walk.response;
-          const blockedReason = res.headers.get("x-kitesurf-blocked");
+          const blockedReason = res.headers.get("x-parawing-blocked");
           if (res.status === 403 && blockedReason) {
             const denial = await readCappedText(res, MAX_BLOCKED_MESSAGE_BYTES, connectionId);
             bake.errors[wasmUrl] = denial.ok ? denial.text : ".wasm fetch blocked";

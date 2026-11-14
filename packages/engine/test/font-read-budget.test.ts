@@ -3,7 +3,8 @@
 // https://opensource.org/licenses/Apache-2.0
 
 import { expect, it } from "vitest";
-import { SandboxOutbound, type SandboxOutboundEnv } from "../src/eval/outbound.ts";
+import { SandboxOutbound } from "../src/eval/outbound.ts";
+import { createMemoryHostCapabilities } from "../src/host-capabilities.ts";
 import { inFlightReadBytes, readCappedBudgeted } from "../src/read-capped.ts";
 
 it("releases the charge of a capped read whose replay is never read", async () => {
@@ -27,14 +28,14 @@ it("charges the shared budget while a font body is in flight", async () => {
     },
   });
   const pending = SandboxOutbound.handle(
-    {} as SandboxOutboundEnv,
+    createMemoryHostCapabilities(),
     {
       connectionId: "font-read-budget",
       pageOrigin: "https://page.test",
       externalOutbound: { fetch: async () => new Response(body) },
     },
     new Request("https://page.test/f.woff2", {
-      headers: { "x-kitesurf-resource-type": "Font" },
+      headers: { "x-parawing-resource-type": "Font" },
     }),
   );
   await expect.poll(() => inFlightReadBytes()).toBe(256);

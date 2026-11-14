@@ -343,7 +343,7 @@ describe("destroyOopifTarget drops Network state", () => {
     tracker.setEnabled("sess-b", true);
 
     const sessions = new Set(["sess-a", "sess-b"]);
-    // oxlint-disable-next-line kitesurf/no-chained-type-assertions -- partial DispatchCtx fixture.
+    // oxlint-disable-next-line parawing/no-chained-type-assertions -- partial DispatchCtx fixture.
     const ctx = {
       emit: (ev: { method: string; sessionId?: string }) => seen.push(ev),
       browser: { networkEvents: tracker },

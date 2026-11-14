@@ -8,12 +8,14 @@ import {
   ksGlobal,
   ksGlobalByKey,
   WINDOW_KEY,
+  DOCUMENT_ID,
   windowObj,
   windowProxy,
   documentImpl,
   dom,
   nodeFor,
   listenerRegistry,
+  onListenerMutation,
 } from "../state.js";
 import type { ListenerEntry } from "../state.js";
 import type * as Idl from "../idl/types.generated.js";
@@ -136,6 +138,24 @@ export function listenerOptionsHadPassive(options: unknown): boolean {
   );
 }
 
+function notifyListenerMutation(
+  key: EventTargetKey | undefined,
+  type: string,
+  passive: boolean,
+  added: boolean,
+): void {
+  if (!onListenerMutation) return;
+  if (type !== "wheel" && type !== "mousewheel" && type !== "touchstart" && type !== "touchmove") {
+    return;
+  }
+  const targetNodeId =
+    typeof key === "number" ? key : key === WINDOW_KEY ? (documentImpl?._id ?? DOCUMENT_ID) : null;
+  if (targetNodeId === null || targetNodeId < 0) return;
+  try {
+    onListenerMutation(targetNodeId, type, passive, added);
+  } catch {}
+}
+
 export function addListener(
   key: EventTargetKey,
   type: unknown,
@@ -156,6 +176,7 @@ export function addListener(
   }
   list.push({ listener, capture: opts.capture, once: opts.once, passive });
   noteListenerType(type);
+  notifyListenerMutation(key, type, passive, true);
 }
 
 export function defaultPassiveFor(key: EventTargetKey, type: string): boolean {
@@ -197,6 +218,7 @@ export function removeListener(
     if (e.listener === listener && e.capture === capture) {
       list.splice(i, 1);
       noteListenerRemoved(type);
+      notifyListenerMutation(key, type, !!e.passive, false);
       return;
     }
   }
@@ -559,7 +581,7 @@ function dispatchOnKeyInnerUnsafe(
     if (!list || list.length === 0) continue;
     if (!applyRetargeting(event, entry, targetKey, origRelatedId)) continue;
     setEventCurrentTarget(event, targetForKey(entry.key));
-    invokeListeners(list, event, true);
+    invokeListeners(list, event, true, entry.key);
   }
 
   if (!state.stopPropagation) {
@@ -567,9 +589,9 @@ function dispatchOnKeyInnerUnsafe(
     const list = listenersFor(targetKey, metadata.type, false);
     if (list && list.length > 0 && applyRetargeting(event, path[0], targetKey, origRelatedId)) {
       setEventCurrentTarget(event, targetForKey(targetKey));
-      invokeListeners(list, event, true);
+      invokeListeners(list, event, true, targetKey);
       if (!state.stopImmediatePropagation && !state.stopPropagation) {
-        invokeListeners(list, event, false);
+        invokeListeners(list, event, false, targetKey);
       }
     }
   }
@@ -583,7 +605,7 @@ function dispatchOnKeyInnerUnsafe(
       if (!list || list.length === 0) continue;
       if (!applyRetargeting(event, entry, targetKey, origRelatedId)) continue;
       setEventCurrentTarget(event, targetForKey(entry.key));
-      invokeListeners(list, event, false);
+      invokeListeners(list, event, false, entry.key);
     }
   }
 
@@ -607,6 +629,7 @@ export function invokeListeners(
   list: ListenerEntry[],
   event: KsEvent,
   captureOnly: boolean | null,
+  targetKey?: EventTargetKey,
 ): void {
   // Listener changes do not alter this pass, but removed entries are skipped.
   const snapshot = list.slice();
@@ -621,6 +644,7 @@ export function invokeListeners(
       if (idx >= 0) {
         list.splice(idx, 1);
         noteListenerRemoved(event.type);
+        notifyListenerMutation(targetKey, event.type, !!entry.passive, false);
       }
     }
     let thrown: unknown = null;
@@ -637,7 +661,7 @@ export function invokeListeners(
       reportException(thrown);
       try {
         console.error(
-          "[kitesurf] event listener for",
+          "[parawing] event listener for",
           event.type,
           "threw:",
           errorStackOrMessage(thrown),

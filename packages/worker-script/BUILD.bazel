@@ -10,8 +10,8 @@ js_library(
     name = "srcs",
     srcs = ["package.json", "tsconfig.json"] + glob(["src/**"]),
     deps = [
-        ":node_modules/@kitesurf/jsrpc-types",
-        ":node_modules/@kitesurf/page-script",
+        ":node_modules/@parawing/jsrpc-types",
+        ":node_modules/@parawing/page-script",
     ],
     visibility = ["//packages/engine:__pkg__"],
 )

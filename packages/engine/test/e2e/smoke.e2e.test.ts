@@ -9,7 +9,7 @@ test("navigate + evaluate (boa eval path in-pool)", async ({ page }) => {
     waitUntil: "domcontentloaded",
   });
   const title = await page.evaluate(() => document.title);
-  expect(String(title).toLowerCase()).toContain("kitesurf");
+  expect(String(title).toLowerCase()).toContain("parawing");
 }, 120_000);
 
 test("navigate a self-served fixture (outboundService loopback)", async ({ page }) => {
@@ -17,5 +17,5 @@ test("navigate a self-served fixture (outboundService loopback)", async ({ page 
     waitUntil: "domcontentloaded",
   });
   const title = await page.title();
-  expect(title.toLowerCase()).toContain("kitesurf");
+  expect(title.toLowerCase()).toContain("parawing");
 }, 120_000);

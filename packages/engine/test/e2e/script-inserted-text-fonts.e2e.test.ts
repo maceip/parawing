@@ -9,7 +9,7 @@ import { setContent } from "./set-content";
 const isRecord = (v: unknown): v is Record<string, unknown> => typeof v === "object" && v !== null;
 
 async function families(cdp: CDPSession): Promise<string[]> {
-  const dump = await cdp.send("Kitesurf.getFontFaces");
+  const dump = await cdp.send("Parawing.getFontFaces");
   const targets = "byTarget" in dump ? Object.values(dump.byTarget) : [];
   return targets.flatMap((entry) => {
     if (typeof entry?.json !== "string") return [];

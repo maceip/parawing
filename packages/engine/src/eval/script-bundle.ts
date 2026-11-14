@@ -10,7 +10,7 @@ import {
   hasUseStrictDirective,
   predeclareVarsHead,
   scriptSourceDigest,
-} from "@kitesurf/script-gate";
+} from "@parawing/script-gate";
 import { type BakedModule, FALLBACK_MODULE_RESOLVER_SOURCE } from "./walk-module-graph.ts";
 
 const INLINE_SCRIPT_BODY_KEY_PREFIX_CHARS = 120;
@@ -249,7 +249,7 @@ export function buildScriptBundle(
   let regularIdx = 0;
   if (cdpDebug) {
     console.log(
-      `[kitesurf-nav] bucketize: regularInline=${regularInline.length} ` +
+      `[parawing-nav] bucketize: regularInline=${regularInline.length} ` +
         `regularDeferred=${regularDeferred.length} ` +
         `async=${asyncBucket.length} modules=${moduleBucket.length}`,
     );
@@ -288,7 +288,7 @@ export function buildScriptBundle(
     );
     if (cdpDebug) {
       console.log(
-        `[kitesurf-nav] segment regularInline#${regularIdx} ` +
+        `[parawing-nav] segment regularInline#${regularIdx} ` +
           `src=${JSON.stringify(d.src)} added=${segment.source.length}chars`,
       );
     }
@@ -306,7 +306,7 @@ export function buildScriptBundle(
     );
     if (cdpDebug) {
       console.log(
-        `[kitesurf-nav] segment regularDeferred#${regularIdx} ` +
+        `[parawing-nav] segment regularDeferred#${regularIdx} ` +
           `src=${JSON.stringify(d.src)} added=${segment.source.length}chars`,
       );
     }
@@ -331,14 +331,14 @@ export function buildScriptBundle(
   for (const [i, d] of preNav.entries()) preNavBody += buildClassicSegment(d, i).source;
   for (const [mi, d] of moduleBucket.entries()) {
     if (d.blocked) {
-      const errorUrl = `https://kitesurf-error.invalid/module-${mi}.js`;
+      const errorUrl = `https://parawing-error.invalid/module-${mi}.js`;
       additionalModules[errorUrl] =
         `console.error(${JSON.stringify(d.blocked.message)});\nexport {};\n`;
       moduleScriptUrls.push(errorUrl);
       continue;
     }
     if (d.prefetchError) {
-      const errorUrl = `https://kitesurf-error.invalid/module-${mi}.js`;
+      const errorUrl = `https://parawing-error.invalid/module-${mi}.js`;
       additionalModules[errorUrl] = `console.error(${JSON.stringify(
         `[${d.src || "inline-module"}] module prefetch failed: ${d.prefetchError}`,
       )});\nexport {};\n`;
@@ -350,8 +350,8 @@ export function buildScriptBundle(
     let url = d.resolvedSrc ?? null;
     if (!url) {
       url = d.src
-        ? `https://kitesurf-fallback.invalid/external-${mi}.js`
-        : `https://kitesurf-fallback.invalid/inline-${mi}.js`;
+        ? `https://parawing-fallback.invalid/external-${mi}.js`
+        : `https://parawing-fallback.invalid/inline-${mi}.js`;
     }
     if (!walkerSupplied || additionalModules[url] === undefined) {
       additionalModules[url] = src;
@@ -389,7 +389,7 @@ ${stateLocalDecl}${umdShadow}var __ks_diag = __ks_state_local.bundleDiag = {
   entryDom: null,
   exitDom: null,
 };
-console.log('[kitesurf-debug] bundle body entered, bodyChars=' + ${JSON.stringify(body.length)});
+console.log('[parawing-debug] bundle body entered, bodyChars=' + ${JSON.stringify(body.length)});
 try {
   var __ks_doc = (typeof document !== 'undefined') ? document : null;
   var __ks_root = __ks_doc && __ks_doc.getElementById ? __ks_doc.getElementById('root') : null;
@@ -403,13 +403,13 @@ try {
     rootChildCount: __ks_root && __ks_root.children ? __ks_root.children.length : -1
   };
   __ks_diag.entryDom = __ks_entry;
-  console.log('[kitesurf-debug] entryDom', JSON.stringify(__ks_entry));
+  console.log('[parawing-debug] entryDom', JSON.stringify(__ks_entry));
 } catch (e) {
   __ks_diag.entryDom = { error: String(e && e.message || e) };
-  console.log('[kitesurf-debug] entryDom snapshot threw:', String(e && e.message || e));
+  console.log('[parawing-debug] entryDom snapshot threw:', String(e && e.message || e));
 }
 ${body}
-console.log('[kitesurf-debug] bundle body completed (last user statement returned)');
+console.log('[parawing-debug] bundle body completed (last user statement returned)');
 try {
   var __ks_doc2 = (typeof document !== 'undefined') ? document : null;
   var __ks_root2 = __ks_doc2 && __ks_doc2.getElementById ? __ks_doc2.getElementById('root') : null;
@@ -420,10 +420,10 @@ try {
     rootTextLen: __ks_root2 && typeof __ks_root2.textContent === 'string' ? __ks_root2.textContent.length : -1
   };
   __ks_diag.exitDom = __ks_exit;
-  console.log('[kitesurf-debug] exitDom', JSON.stringify(__ks_exit));
+  console.log('[parawing-debug] exitDom', JSON.stringify(__ks_exit));
 } catch (e) {
   __ks_diag.exitDom = { error: String(e && e.message || e) };
-  console.log('[kitesurf-debug] exitDom snapshot threw:', String(e && e.message || e));
+  console.log('[parawing-debug] exitDom snapshot threw:', String(e && e.message || e));
 }
 __ks_diag.exited = true;
 };

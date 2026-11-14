@@ -8,13 +8,14 @@ import { pumpBackgroundEvents } from "../src/cdp/page.ts";
 import type { TargetState } from "../src/cdp/types.ts";
 import { createCookieJar } from "../src/cookies.ts";
 import type { PageScriptStub } from "../src/eval/page-script.ts";
+import { createMemoryHostCapabilities } from "../src/host-capabilities.ts";
 
 const FIRST = "https://first.test/";
 const NEXT = "https://next.test/";
 
 function setup(cookieWrites: string[]) {
   const background: Promise<unknown>[] = [];
-  // oxlint-disable-next-line kitesurf/no-chained-type-assertions -- only the drain method is stubbed.
+  // oxlint-disable-next-line parawing/no-chained-type-assertions -- only the drain method is stubbed.
   const stub = {
     drainConsole: async () => ({ console: [], cookieWrites }),
   } as unknown as PageScriptStub;
@@ -29,10 +30,16 @@ function setup(cookieWrites: string[]) {
     domEnabledSessions: new Set(["S"]),
   } as TargetState;
   const cookies = createCookieJar();
-  // oxlint-disable-next-line kitesurf/no-chained-type-assertions -- only the fields the drain reads are set.
+  // oxlint-disable-next-line parawing/no-chained-type-assertions -- only the fields the drain reads are set.
   const ctx = {
     browser: { wsClosing: false, cookies, contexts: new Map() },
-    ctx: { waitUntil: (p: Promise<unknown>) => background.push(p) },
+    host: createMemoryHostCapabilities({
+      tasks: {
+        run: (p) => {
+          background.push(p);
+        },
+      },
+    }),
     emit: () => {},
   } as unknown as DispatchCtx;
   const pump = async () => {

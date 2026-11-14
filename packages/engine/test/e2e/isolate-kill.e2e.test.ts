@@ -8,7 +8,7 @@ import type { Page } from "@cloudflare/puppeteer";
 
 async function isolatesKilled(page: Page): Promise<number> {
   const session = await page.createCDPSession();
-  const stats = await session.send("Kitesurf.getMemoryStats", {});
+  const stats = await session.send("Parawing.getMemoryStats", {});
   await session.detach().catch(() => {});
   if (typeof stats.isolatesKilled !== "number") {
     throw new Error(`no isolatesKilled in ${JSON.stringify(stats).slice(0, 200)}`);

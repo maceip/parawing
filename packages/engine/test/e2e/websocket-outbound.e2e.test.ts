@@ -27,7 +27,7 @@ function openSocket(page: Page, path: string): Promise<string> {
 test("a websocket resource-type filter blocks the page's sockets", async ({ page, cdpSession }) => {
   await page.goto(PAGE, { waitUntil: "load" });
   expect(await openSocket(page, "ws-echo")).toBe("echo:ping");
-  await cdpSession.send("Kitesurf.setOutboundFilters", { rejectResourceTypes: ["websocket"] });
+  await cdpSession.send("Parawing.setOutboundFilters", { rejectResourceTypes: ["websocket"] });
   expect(await openSocket(page, "ws-echo")).toBe("error");
 }, 30_000);
 
@@ -45,7 +45,7 @@ test("a websocket handshake always carries the document's origin and a user agen
     const platformFetch = Object.getPrototypeOf(globalThis).fetch;
     if (typeof platformFetch !== "function") return "no platform fetch";
     const resp = await platformFetch.call(globalThis, "https://ks.invalid/__fixtures/ws-handshake", {
-      headers: { Upgrade: "websocket", "x-kitesurf-page-origin": "null" },
+      headers: { Upgrade: "websocket", "x-parawing-page-origin": "null" },
     });
     const ws = resp.webSocket;
     if (!ws) return "no socket: " + resp.status;

@@ -43,7 +43,7 @@ export function releaseFrameDom(frame: FrameState): void {
     frame.domBudget.bytes -= charged;
     frame.domBytes = undefined;
   }
-  freeDetachedDom(dom, "[kitesurf-iframe]", {
+  freeDetachedDom(dom, "[parawing-iframe]", {
     event: "frame_dom_free_failed",
     frameId: frame.frameId,
     url: frame.url,
@@ -57,7 +57,7 @@ export function releaseTargetDom(target: TargetState): void {
   target.domEpoch += 1;
   if (!dom) return;
   target.dom = null;
-  freeDetachedDom(dom, "[kitesurf-target]", {
+  freeDetachedDom(dom, "[parawing-target]", {
     event: "target_dom_free_failed",
     targetId: target.targetId,
     url: target.url,
@@ -91,14 +91,14 @@ export function ensureTargetDom(target: TargetState): DomHandle | null {
   try {
     const dom = domFactory(
       target.html,
-      target.url && /^https?:/.test(target.url) ? target.url : "https://kitesurf.local/",
+      target.url && /^https?:/.test(target.url) ? target.url : "https://parawing.local/",
     );
     stripNoscript(dom);
     target.dom = dom;
     return dom;
   } catch (err) {
     console.warn(
-      "[kitesurf-target] dom_rehydrate_failed " +
+      "[parawing-target] dom_rehydrate_failed " +
         JSON.stringify({
           targetId: target.targetId,
           url: target.url,

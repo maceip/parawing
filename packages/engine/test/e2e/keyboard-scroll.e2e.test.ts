@@ -103,7 +103,7 @@ test("terminal link underlines preserve indented, wrapped and block link layout"
   cdpSession,
 }) => {
   await page.setViewport({ width: 400, height: 400 });
-  await cdpSession.send("Kitesurf.startSceneStream", {
+  await cdpSession.send("Parawing.startSceneStream", {
     width: 400,
     height: 400,
     fps: 1,
@@ -185,7 +185,7 @@ test("terminal link underlines preserve indented, wrapped and block link layout"
       if (id !== "about") expect(bbox(shot, 0, 28, red)).toBeNull();
     }
   } finally {
-    await cdpSession.send("Kitesurf.stopSceneStream");
+    await cdpSession.send("Parawing.stopSceneStream");
   }
 }, 120_000);
 
@@ -194,7 +194,7 @@ test("terminal focus underline reaches Wikipedia-style block labels", async ({
   cdpSession,
 }) => {
   await page.setViewport({ width: 400, height: 300 });
-  await cdpSession.send("Kitesurf.startSceneStream", {
+  await cdpSession.send("Parawing.startSceneStream", {
     width: 400,
     height: 300,
     fps: 1,
@@ -245,7 +245,7 @@ test("terminal focus underline reaches Wikipedia-style block labels", async ({
       }
     }
   } finally {
-    await cdpSession.send("Kitesurf.stopSceneStream");
+    await cdpSession.send("Parawing.stopSceneStream");
   }
 }, 120_000);
 
@@ -254,7 +254,7 @@ test("terminal focus underlines cross Wikipedia footer and flex/grid link contai
   cdpSession,
 }) => {
   await page.setViewport({ width: 420, height: 500 });
-  await cdpSession.send("Kitesurf.startSceneStream", {
+  await cdpSession.send("Parawing.startSceneStream", {
     width: 420,
     height: 500,
     fps: 1,
@@ -342,7 +342,7 @@ test("terminal focus underlines cross Wikipedia footer and flex/grid link contai
       }
     }
   } finally {
-    await cdpSession.send("Kitesurf.stopSceneStream");
+    await cdpSession.send("Parawing.stopSceneStream");
   }
 }, 120_000);
 
@@ -414,7 +414,7 @@ test("terminal scene stream keeps Vim scrolling and paints focused inline links"
   const session = await page.createCDPSession();
   try {
     await page.setViewport({ width: 320, height: 170 });
-    await session.send("Kitesurf.startSceneStream", {
+    await session.send("Parawing.startSceneStream", {
       width: 320,
       height: 240,
       fps: 1,
@@ -443,6 +443,6 @@ test("terminal scene stream keeps Vim scrolling and paints focused inline links"
     const shot = await decodePng(new Uint8Array(await page.screenshot({ type: "png" })));
     expect(bbox(shot, 0, 50, (r, g, b) => r > 190 && g < 80 && b < 80)?.w).toBeGreaterThan(20);
   } finally {
-    await session.send("Kitesurf.stopSceneStream");
+    await session.send("Parawing.stopSceneStream");
   }
 }, 120_000);

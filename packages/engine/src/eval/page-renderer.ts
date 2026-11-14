@@ -6,14 +6,15 @@
 
 import rendererGlueSource from "../../../renderer-core/pkg/renderer_core.glue.js";
 import rendererWasmModule from "../../../renderer-core/pkg/renderer_core_bg.wasm";
-import { PAGE_RENDERER_SOURCE } from "@kitesurf/page-renderer";
+import { PAGE_RENDERER_SOURCE } from "@parawing/page-renderer";
 import { loadWasmBytesFromVfs } from "./page-script.ts";
 import { traceSpan } from "../tracing.ts";
 import { localTraceParentProps } from "../tracing-local.ts";
-import { attributionTails, type AttributionTailExports } from "./attribution-tail.ts";
 import { getFontBytes, getImageBytes } from "./resource-store.ts";
 import { isIsolateGoneError } from "./limit-registry.ts";
-import type { Tracer } from "../tracing.ts";
+import type { HostCapabilities } from "../host-capabilities.ts";
+import type { HostIsolateLoader, LoadedIsolate } from "../isolate-loader.ts";
+import type { RemoteFetcher } from "@parawing/jsrpc-types/rpc";
 import type {
   PageRendererEntrypoint,
   RenderFrameOpts,
@@ -21,7 +22,7 @@ import type {
   RenderPortStub,
   RenderStage,
   RendererMemoryStats,
-} from "@kitesurf/jsrpc-types/page-renderer";
+} from "@parawing/jsrpc-types/page-renderer";
 import type { DynamicWorkerBudget, WorkerLease } from "./worker-budget.ts";
 
 export type { RenderStage };
@@ -38,23 +39,7 @@ const PDF_CALL_TIMEOUT_MS = 30_000;
 const PORT_MINT_TIMEOUT_MS = 5_000;
 const MAX_RENDER_RASTER_ATTEMPTS = 2;
 
-type CtxWithExports = ExecutionContext & {
-  exports: AttributionTailExports & {
-    DeniedOutbound(opts: Record<string, never>): Fetcher;
-    PageScriptTail(opts: {
-      props: { scriptName: string; ksErrToken?: string; sessionId?: string };
-    }): Fetcher;
-    SpanSink(opts: { props: { kind: string } }): unknown;
-  };
-};
-
-export interface RendererEnv {
-  LOADER: WorkerLoader;
-  FONT_ASSETS: Fetcher;
-  HOST_TRACER?: Tracer;
-}
-
-type RendererStub = Fetcher<PageRendererEntrypoint>;
+type RendererStub = RemoteFetcher<PageRendererEntrypoint>;
 
 class RendererTimeoutError extends Error {}
 
@@ -78,20 +63,19 @@ export function withTimeout<T>(promise: Promise<T>, ms: number, label: string): 
 }
 
 function loadRenderer(
-  env: RendererEnv,
-  ctx: ExecutionContext,
+  host: HostCapabilities,
+  isolateLoader: HostIsolateLoader,
   connectionId: string,
   attributionHeaders: Record<string, string>,
   initialRes: { width: number; height: number } | null,
-): RendererStub {
-  // SAFETY: Embedding hosts may add `AttributionTail` to this WorkerLoader context;
-  // generated ExecutionContext types include only the public engine's exports.
-  // Verified by: packages/engine/test/e2e/renderer-laziness.e2e.test.ts.
-  const contextWithExports = ctx as CtxWithExports;
+): LoadedIsolate<RendererStub> {
   const tailToken = crypto.randomUUID();
-  const stub = env.LOADER.load({
-    compatibilityDate: PAGE_RENDERER_COMPAT_DATE,
-    compatibilityFlags: ["no_nodejs_compat", "no_nodejs_compat_v2"],
+  const compat = host.config.workerCompat;
+  return isolateLoader.load<RendererStub>({
+    kind: "page-renderer",
+    entrypoint: "PageRenderer",
+    compatibilityDate: compat?.compatibilityDate ?? PAGE_RENDERER_COMPAT_DATE,
+    compatibilityFlags: compat?.compatibilityFlags ?? ["no_nodejs_compat", "no_nodejs_compat_v2"],
     mainModule: "renderer.js",
     modules: {
       "renderer.js": PAGE_RENDERER_SOURCE,
@@ -101,32 +85,22 @@ function loadRenderer(
     env: {
       KS_TAIL_TOKEN: tailToken,
       ...(initialRes ? { KS_INITIAL_RES: `${initialRes.width}x${initialRes.height}` } : {}),
-      ...(env.HOST_TRACER
-        ? {
-            KS_SPAN_SINK: contextWithExports.exports.SpanSink({
-              props: { kind: "renderer", ...localTraceParentProps() },
-            }),
-          }
-        : {}),
     },
+    ...(host.tracer ? { spanSink: { kind: "renderer", ...localTraceParentProps() } } : {}),
     // Resources arrive through engine callbacks; the renderer has no outbound network path.
-    globalOutbound: contextWithExports.exports.DeniedOutbound({}),
-    tails: [
-      contextWithExports.exports.PageScriptTail({
-        props: {
-          scriptName: `renderer-${connectionId}`,
-          ksErrToken: tailToken,
-          sessionId: connectionId,
-        },
-      }),
-      ...attributionTails(contextWithExports.exports, attributionHeaders, "kitesurf-page-renderer"),
-    ],
+    outbound: { mode: "denied" },
+    tail: {
+      scriptName: `renderer-${connectionId}`,
+      ksErrToken: tailToken,
+      sessionId: connectionId,
+    },
+    attributionHeaders,
+    attributionScriptName: "parawing-page-renderer",
     limits: {
       cpuMs: PAGE_RENDERER_CPU_TIME_MS_CAP,
       subRequests: PAGE_RENDERER_SUBREQUEST_CAP,
     },
   });
-  return stub.getEntrypoint<PageRendererEntrypoint>("PageRenderer");
 }
 
 export interface RenderPortSource {
@@ -158,10 +132,11 @@ export interface RenderPdfResult {
 }
 
 export class PageRendererManager {
-  private env: RendererEnv;
-  private ctx: ExecutionContext;
+  private host: HostCapabilities;
+  private isolateLoader: HostIsolateLoader;
   private connectionId: string;
   private attributionHeaders: Record<string, string>;
+  private loaded: LoadedIsolate<RendererStub> | null = null;
   private stub: RendererStub | null = null;
   private everLoaded = false;
   private initialRes: { width: number; height: number } | null = null;
@@ -188,15 +163,15 @@ export class PageRendererManager {
   }
 
   constructor(
-    env: RendererEnv,
-    ctx: ExecutionContext,
+    host: HostCapabilities,
+    isolateLoader: HostIsolateLoader,
     connectionId: string,
     attributionHeaders: Record<string, string> = {},
     budget: DynamicWorkerBudget | null = null,
     initialRes: { width: number; height: number } | null = null,
   ) {
-    this.env = env;
-    this.ctx = ctx;
+    this.host = host;
+    this.isolateLoader = isolateLoader;
     this.connectionId = connectionId;
     this.attributionHeaders = attributionHeaders;
     this.budget = budget;
@@ -209,21 +184,22 @@ export class PageRendererManager {
       if (this.everLoaded) this.relaunchCount += 1;
       this.everLoaded = true;
       this.lease = this.budget?.acquire("renderer") ?? null;
-      this.stub = traceSpan(this.env.HOST_TRACER, "init.renderer_spawn", () =>
+      this.loaded = traceSpan(this.host.tracer, "init.renderer_spawn", () =>
         loadRenderer(
-          this.env,
-          this.ctx,
+          this.host,
+          this.isolateLoader,
           this.connectionId,
           this.attributionHeaders,
           this.initialRes,
         ),
       );
+      this.stub = this.loaded.entrypoint;
     }
     return this.stub;
   }
 
   private traceParentId(): string | null {
-    return this.env.HOST_TRACER?.getSpanContext()?.spanId ?? null;
+    return this.host.tracer?.getSpanContext()?.spanId ?? null;
   }
 
   private fetchStoredImage(key: string): Uint8Array {
@@ -250,8 +226,8 @@ export class PageRendererManager {
     if (!path.startsWith("/fonts/") || path.includes("..")) {
       throw new Error(`fetchFontAsset: refusing path ${path}`);
     }
-    const resp = await this.env.FONT_ASSETS.fetch(
-      new Request(`https://kitesurf.invalid${path}`, { method: "GET" }),
+    const resp = await this.host.assets.fetch(
+      new Request(`https://parawing.invalid${path}`, { method: "GET" }),
     );
     if (!resp.ok) {
       throw new Error(`fetchFontAsset: HTTP ${resp.status} for ${path}`);
@@ -271,17 +247,26 @@ export class PageRendererManager {
 
   /** Releases the worker lease and requests isolate shutdown without waiting for completion. */
   dispose(reason = "renderer disposed", gone = false): void {
-    const stub = this.stub;
+    const loaded = this.loaded;
+    this.loaded = null;
     this.stub = null;
     this.lease?.release();
     this.lease = null;
+    if (!loaded) return;
     // `gone` means the isolate was evicted: a call on its entrypoint would start a fresh one only
     // for the kill to abort it.
-    if (!gone && stub && typeof stub.killIsolate === "function") {
-      try {
-        Promise.resolve(stub.killIsolate(reason)).catch(() => {});
-      } catch {}
+    if (gone) {
+      loaded[Symbol.dispose]();
+      return;
     }
+    this.host.tasks.run(
+      loaded
+        .terminate(reason)
+        .catch(() => {})
+        .finally(() => {
+          loaded[Symbol.dispose]();
+        }),
+    );
   }
 
   // Called when the connection closes: a render still queued then fails instead of loading a
@@ -492,7 +477,7 @@ export class PageRendererManager {
       .map((phase) => Number(phase.split("=")[1]?.replace("ms", "")) || 0)
       .reduce((sumMs, phaseMs) => sumMs + phaseMs, 0);
     if (totalMs > 1_000) {
-      console.warn(`[ks-rvr] ${method} phases: ${phases.join(" ")}`);
+      console.warn(`[pw-rvr] ${method} phases: ${phases.join(" ")}`);
     }
   }
 }

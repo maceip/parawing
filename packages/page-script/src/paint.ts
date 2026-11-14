@@ -77,7 +77,7 @@ export function layoutResolveStats(): {
   try {
     counts = state.dom?.resolveCounts();
   } catch (error) {
-    if (!layoutResolveStatsWarned) console.warn("[kitesurf] resolveCounts failed", error);
+    if (!layoutResolveStatsWarned) console.warn("[parawing] resolveCounts failed", error);
     layoutResolveStatsWarned = true;
     return null;
   }

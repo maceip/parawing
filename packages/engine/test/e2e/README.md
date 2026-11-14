@@ -1,6 +1,6 @@
 # e2e demo tests
 
-These drive the **real kitesurf engine** — built to a dist and booted
+These drive the **real parawing engine** — built to a dist and booted
 in-process by `@cloudflare/vitest-plugin` (miniflare) as an auxiliary worker —
 over the Chrome DevTools Protocol via **`@cloudflare/puppeteer`**. No dev
 server, no port, no network: fixtures are served by the engine itself
@@ -31,7 +31,7 @@ test("<name>", async ({ page }) => {
     waitUntil: "domcontentloaded",
   });
   const title = await page.evaluate(() => document.title);
-  expect(title).toContain("kitesurf");
+  expect(title).toContain("parawing");
 });
 ```
 
@@ -42,7 +42,7 @@ test("<name>", async ({ page }) => {
   test.
 - When the connection needs upgrade headers, a query string, another
   binding, or there must be more than one, call `browserFactory`:
-  `await browserFactory({ headers: { "x-kitesurf-skip-raster": "1" } })`.
+  `await browserFactory({ headers: { "x-parawing-skip-raster": "1" } })`.
   It disconnects every browser it opened when the test ends, so the test
   needs no `try`/`finally`.
 - Navigate self-served fixtures at `http://127.0.0.1:8787/__fixtures/*`
@@ -63,9 +63,9 @@ and list them in `packages/engine/test/fixtures-worker/src/static.ts` (served at
 ## Running
 
 ```
-pnpm --filter @kitesurf/engine test:e2e     # full suite (builds the dist)
-KS_E2E_SKIP_BUILD=1 pnpm --filter @kitesurf/engine test:e2e   # reuse dist (fast)
-pnpm --filter @kitesurf/engine exec vitest run --config vitest.e2e.config.mts \
+pnpm --filter @parawing/engine test:e2e     # full suite (builds the dist)
+KS_E2E_SKIP_BUILD=1 pnpm --filter @parawing/engine test:e2e   # reuse dist (fast)
+pnpm --filter @parawing/engine exec vitest run --config vitest.e2e.config.mts \
   test/e2e/demos/<name>.e2e.test.ts         # one file
 ```
 

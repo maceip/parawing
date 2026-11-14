@@ -28,7 +28,7 @@ const SAFELISTED_RESPONSE_HEADERS = new Set([
 
 const FORBIDDEN_RESPONSE_HEADERS = new Set(["set-cookie", "set-cookie2"]);
 
-const PLUMBING_PREFIX = "x-kitesurf-";
+const PLUMBING_PREFIX = "x-parawing-";
 
 const UA_OWNED_REQUEST_HEADERS = new Set([
   "accept-charset",
@@ -168,7 +168,7 @@ export function isSafelistedRequestHeader(name: string, value: string): boolean 
 }
 
 // page-script marks the headers a fetch cache mode added, not the page; only these two qualify.
-const CACHE_MODE_MARK = "x-kitesurf-cache-mode";
+const CACHE_MODE_MARK = "x-parawing-cache-mode";
 const CACHE_MODE_REQUEST_HEADERS = new Set(["cache-control", "pragma"]);
 
 function cacheModeHeaders(headers: Headers): Set<string> {
@@ -185,7 +185,7 @@ export function corsUnsafeRequestHeaderNames(headers: Headers): string[] {
   const fromCacheMode = cacheModeHeaders(headers);
   for (const [rawName, value] of headers.entries()) {
     const name = rawName.toLowerCase();
-    if (name.startsWith("x-kitesurf-")) continue;
+    if (name.startsWith("x-parawing-")) continue;
     if (UA_OWNED_REQUEST_HEADERS.has(name)) continue;
     if (fromCacheMode.has(name)) continue;
     if (name.startsWith("proxy-") || name.startsWith("sec-")) continue;

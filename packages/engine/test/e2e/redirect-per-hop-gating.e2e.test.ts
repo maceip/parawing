@@ -29,7 +29,7 @@ test("an outbound filter is applied to a redirect hop, not only the entry URL", 
   expect(await redirectedFetchStatus(page), "the unfiltered redirect must succeed").toBe(200);
 
   // The entry URL is on ks.invalid, so only the redirect target matches.
-  await cdpSession.send("Kitesurf.setOutboundFilters", {
+  await cdpSession.send("Parawing.setOutboundFilters", {
     rejectRequestPattern: ["^https://ks-other\\.invalid/"],
   });
   expect(await redirectedFetchStatus(page)).not.toBe(200);
@@ -187,7 +187,7 @@ test("a same-origin iframe that redirects off-origin adopts the new origin", asy
 // A malformed Location (the replacement character a lossy decode yields) takes the native-follow
 // handoff; its terminal response must be screened like a hop the shim walks itself.
 const HANDOFF_PAGE = "http://127.0.0.1:8787/__fixtures/redirect-gate.html";
-const HANDOFF_SECRET = "kitesurf-native-handoff-secret";
+const HANDOFF_SECRET = "parawing-native-handoff-secret";
 const DENIED_TARGET = `https://ks-other.invalid/__fixtures/no-acao-secret.json?secret=${HANDOFF_SECRET}`;
 
 async function fetchOutcome(page: Page, path: string): Promise<string> {

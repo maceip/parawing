@@ -15,7 +15,7 @@ test("module scripts honor import maps", async ({ page }) => {
       staticAnswer: 43,
       dynamicAnswer: 43,
       lazyAnswer: 44,
-      url: "https://ks.invalid/__fixtures/__kitesurf_inline_2.js",
+      url: "https://ks.invalid/__fixtures/__parawing_inline_2.js",
       resolved: "https://ks.invalid/__fixtures/peer.js",
       earlyAnswer: "early",
       lateAnswer: "early",

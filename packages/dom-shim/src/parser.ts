@@ -4,7 +4,7 @@
 
 // Builds parser-owned DOMParser documents and their limited wrapper and mutation surface.
 
-import type { DomHandle } from "../../core/pkg/kitesurf_core";
+import type { DomHandle } from "../../core/pkg/parawing_core";
 import { dom, liveDocument, pageUrl, opts } from "./state.js";
 import {
   parsedHandle,
@@ -1225,7 +1225,7 @@ class ParsedDocument {
     }
     let id;
     try {
-      id = requireParsedHandle(this).createElement("kitesurf-fragment");
+      id = requireParsedHandle(this).createElement("parawing-fragment");
     } catch (e) {
       throw new Error(
         "createDocumentFragment: wasm trap: " + (e instanceof Error ? e.message : String(e)),

@@ -358,7 +358,7 @@ describe("untrusted resource batches", () => {
         return new Uint8Array(0);
       },
     };
-    // oxlint-disable-next-line kitesurf/no-chained-type-assertions -- forged RPC batch.
+    // oxlint-disable-next-line parawing/no-chained-type-assertions -- forged RPC batch.
     const value = forged as unknown as Uint8Array;
 
     const got = supplyEngineResources(value, () => new Uint8Array([1]), noFont);

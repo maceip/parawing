@@ -25,7 +25,7 @@ const TAMPERS: Record<string, string> = {
   "Headers.prototype.set": `
     const real = Headers.prototype.set;
     Headers.prototype.set = function (n, v) {
-      if (String(n).toLowerCase() === "x-kitesurf-resource-type") {
+      if (String(n).toLowerCase() === "x-parawing-resource-type") {
         return real.call(this, n, "Stylesheet");
       }
       return real.call(this, n, v);
@@ -33,7 +33,7 @@ const TAMPERS: Record<string, string> = {
   "Headers.prototype.set no-op": `
     const real = Headers.prototype.set;
     Headers.prototype.set = function (n, v) {
-      if (String(n).toLowerCase() === "x-kitesurf-resource-type") return;
+      if (String(n).toLowerCase() === "x-parawing-resource-type") return;
       return real.call(this, n, v);
     };`,
   "globalThis.Headers": `
@@ -41,10 +41,10 @@ const TAMPERS: Record<string, string> = {
     globalThis.Headers = class extends Real {
       constructor(init) {
         super(init);
-        Real.prototype.set.call(this, "x-kitesurf-resource-type", "Stylesheet");
+        Real.prototype.set.call(this, "x-parawing-resource-type", "Stylesheet");
       }
       set(n, v) {
-        if (String(n).toLowerCase() === "x-kitesurf-resource-type") return;
+        if (String(n).toLowerCase() === "x-parawing-resource-type") return;
         return Real.prototype.set.call(this, n, v);
       }
     };`,
@@ -53,7 +53,7 @@ const TAMPERS: Record<string, string> = {
     Function.prototype.call = function (thisArg, ...args) {
       const target = this;
       if (target === Headers.prototype.set &&
-          String(args[0]).toLowerCase() === "x-kitesurf-resource-type") {
+          String(args[0]).toLowerCase() === "x-parawing-resource-type") {
         return Reflect.apply(target, thisArg, [args[0], "Stylesheet"]);
       }
       return Reflect.apply(target, thisArg, args);
@@ -67,15 +67,15 @@ async function forgeType(
   return (await page.evaluate(`(async () => {
     ${tamper ?? ""}
     const claim = { headers: {
-      "x-kitesurf-allow-cross-origin": "1",
-      "x-kitesurf-resource-type": "Stylesheet",
+      "x-parawing-allow-cross-origin": "1",
+      "x-parawing-resource-type": "Stylesheet",
     } };
     const e = await fetch(${JSON.stringify(ECHO)}, claim);
     const accept = (await e.json()).accept || "";
     let secret = "blocked";
     try {
       const r = await fetch(${JSON.stringify(SECRET)}, claim);
-      secret = (await r.text()).includes("kitesurf-cross-origin-secret")
+      secret = (await r.text()).includes("parawing-cross-origin-secret")
         ? "READABLE"
         : "opaque";
     } catch (err) {}
@@ -102,7 +102,7 @@ const VERDICT_TAMPERS: Record<string, string> = {
   "Headers.prototype.get": `
     const real = Headers.prototype.get;
     Headers.prototype.get = function (n) {
-      if (String(n).toLowerCase() === "x-kitesurf-cors") return "clean";
+      if (String(n).toLowerCase() === "x-parawing-cors") return "clean";
       return real.call(this, n);
     };`,
   "Headers.prototype.get no-op": `
@@ -112,7 +112,7 @@ const VERDICT_TAMPERS: Record<string, string> = {
     Function.prototype.call = function (thisArg, ...args) {
       const target = this;
       if (target === Headers.prototype.get &&
-          String(args[0]).toLowerCase() === "x-kitesurf-cors") return "clean";
+          String(args[0]).toLowerCase() === "x-parawing-cors") return "clean";
       return Reflect.apply(target, thisArg, args);
     };`,
 };
@@ -174,8 +174,8 @@ test("a page's Headers patch cannot revoke a genuine load's claim", async ({ pag
     const real = Headers.prototype.set;
     Headers.prototype.set = function (n, v) {
       const lc = String(n).toLowerCase();
-      if (lc === "x-kitesurf-resource-type") return real.call(this, n, "Fetch");
-      if (lc === "x-kitesurf-allow-cross-origin") return;
+      if (lc === "x-parawing-resource-type") return real.call(this, n, "Fetch");
+      if (lc === "x-parawing-allow-cross-origin") return;
       return real.call(this, n, v);
     };
     const img = document.createElement("img");

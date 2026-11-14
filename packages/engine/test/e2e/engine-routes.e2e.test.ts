@@ -23,14 +23,14 @@ test("local HTTP inspection uses ws rather than wss", async () => {
   const response = await env.ENGINE.fetch("http://ks.invalid/?inspect=1", { redirect: "manual" });
   expect(response.status).toBe(302);
   const location = new URL(response.headers.get("location") ?? "");
-  expect(location.searchParams.get("ws")).toBe("ks.invalid/devtools/page/kitesurf");
+  expect(location.searchParams.get("ws")).toBe("ks.invalid/devtools/page/parawing");
   expect(location.searchParams.has("wss")).toBe(false);
 });
 
 test("/health answers OK", async () => {
   const res = await engine("/health");
   expect(res.status).toBe(200);
-  expect(await res.text()).toBe("kitesurf: OK\n");
+  expect(await res.text()).toBe("parawing: OK\n");
 });
 
 test("/json/version advertises the browser WS on the request host, with or without a trailing slash", async () => {
@@ -50,9 +50,9 @@ test("/json, /json/list and /json/list/ list the one synthetic page target", asy
     expect(res.status, path).toBe(200);
     expect(await res.json()).toMatchObject([
       {
-        id: "kitesurf",
-        webSocketDebuggerUrl: "wss://ks.invalid/devtools/page/kitesurf",
-        devtoolsFrontendUrl: "https://example.com/devtools?wss=ks.invalid/devtools/page/kitesurf",
+        id: "parawing",
+        webSocketDebuggerUrl: "wss://ks.invalid/devtools/page/parawing",
+        devtoolsFrontendUrl: "https://example.com/devtools?wss=ks.invalid/devtools/page/parawing",
       },
     ]);
   }
@@ -68,8 +68,8 @@ test("discovery without a hosted inspector advertises Chrome's bundled frontend"
       // and Inspect fallback actions silently do nothing.
       expect(await response.json(), path).toEqual([
         expect.objectContaining({
-          webSocketDebuggerUrl: `${scheme}://ks.invalid/devtools/page/kitesurf`,
-          devtoolsFrontendUrl: `devtools://devtools/bundled/inspector.html?${scheme}=ks.invalid/devtools/page/kitesurf`,
+          webSocketDebuggerUrl: `${scheme}://ks.invalid/devtools/page/parawing`,
+          devtoolsFrontendUrl: `devtools://devtools/bundled/inspector.html?${scheme}=ks.invalid/devtools/page/parawing`,
         }),
       ]);
     }
@@ -89,7 +89,7 @@ test("a path-only inspector base redirects to the request origin over wss", asyn
   expect(response.status).toBe(302);
   expect(response.headers.get("location")).toBe(
     "https://ks.invalid/inspector/inspector.html?wss=" +
-      encodeURIComponent("ks.invalid/devtools/page/kitesurf"),
+      encodeURIComponent("ks.invalid/devtools/page/parawing"),
   );
 });
 
@@ -100,7 +100,7 @@ test("a path-only inspector base redirects to the request origin over ws", async
   expect(response.status).toBe(302);
   const location = new URL(response.headers.get("location") ?? "");
   expect(location.origin + location.pathname).toBe("http://ks.invalid/inspector/inspector.html");
-  expect(location.searchParams.get("ws")).toBe("ks.invalid/devtools/page/kitesurf");
+  expect(location.searchParams.get("ws")).toBe("ks.invalid/devtools/page/parawing");
   expect(location.searchParams.has("wss")).toBe(false);
 });
 
@@ -113,7 +113,7 @@ test("a path-only inspector base keeps the /?url= initialUrl", async () => {
   const location = new URL(response.headers.get("location") ?? "");
   expect(location.origin + location.pathname).toBe("https://ks.invalid/inspector/inspector.html");
   expect(location.searchParams.get("wss")).toBe(
-    "ks.invalid/devtools/page/kitesurf?initialUrl=" + encodeURIComponent("https://example.com/"),
+    "ks.invalid/devtools/page/parawing?initialUrl=" + encodeURIComponent("https://example.com/"),
   );
 });
 
@@ -127,8 +127,8 @@ test("discovery advertises a path-only inspector base as a relative frontend URL
       expect(response.status, path).toBe(200);
       expect(await response.json(), path).toEqual([
         expect.objectContaining({
-          webSocketDebuggerUrl: `${scheme}://ks.invalid/devtools/page/kitesurf`,
-          devtoolsFrontendUrl: `/inspector/inspector.html?${scheme}=ks.invalid/devtools/page/kitesurf`,
+          webSocketDebuggerUrl: `${scheme}://ks.invalid/devtools/page/parawing`,
+          devtoolsFrontendUrl: `/inspector/inspector.html?${scheme}=ks.invalid/devtools/page/parawing`,
         }),
       ]);
     }
@@ -146,7 +146,7 @@ test("/?url= redirects to the inspector with the page WS and initialUrl", async 
   const location = new URL(res.headers.get("location") ?? "");
   expect(location.origin + location.pathname).toBe("https://example.com/devtools");
   expect(location.searchParams.get("wss")).toBe(
-    "ks.invalid/devtools/page/kitesurf?initialUrl=" + encodeURIComponent("https://example.com/"),
+    "ks.invalid/devtools/page/parawing?initialUrl=" + encodeURIComponent("https://example.com/"),
   );
 });
 
@@ -154,7 +154,7 @@ test("/?inspect=1 redirects to the inspector without an initialUrl", async () =>
   const res = await engine("/?inspect=1");
   expect(res.status).toBe(302);
   const location = new URL(res.headers.get("location") ?? "");
-  expect(location.searchParams.get("wss")).toBe("ks.invalid/devtools/page/kitesurf");
+  expect(location.searchParams.get("wss")).toBe("ks.invalid/devtools/page/parawing");
 });
 
 test("non-upgrade /__fixtures/* requests reach the fixtures worker", async () => {

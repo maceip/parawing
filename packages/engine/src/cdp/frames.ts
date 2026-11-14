@@ -5,8 +5,8 @@
 // Builds CDP frame metadata and computes frame origins and document domains.
 
 import type { Protocol } from "devtools-protocol";
-import { SANDBOX_ALLOW_ALL } from "@kitesurf/script-gate";
-import type { CommittedOrigin } from "@kitesurf/jsrpc-types/frame-origin";
+import { SANDBOX_ALLOW_ALL } from "@parawing/script-gate";
+import type { CommittedOrigin } from "@parawing/jsrpc-types/frame-origin";
 import { isIpHost, isPublicSuffix, siteKey } from "../public-suffix.ts";
 import {
   makeTargetId,

@@ -18,9 +18,9 @@ type BridgeStats = {
   ccDeadReads: number;
 };
 
-async function kitesurf(
+async function parawing(
   page: Page,
-  method: "Kitesurf.getMemoryStats" | "Kitesurf.boaForceCollect",
+  method: "Parawing.getMemoryStats" | "Parawing.boaForceCollect",
 ): Promise<unknown> {
   const session = await page.createCDPSession();
   try {
@@ -39,7 +39,7 @@ function counter(source: unknown, key: keyof BridgeStats): number {
 }
 
 async function bridge(page: Page): Promise<BridgeStats> {
-  const stats: unknown = await kitesurf(page, "Kitesurf.getMemoryStats");
+  const stats: unknown = await parawing(page, "Parawing.getMemoryStats");
   const pins: unknown =
     typeof stats === "object" && stats !== null ? Reflect.get(stats, "bridge") : undefined;
   return {
@@ -53,8 +53,8 @@ async function bridge(page: Page): Promise<BridgeStats> {
 
 // The second collection exercises keeper carry-over.
 async function collectBoa(page: Page): Promise<void> {
-  await kitesurf(page, "Kitesurf.boaForceCollect");
-  await kitesurf(page, "Kitesurf.boaForceCollect");
+  await parawing(page, "Parawing.boaForceCollect");
+  await parawing(page, "Parawing.boaForceCollect");
 }
 
 const PAGE = `<div id=host></div><script>
@@ -80,7 +80,7 @@ test("the collector weakens an unheld boa<->V8 cycle", async ({ page }) => {
   await collectBoa(page);
   const before = await bridge(page);
   await page.evaluate(makeCycles, CYCLES);
-  await kitesurf(page, "Kitesurf.boaForceCollect");
+  await parawing(page, "Parawing.boaForceCollect");
   const after = await bridge(page);
   expect(after.ccWeakened - before.ccWeakened).toBeGreaterThanOrEqual(CYCLES);
 });

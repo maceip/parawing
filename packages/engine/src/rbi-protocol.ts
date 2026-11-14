@@ -4,7 +4,7 @@
 
 // Rewrites RBI image and font references and tracks resources already sent to clients. Scenes
 // reference glyphs, fonts and images by hash; the client fetches missing ones with
-// `Kitesurf.getSceneResources` and receives a resource batch in this format.
+// `Parawing.getSceneResources` and receives a resource batch in this format.
 
 // A batch is [count u32 LE] then entries of [kind u8][hash u64 LE][length u32 LE][payload].
 const RBI_BATCH_HEAD = 4;
@@ -163,7 +163,7 @@ export function supplyEngineResources(
   if (!rewrote && !truncated) return source;
   if (truncated) {
     console.warn(
-      `kitesurf: [ks-rbi] resource batch over ${MAX_RESOURCE_BATCH_BYTES} bytes; sent ${emitted} of ${count} entries`,
+      `parawing: [pw-rbi] resource batch over ${MAX_RESOURCE_BATCH_BYTES} bytes; sent ${emitted} of ${count} entries`,
     );
   }
   const merged = new Uint8Array(total);

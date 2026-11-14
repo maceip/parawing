@@ -95,7 +95,7 @@ function installFetch(source: string, status = 200): Array<{ url: string; initia
     seen.push({ url, initiator: trusted.takeTrustedRequestMeta(init)?.initiator });
     return new Response(source, {
       status,
-      headers: { "content-type": "text/javascript", "x-kitesurf-cors": "clean" },
+      headers: { "content-type": "text/javascript", "x-parawing-cors": "clean" },
     });
   }) as typeof fetch;
   trusted.captureTrustedFetch();
@@ -238,7 +238,7 @@ describe("engine parser prefetch initiator", () => {
     const seen: Array<string | null> = [];
     const fetcher = {
       fetch: async (req: Request) => {
-        seen.push(req.headers.get("x-kitesurf-initiator"));
+        seen.push(req.headers.get("x-parawing-initiator"));
         return new Response("globalThis.ran = 1;", {
           headers: { "content-type": "text/javascript" },
         });

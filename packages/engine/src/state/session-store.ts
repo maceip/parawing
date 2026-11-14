@@ -72,6 +72,8 @@ export interface SessionStore {
   drop(name: string): void;
   /** Delete every table. */
   clear(): void;
+  /** Flush durable WAL/buffers to backing media if supported. */
+  flush?(): void;
 }
 
 export class MemorySessionStore implements SessionStore {

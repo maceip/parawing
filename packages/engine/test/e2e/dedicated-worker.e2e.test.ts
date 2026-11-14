@@ -107,7 +107,7 @@ test("an http worker loads from the page origin and fetches through the gateway"
     echo: "ping",
     hops: 1,
     href: "http://127.0.0.1:8787/__fixtures/worker-echo.js",
-    body: "kitesurf-xhr-ok",
+    body: "parawing-xhr-ok",
   });
 });
 
@@ -497,7 +497,7 @@ test("a worker started during load reaches its page", async ({ page }) => {
   const title = await waitForTitle(page, "WORKER:", { prefix: true, timeout: 20_000 });
   expect(JSON.parse(title.slice("WORKER:".length))).toEqual({
     origin: "http://127.0.0.1:8787",
-    body: "kitesurf-xhr-ok",
+    body: "parawing-xhr-ok",
   });
 });
 

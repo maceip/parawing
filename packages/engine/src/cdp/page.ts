@@ -5,7 +5,7 @@
 // Implements CDP Page commands and coordinates navigation, frames, and screencasts.
 
 import type Protocol from "devtools-protocol";
-import { decodeHtmlBytes } from "@kitesurf/dom-shim/html-encoding";
+import { decodeHtmlBytes } from "@parawing/dom-shim/html-encoding";
 import {
   SANDBOX_ALLOW_ALL,
   committedOriginOfUrl,
@@ -14,8 +14,8 @@ import {
   parseSandboxAttribute,
   sameCommittedOrigin,
   type SandboxRestrictions,
-} from "@kitesurf/script-gate";
-import type { CommittedOrigin } from "@kitesurf/jsrpc-types/frame-origin";
+} from "@parawing/script-gate";
+import type { CommittedOrigin } from "@parawing/jsrpc-types/frame-origin";
 import type {
   CdpParamsOf,
   CdpEvent,
@@ -27,7 +27,11 @@ import type {
   TargetState,
 } from "./types.ts";
 import type { DispatchCtx } from "./dispatch.ts";
+import { markInternalHumanRequest } from "./dispatch.ts";
 import { resolveTarget, sessionOf, stubQueryDom, type QueryDomResult } from "./page-session.ts";
+import { asTargetId } from "../session/identities.ts";
+import { setFrameSealedOrigin } from "./session-security-registry.ts";
+import type { DomObservedField, SignedApprovalDecision } from "../authority/approval-gate.ts";
 import {
   applyTtyNavParams,
   DEFAULT_TTY_CELL_HEIGHT_PX,
@@ -69,7 +73,6 @@ import {
   walkModuleGraph,
 } from "../eval/walk-module-graph.ts";
 import { traceSpan, redactUrl } from "../tracing.ts";
-import { makeWallClock } from "../eval/host-clock.ts";
 import { htmlTagSpans, removeHtmlTagSpans } from "../eval/html-tag-spans.ts";
 import { DiagSpanTracker } from "./diag-spans.ts";
 import { registerTailTrace } from "../eval/tail-trace-registry.ts";
@@ -180,8 +183,8 @@ import type {
   LoadCompletion,
   ReceivedUpstreamParams,
   UpstreamEventName,
-} from "@kitesurf/jsrpc-types/page-script";
-import type { CdpMutation, ConsoleEntry, ExceptionEntry } from "@kitesurf/jsrpc-types/shared";
+} from "@parawing/jsrpc-types/page-script";
+import type { CdpMutation, ConsoleEntry, ExceptionEntry } from "@parawing/jsrpc-types/shared";
 import type { RenderFrameArgs, PrespawnedFrame } from "../eval/oopif-render.ts";
 
 const RENDER_DRAIN_TIMEOUT_MS = 10_000;
@@ -278,8 +281,8 @@ export function navigationExtraHeaders(
 function getRendererManager(ctx: DispatchCtx, target?: TargetState): PageRendererManager {
   if (!ctx.browser.rendererManager) {
     ctx.browser.rendererManager = new PageRendererManager(
-      ctx.env,
-      ctx.ctx,
+      ctx.host,
+      ctx.isolateLoader,
       ctx.connectionId,
       ctx.browser.attributionHeaders,
       ctx.browser.workerBudget,
@@ -319,7 +322,7 @@ async function renderViaPageRenderer(
   if (!ps) {
     return { failed: "no PageScript loaded", stage: "record" };
   }
-  const tracer = ctx.env.HOST_TRACER;
+  const tracer = ctx.host.tracer;
   const traced = !!tracer && tracer.getSpanContext() !== null;
   const res = await traceSpan(tracer, "render.frame", () =>
     manager.renderFrame(ps, { ...opts, traced }),
@@ -334,7 +337,7 @@ async function renderViaPageRenderer(
   }
   if (!res.ok || !res.bytes || res.bytes.length === 0) {
     const reason = res.error ?? "unknown render failure";
-    console.warn("kitesurf: pageRenderer renderFrame failed:", reason);
+    console.warn("parawing: pageRenderer renderFrame failed:", reason);
     return {
       failed: reason,
       stage: res.stage === "record" ? "record" : "rasterize",
@@ -348,13 +351,19 @@ async function renderViaPageRenderer(
   };
 }
 
-function recordNavigationHistory(target: TargetState, url: string, transitionType: string): void {
+function recordNavigationHistory(
+  target: TargetState,
+  url: string,
+  transitionType: string,
+  method = "GET",
+): void {
   if (transitionType === "back_forward") return;
   if (transitionType === "reload") {
     const live = target.navigationHistory[target.navigationHistoryIndex];
     if (live) {
       live.url = url;
       live.userTypedURL = url;
+      live.method = method;
     }
     return;
   }
@@ -371,6 +380,7 @@ function recordNavigationHistory(target: TargetState, url: string, transitionTyp
     userTypedURL: url,
     title: "",
     transitionType: tt,
+    method,
   });
   target.navigationHistoryIndex = target.navigationHistory.length - 1;
 }
@@ -392,7 +402,7 @@ function returnScreenshotDomLease(
     target.dom = leased;
     return;
   }
-  freeDetachedDom(leased, "[kitesurf-target]", {
+  freeDetachedDom(leased, "[parawing-target]", {
     event: "screenshot_dom_free_failed",
     targetId: target.targetId,
     url: target.url,
@@ -491,7 +501,7 @@ function firstConsoleWarningOrError(entries: ConsoleEntry[] | undefined): string
   return null;
 }
 
-// Kitesurf has no pinch zoom and ignores deviceScaleFactor, so scale and zoom
+// Parawing has no pinch zoom and ignores deviceScaleFactor, so scale and zoom
 // are 1 and the deprecated device-pixel fields equal the CSS ones.
 function layoutMetricsResponse(
   m: QueryDomResult<"layoutMetrics">,
@@ -537,6 +547,114 @@ type InternalHistoryNavigateRequest = Omit<
   };
 };
 
+function canAccessStorage(
+  ctx: DispatchCtx,
+  target: TargetState,
+  operation: "read" | "write" | "clear",
+  storageKind: "localStorage" | "sessionStorage" | "indexedDB" | "cookie",
+  origin: string,
+): boolean {
+  const decision = ctx.browser.policyEngine?.evaluateStorage({
+    operation,
+    storageKind,
+    origin,
+    sealedOrigin: target.sealedOrigin,
+    actorRole: ctx.actorRole,
+  });
+  return decision?.allowed ?? true;
+}
+
+function persistHarvestedStorage(
+  ctx: DispatchCtx,
+  target: TargetState,
+  retiringUrl: string | null | undefined,
+  harvest: {
+    cookieWrites?: string[];
+    webStorage?: {
+      localStorage: Record<string, string>;
+      sessionStorage: Record<string, string>;
+    } | null;
+  } | null,
+): void {
+  if (!retiringUrl || !harvest) return;
+  if (canAccessStorage(ctx, target, "write", "cookie", retiringUrl)) {
+    for (const raw of harvest.cookieWrites ?? []) {
+      jarForTarget(ctx, target).setFromDocumentCookie(retiringUrl, raw);
+    }
+  }
+  const webStorage = harvest.webStorage;
+  const store = ctx.browser.webStorage;
+  if (!webStorage || !store) return;
+  if (canAccessStorage(ctx, target, "write", "localStorage", retiringUrl)) {
+    store.replaceLocalStorage(retiringUrl, webStorage.localStorage);
+  }
+  if (canAccessStorage(ctx, target, "write", "sessionStorage", retiringUrl)) {
+    store.replaceSessionStorage(
+      asTargetId(target.targetId),
+      retiringUrl,
+      webStorage.sessionStorage,
+    );
+  }
+}
+
+async function enforceNavigationApproval(input: {
+  ctx: DispatchCtx;
+  target: TargetState;
+  sessionId: string | undefined;
+  url: string;
+  method: string;
+  postData: string | null;
+  postContentType: string;
+  rawParams: unknown;
+}): Promise<string | null> {
+  const { ctx, target, sessionId, url, method, postData, postContentType, rawParams } = input;
+  const gate = ctx.browser.approvalGate;
+  if (!gate) return null;
+  const paramsObj =
+    rawParams && typeof rawParams === "object" ? (rawParams as Record<string, unknown>) : null;
+  const explicitRequire = paramsObj?.["_parawingRequireApproval"] === true;
+  if (postData === null && !explicitRequire) return null;
+
+  const headers = postData !== null ? { "content-type": postContentType } : undefined;
+  const action = { method, url, headers, body: postData };
+  const preDecision = paramsObj?.["_parawingApprovalDecision"];
+  const preNonce = paramsObj?.["_parawingApprovalNonce"];
+  if (preDecision && typeof preDecision === "object" && typeof preNonce === "string") {
+    try {
+      await gate.assertExecutionMatchesDecision(
+        action,
+        preDecision as SignedApprovalDecision,
+        preNonce,
+      );
+      return null;
+    } catch (err) {
+      return err instanceof Error ? err.message : String(err);
+    }
+  }
+
+  const rawFields = Array.isArray(paramsObj?.["_parawingDomFields"])
+    ? (paramsObj["_parawingDomFields"] as DomObservedField[])
+    : [];
+  const timeoutRaw = paramsObj?.["_parawingApprovalTimeoutMs"];
+  const timeoutMs = typeof timeoutRaw === "number" && timeoutRaw > 0 ? timeoutRaw : 60_000;
+  const outcome = await gate.holdForApproval({
+    action,
+    domFields: rawFields,
+    timeoutMs,
+    onPrompt: (prompt) => {
+      ctx.emit({
+        method: "Parawing.approvalRequired",
+        params: { targetId: target.targetId, ...prompt },
+        sessionId,
+      });
+    },
+  });
+  if (!outcome.approved) {
+    return `Approval denied (${outcome.reason})`;
+  }
+  return null;
+}
+
 export async function handlePage(
   ctx: DispatchCtx,
   req: CdpRequest | InternalHistoryNavigateRequest,
@@ -572,7 +690,11 @@ export async function handlePage(
       // an isolate for this read: a target with no document is about:blank,
       // whose content size is the viewport.
       const metrics = await sessionOf(ctx, target).callIfLive.layoutMetrics({});
-      if (metrics) return layoutMetricsResponse(metrics);
+      if (metrics) {
+        target.lastScrollX = metrics.scrollX;
+        target.lastScrollY = metrics.scrollY;
+        return layoutMetricsResponse(metrics);
+      }
       const width = target.viewportWidth ?? DEFAULT_VIEWPORT_WIDTH;
       const height = target.viewportHeight ?? DEFAULT_VIEWPORT_HEIGHT;
       return layoutMetricsResponse({
@@ -603,7 +725,7 @@ export async function handlePage(
         params: {
           url: dest.url,
           transitionType: "back_forward",
-          _kitesurfInternal: true,
+          _parawingInternal: true,
         },
       } satisfies InternalHistoryNavigateRequest;
       await handlePage(ctx, navReq);
@@ -620,7 +742,7 @@ export async function handlePage(
       const reloadUrl = target.url || "about:blank";
       if (ctx.browser.cdpDebug) {
         console.log(
-          `[kitesurf-nav] Page.reload received id=${req.id} ` +
+          `[parawing-nav] Page.reload received id=${req.id} ` +
             `sessionId=${JSON.stringify(req.sessionId)} url=${reloadUrl} ` +
             `gen=${target.navigateGeneration}`,
         );
@@ -628,7 +750,7 @@ export async function handlePage(
       const reloadReq: CdpRequest = {
         ...req,
         method: "Page.navigate",
-        params: { url: reloadUrl, transitionType: "reload", _kitesurfInternal: true },
+        params: { url: reloadUrl, transitionType: "reload", _parawingInternal: true },
       };
       return await handlePage(ctx, reloadReq);
     }
@@ -637,14 +759,14 @@ export async function handlePage(
       let url = req.params?.url ?? "about:blank";
       const ksParams = req.params;
       const ksPostData =
-        typeof ksParams?._kitesurfPostData === "string" ? ksParams._kitesurfPostData : null;
+        typeof ksParams?._parawingPostData === "string" ? ksParams._parawingPostData : null;
       const ksPostContentType =
-        typeof ksParams?._kitesurfPostContentType === "string"
-          ? ksParams._kitesurfPostContentType
+        typeof ksParams?._parawingPostContentType === "string"
+          ? ksParams._parawingPostContentType
           : "application/x-www-form-urlencoded";
       if (ctx.browser.cdpDebug) {
         console.log(
-          `[kitesurf-nav] Page.navigate received id=${req.id} ` +
+          `[parawing-nav] Page.navigate received id=${req.id} ` +
             `sessionId=${JSON.stringify(req.sessionId)} url=${url} ` +
             `prevTargetUrl=${JSON.stringify(target.url)} ` +
             `gen=${target.navigateGeneration}`,
@@ -657,27 +779,62 @@ export async function handlePage(
           throw new Error("Cannot navigate to invalid URL");
         }
       }
+      const pendingLoaderId =
+        ksParams?._parawingInternal === true && typeof ksParams._parawingLoaderId === "string"
+          ? ksParams._parawingLoaderId
+          : makeTargetId();
+      const navMethod = ksPostData !== null ? "POST" : "GET";
+      let cleanUrl = url;
+      let refetchOnPushState = false;
+      try {
+        const probeUrl = new URL(url);
+        refetchOnPushState = probeUrl.searchParams.get("ks_refetch_on_pushstate") === "1";
+        if (probeUrl.searchParams.has("ks_refetch_on_pushstate")) {
+          probeUrl.searchParams.delete("ks_refetch_on_pushstate");
+          cleanUrl = probeUrl.toString();
+        }
+      } catch {}
+      if (cleanUrl !== "about:blank" && cleanUrl !== "") {
+        const egressPolicy = ctx.browser.policyEngine?.evaluateEgress({
+          url: cleanUrl,
+          method: navMethod,
+          isTopLevelNavigation: true,
+          sealedOrigin: target.sealedOrigin,
+          sessionId: ctx.browser.sessionId,
+          targetId: asTargetId(target.targetId),
+        });
+        if (egressPolicy && !egressPolicy.allowed) {
+          return navigateReply(target.frameId, pendingLoaderId, egressPolicy.reason);
+        }
+        const approvalError = await enforceNavigationApproval({
+          ctx,
+          target,
+          sessionId: req.sessionId,
+          url: cleanUrl,
+          method: navMethod,
+          postData: ksPostData,
+          postContentType: ksPostContentType,
+          rawParams: ksParams,
+        });
+        if (approvalError) {
+          return navigateReply(target.frameId, pendingLoaderId, approvalError);
+        }
+      }
+
       // Abort the previous signal so its redirect walk and egress request can stop.
       target.pendingNavAbort?.abort();
       const navAbort = new AbortController();
       target.pendingNavAbort = navAbort;
       // An input-started navigation announced its loader in Page.frameStartedNavigating.
-      target.loaderId =
-        ksParams?._kitesurfInternal === true && typeof ksParams._kitesurfLoaderId === "string"
-          ? ksParams._kitesurfLoaderId
-          : makeTargetId();
+      target.loaderId = pendingLoaderId;
       const loaderId = target.loaderId;
+      url = cleanUrl;
+      target.refetchOnPushState = refetchOnPushState;
 
       try {
         const parsedNavUrl = new URL(url);
-        target.refetchOnPushState =
-          parsedNavUrl.searchParams.get("ks_refetch_on_pushstate") === "1";
-        if (parsedNavUrl.searchParams.has("ks_refetch_on_pushstate")) {
-          parsedNavUrl.searchParams.delete("ks_refetch_on_pushstate");
-          url = parsedNavUrl.toString();
-        }
         if (
-          ksParams?._kitesurfInternal !== true &&
+          ksParams?._parawingInternal !== true &&
           applyTtyNavParams(parsedNavUrl.searchParams, ctx.browser)
         ) {
           url = parsedNavUrl.toString();
@@ -686,6 +843,8 @@ export async function handlePage(
       target.url = url;
       target.title = "";
       target.html = "";
+      target.lastNavigationMethod = navMethod;
+      target.pendingUnsafeNavigationUrl = null;
       releaseTargetDom(target);
       target.docScan = null;
       target.docCsp = null;
@@ -716,7 +875,7 @@ export async function handlePage(
           target.dom = createDom(html, blitzUrl);
         } catch (e) {
           const msg = e instanceof Error ? e.message : String(e);
-          console.warn("kitesurf: navigate(about:blank) createDom trap:", msg);
+          console.warn("parawing: navigate(about:blank) createDom trap:", msg);
           target.dom = null;
           return navigateReply(
             target.frameId,
@@ -729,13 +888,19 @@ export async function handlePage(
           cdpMutations,
           exceptions,
         } = await pushNavigateToPageScript(ctx, target, html, blitzUrl);
-        recordNavigationHistory(target, url, req.params?.transitionType ?? "typed");
+        recordNavigationHistory(target, url, req.params?.transitionType ?? "typed", "GET");
+        target.lastSafeGetUrl = url || "about:blank";
+        target.sealedOrigin = null;
+        setFrameSealedOrigin(ctx.connectionId, target.frameId, null);
         emitNavigationLifecycle(ctx, target, req.sessionId);
         emitExecutionContextCreated(ctx, target, req.sessionId);
         emitCapturedConsole(ctx, target, capturedConsole, req.sessionId);
         emitCapturedExceptions(ctx, target, exceptions, req.sessionId);
         emitMutations(ctx, target, cdpMutations);
         clearPendingNavAbort(target, navAbort);
+        if (ctx.sessionManager && ctx.browser.sessionId) {
+          ctx.sessionManager.checkpointSession(ctx.browser.sessionId, "navigation");
+        }
         return navigateReply(target.frameId, loaderId);
       }
 
@@ -752,8 +917,8 @@ export async function handlePage(
         // just as it is in a browser. CDP-started navigations have no
         // initiator and keep the existing same-site behavior.
         const ksInitiatorOrigin =
-          typeof ksParams?._kitesurfInitiatorOrigin === "string"
-            ? ksParams._kitesurfInitiatorOrigin
+          typeof ksParams?._parawingInitiatorOrigin === "string"
+            ? ksParams._parawingInitiatorOrigin
             : null;
         const navExtraHeaders = {
           ...navigationExtraHeaders(effectiveExtraHeaders(target), ksInitiatorOrigin, url),
@@ -793,7 +958,7 @@ export async function handlePage(
         }
         const requestId = ctx.browser.networkEvents.beginRequest({
           url,
-          method: ksPostData !== null ? "POST" : "GET",
+          method: navMethod,
           headers: reqHeaders,
           type: "Document",
           initiator: { type: "other" },
@@ -857,11 +1022,11 @@ export async function handlePage(
             signal: navAbort.signal,
             headers: {
               ...reqHeaders,
-              "x-kitesurf-resource-type": "Document",
-              "x-kitesurf-initiator": "parser",
-              "x-kitesurf-allow-cross-origin": "1",
-              "x-kitesurf-page-origin": docPageOrigin,
-              "x-kitesurf-network-id": loaderId,
+              "x-parawing-resource-type": "Document",
+              "x-parawing-initiator": "parser",
+              "x-parawing-allow-cross-origin": "1",
+              "x-parawing-page-origin": docPageOrigin,
+              "x-parawing-network-id": loaderId,
             },
             taintOriginFrom: ksPostData !== null ? (ksInitiatorOrigin ?? undefined) : undefined,
             cookieHeaderFor: (hopUrl, method) =>
@@ -896,7 +1061,7 @@ export async function handlePage(
             },
             fetchHop: (hopReq) => {
               const fetchP = traceSpan(
-                ctx.env.HOST_TRACER,
+                ctx.host.tracer,
                 "navigate.fetch_document",
                 () => docOutbound.fetch(hopReq),
                 { url: redactUrl(hopReq.url) },
@@ -943,10 +1108,16 @@ export async function handlePage(
         }
         const finalUrl = currentUrl;
         target.url = finalUrl;
+        target.lastNavigationMethod = navMethod;
+        if (navMethod === "GET") {
+          target.lastSafeGetUrl = finalUrl;
+        }
+        target.sealedOrigin = null;
+        setFrameSealedOrigin(ctx.connectionId, target.frameId, null);
         target.docReferrerPolicy = resp.headers.get("referrer-policy");
         target.docCsp = resp.headers.get("content-security-policy");
         target.docCspReportOnly = resp.headers.get("content-security-policy-report-only");
-        recordNavigationHistory(target, finalUrl, req.params?.transitionType ?? "typed");
+        recordNavigationHistory(target, finalUrl, req.params?.transitionType ?? "typed", navMethod);
 
         const setCookies = readSetCookieHeaders(resp);
         for (const sc of setCookies) {
@@ -957,7 +1128,7 @@ export async function handlePage(
         let pageHtml: string;
         let networkBody: { body: string; length: number } | null = null;
         if (docKind === "html") {
-          const read = await traceSpan(ctx.env.HOST_TRACER, "navigate.read_document_body", () =>
+          const read = await traceSpan(ctx.host.tracer, "navigate.read_document_body", () =>
             readCappedBytes(resp, MAX_DOCUMENT_BYTES, ctx.connectionId),
           );
           if (!read.ok) {
@@ -977,7 +1148,7 @@ export async function handlePage(
           target.html = html;
           releaseTargetDom(target);
           target.docScan = traceSpan(
-            ctx.env.HOST_TRACER,
+            ctx.host.tracer,
             "navigate.scan_document",
             () => scanDocument(html),
             { bytes: html.length },
@@ -1052,6 +1223,7 @@ export async function handlePage(
           target.frames,
           childFrames,
           targetSessions(target, req.sessionId),
+          isTargetObservationPaused(ctx, target),
         );
         resetPrespawnBudget(target);
         for (const f of target.frames.values()) {
@@ -1087,6 +1259,9 @@ export async function handlePage(
         emitCapturedExceptions(ctx, target, exceptions, req.sessionId);
         emitMutations(ctx, target, cdpMutations);
         if (target.pendingNavAbort === navAbort) target.pendingNavAbort = null;
+        if (ctx.sessionManager && ctx.browser.sessionId) {
+          ctx.sessionManager.checkpointSession(ctx.browser.sessionId, "navigation");
+        }
         return navigateReply(target.frameId, loaderId);
       } catch (err) {
         const errorText = err instanceof Error ? err.message : String(err);
@@ -1165,6 +1340,11 @@ export async function handlePage(
       if (target.type !== "page") {
         return { error: "setDocumentContent requires a page target" };
       }
+      if (target.sealedOrigin) {
+        throw new Error(
+          "Policy denied (sealed-target-blocked): Page.setDocumentContent is blocked while target has an active A1 sealed origin",
+        );
+      }
       const html = req.params?.html ?? "";
       const requestedUrl = target.url || "about:blank";
       const url = sanitizeBaseUrl(requestedUrl);
@@ -1216,7 +1396,7 @@ export async function handlePage(
         const omitBackground = req.params?.omitBackground === true;
         const clip = req.params?.clip;
 
-        const pageUrl = target.url || "https://kitesurf.local/";
+        const pageUrl = target.url || "https://parawing.local/";
         if (target.pageScript) {
           const ps = target.pageScript;
           const __drainStart = Date.now();
@@ -1245,19 +1425,16 @@ export async function handlePage(
                   }
                 : { mode: "viewport" },
             }).catch(() => null);
-            const drainResult = await traceSpan(
-              ctx.env.HOST_TRACER,
-              "screenshot.drain_resources",
-              () =>
-                Promise.race([
-                  drain,
-                  new Promise((resolve) => {
-                    __graceTimer = setTimeout(
-                      () => resolve({ raced: true }),
-                      RENDER_DRAIN_TIMEOUT_MS + RENDER_DRAIN_GRACE_MS,
-                    );
-                  }),
-                ]),
+            const drainResult = await traceSpan(ctx.host.tracer, "screenshot.drain_resources", () =>
+              Promise.race([
+                drain,
+                new Promise((resolve) => {
+                  __graceTimer = setTimeout(
+                    () => resolve({ raced: true }),
+                    RENDER_DRAIN_TIMEOUT_MS + RENDER_DRAIN_GRACE_MS,
+                  );
+                }),
+              ]),
             );
             drainInfo = isRecord(drainResult) && !Array.isArray(drainResult) ? drainResult : null;
           } catch {
@@ -1408,7 +1585,7 @@ export async function handlePage(
         {
           let pdfGraceTimer: ReturnType<typeof setTimeout> | null = null;
           try {
-            await traceSpan(ctx.env.HOST_TRACER, "pdf.drain_resources", () =>
+            await traceSpan(ctx.host.tracer, "pdf.drain_resources", () =>
               Promise.race([
                 stubQueryDom(pdfPs, "awaitPendingResources", {
                   timeoutMs: RENDER_DRAIN_TIMEOUT_MS,
@@ -1438,7 +1615,7 @@ export async function handlePage(
         }
         try {
           const manager = getRendererManager(ctx, target);
-          const viaRenderer = await traceSpan(ctx.env.HOST_TRACER, "render.pdf", () =>
+          const viaRenderer = await traceSpan(ctx.host.tracer, "render.pdf", () =>
             manager.renderPdf(pdfPs, {
               paperWidth: pdfLayout.width,
               paperHeight: pdfLayout.height,
@@ -1532,7 +1709,7 @@ export async function handlePage(
       state.configurationVersion = configurationVersion;
       if (!existing) {
         ctx.browser.screencasts.set(target.targetId, state);
-        ctx.ctx.waitUntil(screencastLoop(ctx, target, state));
+        ctx.host.tasks.run(screencastLoop(ctx, target, state));
       }
 
       let formerDrain: Promise<unknown> | null = null;
@@ -1645,7 +1822,7 @@ export async function handlePage(
       target.screencastAckCount = (target.screencastAckCount ?? 0) + 1;
       if (target.screencastAckCount % 5 === 1) {
         console.log(
-          `[kitesurf-screencast] ack #${target.screencastAckCount} ` +
+          `[parawing-screencast] ack #${target.screencastAckCount} ` +
             `ackId=${ackId} pendingAck=${state.pendingAckSessionId} ` +
             `frameSeq=${state.frameSeq}`,
         );
@@ -1675,14 +1852,14 @@ function bytesToBase64(bytes: Uint8Array): string {
 }
 
 function sanitizeBaseUrl(url: string): string {
-  if (!url) return "https://kitesurf.local/";
+  if (!url) return "https://parawing.local/";
   try {
     const parsed = new URL(url);
     const hierarchical = ["http:", "https:", "file:", "ftp:", "ws:", "wss:"];
     if (hierarchical.includes(parsed.protocol)) return url;
-    return "https://kitesurf.local/";
+    return "https://parawing.local/";
   } catch {
-    return "https://kitesurf.local/";
+    return "https://parawing.local/";
   }
 }
 
@@ -1747,11 +1924,7 @@ async function pushNavigateToPageScriptInner(
         budget: ctx.browser.workerBudget,
       });
       for (const e of harvest?.console ?? []) consoleAcc.push(e);
-      if (retiringUrl) {
-        for (const raw of harvest?.cookieWrites ?? []) {
-          jarForTarget(ctx, target).setFromDocumentCookie(retiringUrl, raw);
-        }
-      }
+      persistHarvestedStorage(ctx, target, retiringUrl, harvest);
     }
   } finally {
     target.wheelTeardownDepth -= 1;
@@ -1800,13 +1973,13 @@ async function pushNavigateToPageScriptInner(
       cspReportOnly: target.docCspReportOnly,
       scan: docScan,
     });
-    const gatedDescriptors = await traceSpan(ctx.env.HOST_TRACER, "navigate.script_gate", () =>
+    const gatedDescriptors = await traceSpan(ctx.host.tracer, "navigate.script_gate", () =>
       applyPreFetchScriptGate(rawWithPreNav, scriptGate, scriptBaseUrl),
     );
     for (const d of gatedDescriptors) {
       if (!d.blocked) continue;
       console.warn(
-        `[kitesurf-csp] blocked (${d.blocked.reason}) ${d.src ?? "inline"}: ` + d.blocked.message,
+        `[parawing-csp] blocked (${d.blocked.reason}) ${d.src ?? "inline"}: ` + d.blocked.message,
       );
     }
     const learnedUrls = learnedScriptsFor(
@@ -1814,23 +1987,20 @@ async function pushNavigateToPageScriptInner(
       url,
       target.browserContextId,
     );
-    const afterClassicPrefetch = await traceSpan(
-      ctx.env.HOST_TRACER,
-      "navigate.prefetch_scripts",
-      () =>
-        prefetchExternalScripts({
-          descriptors: gatedDescriptors,
-          pageUrl: url,
-          connectionId: ctx.connectionId,
-          mainFrameId: target.frameId,
-          mainLoaderId: target.loaderId,
-          extraHeaders: effectiveExtraHeaders(target),
-          cookieKey: cookieKeyFor(ctx.connectionId, target.browserContextId),
-          baseUrl: scriptBaseUrl,
-          sandboxOutbound: ctx.browser.sandboxOutbound,
-          gate: scriptGate,
-          initiator: "parser",
-        }),
+    const afterClassicPrefetch = await traceSpan(ctx.host.tracer, "navigate.prefetch_scripts", () =>
+      prefetchExternalScripts({
+        descriptors: gatedDescriptors,
+        pageUrl: url,
+        connectionId: ctx.connectionId,
+        mainFrameId: target.frameId,
+        mainLoaderId: target.loaderId,
+        extraHeaders: effectiveExtraHeaders(target),
+        cookieKey: cookieKeyFor(ctx.connectionId, target.browserContextId),
+        baseUrl: scriptBaseUrl,
+        sandboxOutbound: ctx.browser.sandboxOutbound,
+        gate: scriptGate,
+        initiator: "parser",
+      }),
     );
     const routeChunkUrls = nextRouteChunkUrls(afterClassicPrefetch, url).filter(
       (u) => !learnedUrls.includes(u),
@@ -1839,7 +2009,7 @@ async function pushNavigateToPageScriptInner(
     const speculativePrefetch =
       speculativeUrls.length === 0
         ? Promise.resolve<ParentScriptDescriptor[]>([])
-        : traceSpan(ctx.env.HOST_TRACER, "navigate.prefetch_speculative", () =>
+        : traceSpan(ctx.host.tracer, "navigate.prefetch_speculative", () =>
             applyPreFetchScriptGate(
               speculativeUrls.map((src) => ({
                 src,
@@ -1890,12 +2060,12 @@ async function pushNavigateToPageScriptInner(
     );
     if (ctx.browser.cdpDebug && speculativeUrls.length > 0) {
       console.log(
-        `[kitesurf-nav] speculative scripts baked ${insertedBake.length}/${speculativeUrls.length}`,
+        `[parawing-nav] speculative scripts baked ${insertedBake.length}/${speculativeUrls.length}`,
       );
     }
     // Hash the bytes the page will fetch, before the walk rewrites them.
     const insertedDigests = await insertedSourceDigests(insertedBake);
-    const walkResult = await traceSpan(ctx.env.HOST_TRACER, "navigate.walk_module_graph", () =>
+    const walkResult = await traceSpan(ctx.host.tracer, "navigate.walk_module_graph", () =>
       walkModuleGraph({
         descriptors: afterClassicPrefetch,
         insertedDescriptors: insertedBake,
@@ -1917,7 +2087,7 @@ async function pushNavigateToPageScriptInner(
       }),
     );
     scriptDescriptors = walkResult.descriptors;
-    scriptBundle = traceSpan(ctx.env.HOST_TRACER, "navigate.build_bundle", () =>
+    scriptBundle = traceSpan(ctx.host.tracer, "navigate.build_bundle", () =>
       buildScriptBundle(scriptDescriptors, {
         cdpDebug: ctx.browser.cdpDebug,
         additionalModules: walkResult.additionalModules,
@@ -1944,17 +2114,17 @@ async function pushNavigateToPageScriptInner(
         }
       }
       const wasmUrls = traceSpan(
-        ctx.env.HOST_TRACER,
+        ctx.host.tracer,
         "navigate.scan_wasm_literals",
         () => scanForWasmUrls(wasmScanSources),
         { sources: wasmScanSources.length },
       );
-      const inlineWasm = traceSpan(ctx.env.HOST_TRACER, "navigate.scan_inline_wasm", () =>
+      const inlineWasm = traceSpan(ctx.host.tracer, "navigate.scan_inline_wasm", () =>
         scanForInlineWasm(wasmScanSources),
       );
       if (wasmUrls.length > 0 || inlineWasm.length > 0) {
         const prefetchedWasmBake = await traceSpan(
-          ctx.env.HOST_TRACER,
+          ctx.host.tracer,
           "navigate.prefetch_wasm",
           () =>
             prefetchWasmModules({
@@ -1972,7 +2142,7 @@ async function pushNavigateToPageScriptInner(
         wasmBake = prefetchedWasmBake;
         if (inlineWasm.length > 0) {
           await traceSpan(
-            ctx.env.HOST_TRACER,
+            ctx.host.tracer,
             "navigate.bake_inline_wasm",
             () => bakeInlineWasm(inlineWasm, prefetchedWasmBake),
             { count: inlineWasm.length },
@@ -1983,24 +2153,24 @@ async function pushNavigateToPageScriptInner(
           .map(([u, e]) => `${u}: ${e.slice(0, MAX_NAVIGATION_ERROR_PREVIEW_CHARS)}`)
           .slice(0, MAX_NAVIGATION_ERROR_SAMPLES);
         console.log(
-          `[kitesurf-nav] wasm bake: discovered=${wasmUrls.length} ` +
+          `[parawing-nav] wasm bake: discovered=${wasmUrls.length} ` +
             `inline=${inlineWasm.length} baked=${okCount}` +
             (errs.length ? ` errors=[${errs.join(" | ")}]` : ""),
         );
       }
     } catch (err) {
       console.warn(
-        "[kitesurf-nav] wasm bake threw (non-fatal):",
+        "[parawing-nav] wasm bake threw (non-fatal):",
         err instanceof Error ? err.message : String(err),
       );
       wasmBake = null;
     }
-    traceSpan(ctx.env.HOST_TRACER, "navigate.register_bundle", () =>
+    traceSpan(ctx.host.tracer, "navigate.register_bundle", () =>
       registerBundleScripts(ctx, target, scriptBundle),
     );
   } catch (err) {
     console.warn(
-      "[kitesurf-nav] script descriptor extraction/prefetch threw:",
+      "[parawing-nav] script descriptor extraction/prefetch threw:",
       err instanceof Error ? err.message : String(err),
     );
     scriptDescriptors = [];
@@ -2031,7 +2201,7 @@ async function pushNavigateToPageScriptInner(
     }
     const errsSuffix = externalErr > 0 ? ` errors=[${errSamples.join(" | ")}]` : "";
     console.log(
-      `[kitesurf-nav] url=${url} scripts: total=${totalScripts} inline=${inlineScripts} ext-ok=${externalOk} ext-err=${externalErr}${errsSuffix}`,
+      `[parawing-nav] url=${url} scripts: total=${totalScripts} inline=${inlineScripts} ext-ok=${externalOk} ext-err=${externalErr}${errsSuffix}`,
     );
     if (ctx.browser.cdpDebug) {
       for (let i = 0; i < scriptDescriptors.length; i++) {
@@ -2043,14 +2213,14 @@ async function pushNavigateToPageScriptInner(
           ? d.prefetchError.slice(0, MAX_CDP_DEBUG_ERROR_PREVIEW_CHARS)
           : "";
         console.log(
-          `[kitesurf-nav] script #${i}: src=${JSON.stringify(d.src)} ` +
+          `[parawing-nav] script #${i}: src=${JSON.stringify(d.src)} ` +
             `kind=${d.kind} defer=${d.defer} async=${d.async} ` +
             `srcLen=${srcLen} bodyLen=${bodyLen}` +
             (errSnippet ? ` err="${errSnippet}"` : ""),
         );
       }
       console.log(
-        `[kitesurf-nav] htmlPreview length=${target.html.length} ` +
+        `[parawing-nav] htmlPreview length=${target.html.length} ` +
           `first200=${JSON.stringify(target.html.slice(0, 200))}`,
       );
     }
@@ -2060,15 +2230,15 @@ async function pushNavigateToPageScriptInner(
       const mods = scriptBundle.moduleScriptUrls?.length ?? 0;
       const extra = Object.keys(scriptBundle.additionalModules ?? {}).length;
       console.log(
-        `[kitesurf-nav] bundle: regular=${reg}chars async=${asy}chars ` +
+        `[parawing-nav] bundle: regular=${reg}chars async=${asy}chars ` +
           `modules=${mods} (${extra} baked)`,
       );
     } else {
-      console.log("[kitesurf-nav] bundle: null (extraction/prefetch failed)");
+      console.log("[parawing-nav] bundle: null (extraction/prefetch failed)");
     }
   } catch (err) {
     console.warn(
-      "[kitesurf-nav] log-summary threw (non-fatal):",
+      "[parawing-nav] log-summary threw (non-fatal):",
       err instanceof Error ? err.message : String(err),
     );
   }
@@ -2082,12 +2252,12 @@ async function pushNavigateToPageScriptInner(
   let pendingPageScript: ReturnType<typeof getOrCreatePageScript> | null;
   try {
     pendingPageScript = traceSpan(
-      ctx.env.HOST_TRACER,
+      ctx.host.tracer,
       "init.bake_isolate",
       () =>
         getOrCreatePageScript({
-          env: ctx.env,
-          ctx: ctx.ctx,
+          host: ctx.host,
+          isolateLoader: ctx.isolateLoader,
           key: {
             connectionId: ctx.connectionId,
             targetId: target.targetId,
@@ -2122,7 +2292,7 @@ async function pushNavigateToPageScriptInner(
     );
   } catch (err) {
     console.warn(
-      "[kitesurf-nav] getOrCreatePageScript threw:",
+      "[parawing-nav] getOrCreatePageScript threw:",
       err instanceof Error ? err.message : String(err),
     );
     return { console: consoleAcc };
@@ -2148,8 +2318,8 @@ async function pushNavigateToPageScriptInner(
     const initialCookies = jarForTarget(ctx, target).documentCookieString(url);
     const ps = pendingPageScript;
     const raNavStart = ctx.analytics.now();
-    const summary = await traceSpan(ctx.env.HOST_TRACER, "init.pagescript_navigate", async (s) => {
-      const tracer = ctx.env.HOST_TRACER;
+    const summary = await traceSpan(ctx.host.tracer, "init.pagescript_navigate", async (s) => {
+      const tracer = ctx.host.tracer;
       const traced = !!(s && s.isRecording && tracer);
       if (traced && tracer) {
         target.diagSpans?.closeAll("superseded");
@@ -2164,8 +2334,19 @@ async function pushNavigateToPageScriptInner(
           tracer.getSpanContext(),
         );
       }
+      const initialWebStorage = ctx.browser.webStorage
+        ? {
+            localStorage: canAccessStorage(ctx, target, "read", "localStorage", url)
+              ? ctx.browser.webStorage.getLocalStorage(url)
+              : {},
+            sessionStorage: canAccessStorage(ctx, target, "read", "sessionStorage", url)
+              ? ctx.browser.webStorage.getSessionStorage(asTargetId(target.targetId), url)
+              : {},
+          }
+        : undefined;
       const navPromise = ps.navigate(html, url, {
         cookies: initialCookies,
+        ...(initialWebStorage ? { initialWebStorage } : {}),
         ...(traced ? { traced: true } : {}),
         expectIframeInstalls: owesIframeInstalls,
         ...(target.docCharset ? { charset: target.docCharset } : {}),
@@ -2242,11 +2423,11 @@ async function pushNavigateToPageScriptInner(
       const fontDegraded = summary.fontDegradedReads ?? 0;
       const fontDegradedSuffix = fontDegraded > 0 ? ` fontDegradedReads=${fontDegraded}` : "";
       console.log(
-        `[kitesurf-nav] done url=${url} consoleEntries=${consoleCount} mutations=${mutationsCount} cookieWrites=${cookieWritesCount}${errSuffix}${bundleExecSuffix}${fontDegradedSuffix}`,
+        `[parawing-nav] done url=${url} consoleEntries=${consoleCount} mutations=${mutationsCount} cookieWrites=${cookieWritesCount}${errSuffix}${bundleExecSuffix}${fontDegradedSuffix}`,
       );
     } catch (err) {
       console.warn(
-        "[kitesurf-nav] post-navigate log threw (non-fatal):",
+        "[parawing-nav] post-navigate log threw (non-fatal):",
         err instanceof Error ? err.message : String(err),
       );
     }
@@ -2353,7 +2534,7 @@ async function pushNavigateToPageScriptInner(
     };
   } catch (err) {
     console.warn(
-      "[kitesurf-nav] PageScript.navigate threw:",
+      "[parawing-nav] PageScript.navigate threw:",
       err instanceof Error ? err.message : String(err),
     );
     if (pendingPageScript && target.pageScript !== pendingPageScript) {
@@ -2379,7 +2560,8 @@ function emitExecutionContextCreated(
   target: TargetState,
   sessionId: string | undefined,
 ): void {
-  const sessions = targetSessions(target, sessionId);
+  const paused = isTargetObservationPaused(ctx, target);
+  const sessions = paused ? [] : targetSessions(target, sessionId);
   if (target.defaultContextId > 0) {
     emitContextsCleared(ctx, target, sessionId);
   }
@@ -2406,6 +2588,7 @@ function emitExecutionContextCreated(
   }
   for (const w of target.isolatedWorlds ?? []) {
     w.id = ctx.browser.execContextSeq++;
+    if (sessions.length === 0) continue;
     const isoParams = {
       context: {
         id: w.id,
@@ -2431,6 +2614,9 @@ function emitCapturedConsole(
   entries: ConsoleEntry[],
   sessionId: string | undefined,
 ): void {
+  if (isTargetObservationPaused(ctx, target)) {
+    return;
+  }
   const sessions = targetSessions(target, sessionId);
   for (const e of entries) {
     const ev = consoleEntryToCdpEvent(e, target.defaultContextId || 1);
@@ -2508,6 +2694,9 @@ function emitCapturedExceptions(
   sessionId: string | undefined,
 ): void {
   if (!entries || entries.length === 0) return;
+  if (isTargetObservationPaused(ctx, target)) {
+    return;
+  }
   const sessions = targetSessions(target, sessionId);
   for (const entry of entries) {
     const id = ++exceptionIdSeq;
@@ -2526,7 +2715,7 @@ export function mainFrame(t: TargetState): FrameState {
   return makeMainFrameState({ frameId: t.frameId, loaderId: t.loaderId, url: t.url });
 }
 
-// Chrome includes isDownload in every Page.navigate reply, and Playwright reads it. Kitesurf
+// Chrome includes isDownload in every Page.navigate reply, and Playwright reads it. Parawing
 // aborts a response Chrome would download (net::ERR_ABORTED), so it never reports a download.
 function navigateReply(
   frameId: string,
@@ -2573,6 +2762,13 @@ function targetSessionsNetwork(
   return [fallback ? fallback : undefined];
 }
 
+function isTargetObservationPaused(ctx: DispatchCtx, target: TargetState): boolean {
+  return (
+    ctx.connectionRole !== "viewer" &&
+    ctx.browser.controllerLeases?.isAgentObservationPaused(asTargetId(target.targetId)) === true
+  );
+}
+
 // Chrome announces a renderer-initiated navigation before the input that started it replies, and
 // chrome-devtools-mcp waits for a click's page only when frameStartedNavigating comes first.
 export function emitInputNavigationStarted(
@@ -2581,6 +2777,7 @@ export function emitInputNavigationStarted(
   nav: { url: string; loaderId: string; reason: Protocol.Page.ClientNavigationReason },
   sessionId: string | undefined,
 ): void {
+  if (isTargetObservationPaused(ctx, target)) return;
   const frameId = target.frameId;
   for (const s of targetSessions(target, sessionId)) {
     ctx.emit({
@@ -2607,6 +2804,7 @@ function emitFrameStartedLoading(
   frame: FrameState,
   sessionId: string | undefined,
 ): void {
+  if (isTargetObservationPaused(ctx, target)) return;
   for (const s of targetSessions(target, sessionId)) {
     ctx.emit({
       method: "Page.frameStartedLoading",
@@ -2625,6 +2823,7 @@ function emitFrameNavigated(
   if (frame.frameId === target.frameId) {
     emitContextsCleared(ctx, target, sessionId);
   }
+  if (isTargetObservationPaused(ctx, target)) return;
   const params: Protocol.Page.FrameNavigatedEvent = {
     frame: makeFrameInfo(frame, target.frames),
     type: "Navigation",
@@ -2649,6 +2848,7 @@ function emitContextsCleared(
     if (w.id > 0) (target.retiredContextIds ??= new Set()).add(w.id);
     w.id = 0;
   }
+  if (isTargetObservationPaused(ctx, target)) return;
   for (const s of targetSessions(target, sessionId)) {
     ctx.emit({ method: "Runtime.executionContextsCleared", sessionId: s });
   }
@@ -2660,6 +2860,10 @@ export function emitFrameDclComplete(
   frame: FrameState,
   sessionId: string | undefined,
 ): void {
+  if (isTargetObservationPaused(ctx, target)) {
+    frame.lifecycle = "dcl";
+    return;
+  }
   const ts = Date.now() / MILLISECONDS_PER_SECOND;
   const sessions = targetSessions(target, sessionId);
   for (const name of ["init", "DOMContentLoaded"] as const) {
@@ -2697,6 +2901,16 @@ export function emitFrameLoadComplete(
 ): void {
   const ts = Date.now() / MILLISECONDS_PER_SECOND;
   const sessions = targetSessions(target, sessionId);
+  if (frame.parentFrameId === null) {
+    target.lastLoadAt = Date.now();
+  }
+  frame.lifecycle = "load";
+  if (isTargetObservationPaused(ctx, target)) {
+    if (frame.parentFrameId === null) {
+      scheduleNetworkIdleEmit(ctx, target, frame, sessions);
+    }
+    return;
+  }
   const params: Protocol.Page.LifecycleEventEvent = {
     frameId: frame.frameId,
     loaderId: frame.loaderId,
@@ -2711,7 +2925,6 @@ export function emitFrameLoadComplete(
     });
   }
   if (frame.parentFrameId === null) {
-    target.lastLoadAt = Date.now();
     for (const s of sessions) {
       ctx.emit({
         method: "Page.loadEventFired",
@@ -2730,7 +2943,6 @@ export function emitFrameLoadComplete(
   if (frame.parentFrameId === null) {
     scheduleNetworkIdleEmit(ctx, target, frame, sessions);
   }
-  frame.lifecycle = "load";
 }
 
 function scheduleLoadCompleteEmit(
@@ -2746,8 +2958,16 @@ function scheduleLoadCompleteEmit(
     return;
   }
   const generationAtSchedule = target.navigateGeneration;
+  const epochAtSchedule = ctx.connectionEpoch;
   const urlAtSchedule = target.pageScriptUrl;
   const browser = ctx.browser;
+  const isAborted = (): boolean =>
+    Boolean(
+      ctx.isClosed?.() ||
+      browser.wsClosing ||
+      target.navigateGeneration !== generationAtSchedule ||
+      (epochAtSchedule !== undefined && browser.sessionEpoch !== epochAtSchedule),
+    );
   const work = (async () => {
     const iframeWaits: Promise<void>[] = [];
     const installWaits: Promise<void>[] = [];
@@ -2768,11 +2988,7 @@ function scheduleLoadCompleteEmit(
           .then(async () => {
             const ps = target.pageScript;
             try {
-              if (
-                browser.wsClosing ||
-                target.navigateGeneration !== generationAtSchedule ||
-                f.detached
-              ) {
+              if (isAborted() || f.detached) {
                 releaseFrameDom(f);
                 return;
               }
@@ -2804,7 +3020,7 @@ function scheduleLoadCompleteEmit(
                   });
                 } catch (err) {
                   console.warn(
-                    "[kitesurf-iframe] installIframeContent failed for " + f.url + ":",
+                    "[parawing-iframe] installIframeContent failed for " + f.url + ":",
                     err instanceof Error ? err.message : String(err),
                   );
                 }
@@ -2823,7 +3039,7 @@ function scheduleLoadCompleteEmit(
     if (armedIframeGate) {
       void Promise.all(installWaits)
         .then(() => {
-          if (browser.wsClosing || target.navigateGeneration !== generationAtSchedule) {
+          if (isAborted()) {
             return;
           }
           const ps = target.pageScript;
@@ -2832,7 +3048,7 @@ function scheduleLoadCompleteEmit(
         .catch(() => {});
     }
     let summary: Partial<LoadCompletion> = {};
-    const summaryWait = traceSpan(ctx.env.HOST_TRACER, "navigate.await_load", async (sp) => {
+    const summaryWait = traceSpan(ctx.host.tracer, "navigate.await_load", async (sp) => {
       const s = await pageScript.awaitLoad();
       if (sp && typeof s.sentAt === "number") {
         const recvAt = Date.now();
@@ -2849,14 +3065,13 @@ function scheduleLoadCompleteEmit(
       })
       .catch((err) => {
         console.warn(
-          "[kitesurf-nav] awaitLoad threw (firing load lifecycle anyway):",
+          "[parawing-nav] awaitLoad threw (firing load lifecycle anyway):",
           err instanceof Error ? err.message : String(err),
         );
       });
     drivePageTasks(ctx, target, summaryWait);
     await Promise.all([summaryWait, ...iframeWaits]);
-    if (browser.wsClosing) return;
-    if (target.navigateGeneration !== generationAtSchedule || target.pageScript !== pageScript) {
+    if (isAborted() || target.pageScript !== pageScript) {
       return;
     }
     if (target.diagSpans) {
@@ -2888,13 +3103,13 @@ function scheduleLoadCompleteEmit(
       await reconcileTools(ctx, target);
     } catch (err) {
       console.warn(
-        "kitesurf: WebMCP reconcile failed:",
+        "parawing: WebMCP reconcile failed:",
         err instanceof Error ? err.message : String(err),
       );
     }
     emitFrameLoadComplete(ctx, target, mainFrame(target), sessionId);
   })();
-  ctx.ctx.waitUntil(work);
+  ctx.host.tasks.run(work);
 }
 
 const backgroundDrainInFlight = new WeakSet<TargetState>();
@@ -2909,7 +3124,7 @@ export function pumpBackgroundEvents(ctx: DispatchCtx, target: TargetState): voi
   const work = (async () => {
     try {
       const summary = await pageScript.drainConsole();
-      if (ctx.browser.wsClosing) return;
+      if (ctx.isClosed?.() || ctx.browser.wsClosing) return;
       if (target.pageScript !== pageScript) return;
       // target.url already names the next document while a navigate fetches it.
       const cookieUrl = target.pageScriptUrl;
@@ -2927,7 +3142,7 @@ export function pumpBackgroundEvents(ctx: DispatchCtx, target: TargetState): voi
       if (summary.cdpMutations && summary.cdpMutations.length > 0) {
         emitMutations(ctx, target, summary.cdpMutations);
       }
-      if (summary.documentReopened) {
+      if (summary.documentReopened && !isTargetObservationPaused(ctx, target)) {
         const { replayReopenedLifecycle } = await import("./runtime.ts");
         replayReopenedLifecycle(ctx, target, summary, undefined);
       }
@@ -2936,7 +3151,7 @@ export function pumpBackgroundEvents(ctx: DispatchCtx, target: TargetState): voi
       backgroundDrainInFlight.delete(target);
     }
   })();
-  ctx.ctx.waitUntil(work);
+  ctx.host.tasks.run(work);
 }
 
 const PUMP_TASKS_TIMEOUT_MS = 5_000;
@@ -2988,7 +3203,7 @@ function drivePageTasks(ctx: DispatchCtx, target: TargetState, loaded: Promise<u
     const start = Date.now();
     let idleSince: number | null = null;
     while (Date.now() - start < DRIVE_MAX_MS) {
-      if (browser.wsClosing || target.navigateGeneration !== generation) return;
+      if (ctx.isClosed?.() || browser.wsClosing || target.navigateGeneration !== generation) return;
       const r = await pumpPageTasks(target);
       if (!r || r.pumped < 0) return;
       if (r.pumped > 0) {
@@ -3000,7 +3215,7 @@ function drivePageTasks(ctx: DispatchCtx, target: TargetState, loaded: Promise<u
       await new Promise((resolve) => setTimeout(resolve, DRIVE_IDLE_POLL_MS));
     }
   })();
-  ctx.ctx.waitUntil(work);
+  ctx.host.tasks.run(work);
 }
 
 const NETWORK_IDLE_QUIET_MS = 500;
@@ -3015,17 +3230,27 @@ function scheduleNetworkIdleEmit(
 ): void {
   const frameId = frame.frameId;
   const loaderId = frame.loaderId;
+  const generationAtSchedule = target.navigateGeneration;
+  const epochAtSchedule = ctx.connectionEpoch;
   const tracker = ctx.browser.networkEvents;
   const browser = ctx.browser;
+  const shouldStop = (): boolean =>
+    Boolean(
+      ctx.isClosed?.() ||
+      browser.wsClosing ||
+      target.navigateGeneration !== generationAtSchedule ||
+      frame.loaderId !== loaderId ||
+      (epochAtSchedule !== undefined && browser.sessionEpoch !== epochAtSchedule),
+    );
   const work = (async () => {
     const start = Date.now();
     let quietSince: number | null = null;
     while (Date.now() - start < NETWORK_IDLE_MAX_WAIT_MS) {
-      if (browser.wsClosing) return;
+      if (shouldStop()) return;
       const leftMs = NETWORK_IDLE_MAX_WAIT_MS - (Date.now() - start);
       if (leftMs <= 0) break;
       await pumpPageTasks(target, Math.min(leftMs, PUMP_TASKS_TIMEOUT_MS));
-      if (browser.wsClosing) return;
+      if (shouldStop()) return;
       tracker.drain();
       const inFlight = tracker.getInFlight();
       if (inFlight === 0) {
@@ -3039,7 +3264,7 @@ function scheduleNetworkIdleEmit(
       }
       await new Promise((resolve) => setTimeout(resolve, NETWORK_IDLE_POLL_MS));
     }
-    if (browser.wsClosing) return;
+    if (shouldStop() || isTargetObservationPaused(ctx, target)) return;
     const ts = Date.now() / MILLISECONDS_PER_SECOND;
     const params: Protocol.Page.LifecycleEventEvent = {
       frameId,
@@ -3055,7 +3280,7 @@ function scheduleNetworkIdleEmit(
       });
     }
   })();
-  ctx.ctx.waitUntil(work);
+  ctx.host.tasks.run(work);
 }
 
 function emitNavigationLifecycle(
@@ -3070,7 +3295,13 @@ function emitNavigationLifecycle(
   const childFrames = [...target.frames.values()].filter(
     (frame) => frame.parentFrameId !== null && frame.lifecycle === "init",
   );
-  emitChildFrameAttachAndStart(ctx, target.frames, childFrames, targetSessions(target, sessionId));
+  emitChildFrameAttachAndStart(
+    ctx,
+    target.frames,
+    childFrames,
+    targetSessions(target, sessionId),
+    isTargetObservationPaused(ctx, target),
+  );
   for (const f of target.frames.values()) {
     if (f.parentFrameId === null) continue;
     f.readyState = "complete";
@@ -3086,6 +3317,7 @@ function emitDocumentUpdated(
   target: TargetState,
   sessionId: string | undefined,
 ): void {
+  if (isTargetObservationPaused(ctx, target)) return;
   for (const s of targetSessions(target, sessionId)) {
     ctx.emit({
       method: "DOM.documentUpdated",
@@ -3097,7 +3329,7 @@ function emitDocumentUpdated(
 function withoutPlumbingHeaders(headers: Record<string, string>): Record<string, string> {
   const out: Record<string, string> = {};
   for (const [k, v] of Object.entries(headers)) {
-    if (k.toLowerCase().startsWith("x-kitesurf-")) continue;
+    if (k.toLowerCase().startsWith("x-parawing-")) continue;
     out[k] = v;
   }
   return out;
@@ -3303,7 +3535,7 @@ function admitChildFrame(budget: ChildFrameBudget, at: string): boolean {
   if (!budget.framesWarned) {
     budget.framesWarned = true;
     console.warn(
-      `[kitesurf-iframe] MAX_CHILD_FRAMES=${MAX_CHILD_FRAMES} reached at ${at}; ` +
+      `[parawing-iframe] MAX_CHILD_FRAMES=${MAX_CHILD_FRAMES} reached at ${at}; ` +
         `further iframes not registered`,
     );
   }
@@ -3325,7 +3557,7 @@ async function pollOopifFrames(ctx: DispatchCtx, target: TargetState): Promise<v
         !f.oopifSpawning &&
         ctx.browser.workerBudget.canSpawnOopif()
       ) {
-        ctx.ctx.waitUntil(spawnOopifPipeline(ctx, target, f));
+        ctx.host.tasks.run(spawnOopifPipeline(ctx, target, f));
       }
       continue;
     }
@@ -3356,15 +3588,15 @@ async function captureOopifFrames(
 ): Promise<void> {
   const pass = oopifPass(ctx, target);
   if (budgetMs <= 0) {
-    ctx.ctx.waitUntil(pass.catch(() => {}));
+    ctx.host.tasks.run(pass.catch(() => {}));
     return;
   }
   try {
     await withTimeout(pass, budgetMs, "oopif capture pass");
   } catch (err) {
-    ctx.ctx.waitUntil(pass.catch(() => {}));
+    ctx.host.tasks.run(pass.catch(() => {}));
     console.warn(
-      "[kitesurf-oopif] capture pass exceeded budget; capturing partial:",
+      "[parawing-oopif] capture pass exceeded budget; capturing partial:",
       err instanceof Error ? err.message : String(err),
     );
   }
@@ -3382,7 +3614,7 @@ function pumpOopifFrames(ctx: DispatchCtx, target: TargetState): void {
     }
   }
   if (!anyChild) return;
-  ctx.ctx.waitUntil(oopifPass(ctx, target).catch(() => {}));
+  ctx.host.tasks.run(oopifPass(ctx, target).catch(() => {}));
 }
 
 async function pollOopifFrame(
@@ -3410,12 +3642,12 @@ async function pollOopifFrame(
       throw err;
     }
     if (!res.ok) {
-      console.warn(`[kitesurf-oopif] poll re-render failed for ${f.url}: ${res.error}`);
+      console.warn(`[parawing-oopif] poll re-render failed for ${f.url}: ${res.error}`);
       return;
     }
     if (res.bytes.length === 0) return;
     if (typeof res.width !== "number" || typeof res.height !== "number") {
-      console.warn(`[kitesurf-oopif] poll re-render: rgba envelope missing dims for ${f.url}`);
+      console.warn(`[parawing-oopif] poll re-render: rgba envelope missing dims for ${f.url}`);
       return;
     }
     if (ctx.browser.wsClosing) return;
@@ -3433,12 +3665,12 @@ async function pollOopifFrame(
       f.lastRenderSeq = typeof res.seq === "number" ? res.seq : f.lastRenderSeq;
     } else {
       console.warn(
-        `[kitesurf-oopif] poll setFrameBitmap rc=${rc.rc} for ${f.url}${rc.error ? ": " + rc.error : ""}`,
+        `[parawing-oopif] poll setFrameBitmap rc=${rc.rc} for ${f.url}${rc.error ? ": " + rc.error : ""}`,
       );
     }
   } catch (err) {
     console.warn(
-      `[kitesurf-oopif] poll threw for ${f.url}:`,
+      `[parawing-oopif] poll threw for ${f.url}:`,
       err instanceof Error ? err.message : String(err),
     );
   }
@@ -3478,7 +3710,7 @@ function refuseBlockedFrame(ctx: DispatchCtx, target: TargetState, f: FrameState
     });
     tracker.failRequest(requestId, "net::ERR_BLOCKED_BY_CLIENT", "subresource-filter");
   }
-  console.warn(`[kitesurf-oopif] ${verdict.reason}, ${f.url} renders blank`);
+  console.warn(`[parawing-oopif] ${verdict.reason}, ${f.url} renders blank`);
   return true;
 }
 
@@ -3532,7 +3764,7 @@ function oopifSpawnArgs(ctx: DispatchCtx, target: TargetState, f: FrameState): R
         sealedSandbox.sameOrigin ? originOf(url) : "",
       );
       return (event, params) => {
-        if (event === "kitesurf.postMessage") {
+        if (event === "parawing.postMessage") {
           routeChildFramePostMessage(target, f, params, url, sealedSandbox);
         } else if (isWorkerUpstreamEvent(event)) {
           ctx.browser.dedicatedWorkers.handle(ctx, workerOwner, event, params);
@@ -3585,16 +3817,16 @@ function prespawnOopifFrame(ctx: DispatchCtx, target: TargetState, f: FrameState
     if (f.detached || ctx.browser.wsClosing) return null;
     try {
       const { prespawnFrameIsolate } = await import("../eval/oopif-render.ts");
-      const pre = await prespawnFrameIsolate(ctx.env, ctx.ctx, args);
+      const pre = await prespawnFrameIsolate(ctx.host, ctx.isolateLoader, args);
       if (!pre.ok) {
-        console.warn(`[kitesurf-oopif] prespawn failed for ${url}: ${pre.error}`);
+        console.warn(`[parawing-oopif] prespawn failed for ${url}: ${pre.error}`);
         if (pre.refused) entry.refused = true;
         return null;
       }
       return pre;
     } catch (err) {
       console.warn(
-        `[kitesurf-oopif] prespawn threw for ${url}:`,
+        `[parawing-oopif] prespawn threw for ${url}:`,
         err instanceof Error ? err.message : String(err),
       );
       return null;
@@ -3610,7 +3842,7 @@ function prespawnOopifFrame(ctx: DispatchCtx, target: TargetState, f: FrameState
   queue.tail = settled.catch(() => null);
   entry.promise = settled;
   f.oopifPrespawn = entry;
-  ctx.ctx.waitUntil(promise.then(() => {}));
+  ctx.host.tasks.run(promise.then(() => {}));
 }
 
 async function takeOopifPrespawn(
@@ -3665,7 +3897,7 @@ function discardOopifPrespawn(f: FrameState, reason: string, atClose?: Generatio
   const discarding = entry.promise.then((pre) =>
     pre ? discardOopifPrespawnResult(pre, reason, atClose !== undefined) : undefined,
   );
-  if (atClose?.waitUntil) atClose.waitUntil(discarding);
+  if (atClose?.tasks) atClose.tasks.run(discarding);
 }
 
 function clearRefusedFrameBitmap(target: TargetState, f: FrameState): void {
@@ -3691,7 +3923,7 @@ async function spawnOopifPipeline(
     if (!f.oopifBlocked) {
       f.oopifBlocked = true;
       console.warn(
-        `[kitesurf-oopif] budget full, ${f.url} renders blank ` +
+        `[parawing-oopif] budget full, ${f.url} renders blank ` +
           `(${ctx.browser.workerBudget.describe()})`,
       );
     }
@@ -3736,13 +3968,13 @@ async function spawnOopifPipeline(
     }
     const spawn = pre
       ? await navigatePrespawnedFrame(pre, args)
-      : await spawnAndNavigateFrame(ctx.env, ctx.ctx, args);
+      : await spawnAndNavigateFrame(ctx.host, ctx.isolateLoader, args);
     if (!spawn.ok) {
       if (spawn.refused) {
         f.framePolicyBlocked = true;
         clearRefusedFrameBitmap(target, f);
       }
-      console.warn(`[kitesurf-oopif] spawn failed for ${f.url}: ${spawn.error}`);
+      console.warn(`[parawing-oopif] spawn failed for ${f.url}: ${spawn.error}`);
       lease.release();
       f.pageScriptLease = null;
       return;
@@ -3831,15 +4063,15 @@ async function spawnOopifPipeline(
         f.lastRenderSeq = typeof res.seq === "number" ? res.seq : -1;
       } else {
         console.warn(
-          `[kitesurf-oopif] setFrameBitmap rc=${rc.rc} for ${f.url}${rc.error ? ": " + rc.error : ""}`,
+          `[parawing-oopif] setFrameBitmap rc=${rc.rc} for ${f.url}${rc.error ? ": " + rc.error : ""}`,
         );
       }
     } else if (!res.ok) {
-      console.warn(`[kitesurf-oopif] render failed for ${f.url}: ${res.error}`);
+      console.warn(`[parawing-oopif] render failed for ${f.url}: ${res.error}`);
     }
   } catch (err) {
     console.warn(
-      `[kitesurf-oopif] pipeline threw for ${f.url}:`,
+      `[parawing-oopif] pipeline threw for ${f.url}:`,
       err instanceof Error ? err.message : String(err),
     );
   } finally {
@@ -4035,11 +4267,11 @@ export function installUpstreamEventHandler(
   stub.setUpstreamEventHandler((event, params) => {
     if (target.navigateGeneration !== generation) return;
     if (ctx.browser.wsClosing) return;
-    if (event === "kitesurf.diag") {
+    if (event === "parawing.diag") {
       target.diagSpans?.handle(params);
       return;
     }
-    if (event === "kitesurf.insertedScriptRan") {
+    if (event === "parawing.insertedScriptRan") {
       const p = params as { url?: unknown; bytes?: unknown; run?: unknown };
       if (typeof p.url === "string" && typeof p.bytes === "number") {
         const run = p.run === "baked" || p.run === "stale" ? p.run : "boa";
@@ -4056,7 +4288,7 @@ export function installUpstreamEventHandler(
       }
       return;
     }
-    if (event === "kitesurf.paintDirty") {
+    if (event === "parawing.paintDirty") {
       wakeSceneStream(ctx.browser, target.targetId);
       const screencast = ctx.browser.screencasts.get(target.targetId);
       if (screencast) {
@@ -4065,15 +4297,34 @@ export function installUpstreamEventHandler(
       }
       return;
     }
+    const upstreamCtx: DispatchCtx =
+      ctx.connectionRole === "viewer" &&
+      ctx.browser.controllerLeases?.isAgentObservationPaused(asTargetId(target.targetId)) !== true
+        ? {
+            ...ctx,
+            actorConnectionId: undefined,
+            connectionRole: ctx.browser.connectionRole ?? "owner",
+            emit: (ev) => {
+              if (
+                !ctx.browser.wsClosing &&
+                ctx.browser.controllerLeases?.isAgentObservationPaused(
+                  asTargetId(target.targetId),
+                ) !== true
+              ) {
+                ctx.browser.emitSink(ev);
+              }
+            },
+          }
+        : ctx;
     if (isWorkerUpstreamEvent(event)) {
-      ctx.browser.dedicatedWorkers.handle(ctx, workerOwner, event, params);
+      ctx.browser.dedicatedWorkers.handle(upstreamCtx, workerOwner, event, params);
       return;
     }
     // Page.navigate mints the next loader id and resets target.frames before it bumps the
     // generation, while this isolate still runs. Its frame events then describe a document that
     // is being replaced and must not reach the next one's frames.
     if (target.loaderId !== loaderId) return;
-    handleUpstreamFrameEvent(ctx, target, undefined, event, params, url);
+    handleUpstreamFrameEvent(upstreamCtx, target, undefined, event, params, url);
   });
 }
 
@@ -4085,7 +4336,7 @@ export function installIsolateLimitSurface(
 ): void {
   // A replacement generation retires the previous one's listener; nothing else removes it.
   unregisterIsolateLimitListenersForTarget(ctx.connectionId, target.targetId);
-  const caps = pageIsolateCaps(ctx.env, ctx.browser.isolateCapOverrides);
+  const caps = pageIsolateCaps(ctx.host, ctx.browser.isolateCapOverrides);
   const isLive = () =>
     !ctx.browser.wsClosing &&
     target.navigateGeneration === generation &&
@@ -4098,10 +4349,10 @@ export function installIsolateLimitSurface(
     const capMs = notice.kind === "cpu" ? caps.cpuMs : notice.capMs;
     const text =
       notice.kind === "gone"
-        ? "Kitesurf: the page isolate was reclaimed by the platform and the page was terminated. Reload to continue."
+        ? "Parawing: the page isolate was reclaimed by the platform and the page was terminated. Reload to continue."
         : notice.kind === "crashed"
-          ? `Kitesurf: the page's engine crashed (${notice.detail ?? "unknown trap"}) and the page was terminated. Reload to continue.`
-          : `Kitesurf: page exceeded its ${
+          ? `Parawing: the page's engine crashed (${notice.detail ?? "unknown trap"}) and the page was terminated. Reload to continue.`
+          : `Parawing: page exceeded its ${
               notice.kind === "cpu"
                 ? `CPU time limit (${capMs} ms)`
                 : notice.kind === "wall"
@@ -4317,7 +4568,8 @@ function handleUpstreamFrameEvent(
   params: ReceivedUpstreamParams,
   isolateUrl: string,
 ): void {
-  if (event === "kitesurf.bindingCalled") {
+  if (event === "parawing.bindingCalled") {
+    if (isTargetObservationPaused(ctx, target)) return;
     const name = typeof params.name === "string" ? params.name : "";
     const payload = typeof params.payload === "string" ? params.payload : "";
     if (!name || !ctx.browser.pendingBindings.has(name)) return;
@@ -4336,11 +4588,11 @@ function handleUpstreamFrameEvent(
     return;
   }
 
-  if (event === "kitesurf.postMessage") {
+  if (event === "parawing.postMessage") {
     routePostMessageToChild(target, mainFrame(target), params);
     return;
   }
-  if (event === "kitesurf.formSubmitNavigate") {
+  if (event === "parawing.formSubmitNavigate") {
     const url = typeof params.url === "string" ? params.url : null;
     if (!url) return;
     const postData = typeof params.postData === "string" ? params.postData : null;
@@ -4351,22 +4603,30 @@ function handleUpstreamFrameEvent(
         const { dispatch } = await import("./dispatch.ts");
         const navParams: Protocol.Page.NavigateRequest = {
           url,
-          _kitesurfInternal: true,
-          _kitesurfInitiatorOrigin: initiatorOriginOf(isolateUrl) ?? "null",
+          _parawingInternal: true,
+          _parawingInitiatorOrigin: initiatorOriginOf(isolateUrl) ?? "null",
         };
         if (postData !== null && postContentType !== null) {
-          navParams._kitesurfPostData = postData;
-          navParams._kitesurfPostContentType = postContentType;
+          navParams._parawingPostData = postData;
+          navParams._parawingPostContentType = postContentType;
         }
-        await dispatch(ctx, {
+        const navReq: CdpRequest = {
           id: -1,
           method: "Page.navigate",
           params: navParams,
           sessionId: targetSessionsNetwork(target, sessionId)[0],
-        });
+        };
+        if (
+          ctx.connectionRole === "viewer" ||
+          ctx.browser.controllerLeases?.isAgentObservationPaused(asTargetId(target.targetId)) ===
+            true
+        ) {
+          markInternalHumanRequest(navReq);
+        }
+        await dispatch(ctx, navReq);
       } catch (err) {
         console.warn(
-          "kitesurf: form-submit Page.navigate failed:",
+          "parawing: form-submit Page.navigate failed:",
           err instanceof Error ? err.message : String(err),
         );
       }
@@ -4374,20 +4634,20 @@ function handleUpstreamFrameEvent(
     return;
   }
 
-  if (event === "kitesurf.modelContextToolsAdded") {
+  if (event === "parawing.modelContextToolsAdded") {
     if (Array.isArray(params.tools)) {
       emitToolsAdded(ctx, target, params.tools as Parameters<typeof emitToolsAdded>[2]);
     }
     return;
   }
-  if (event === "kitesurf.modelContextToolsRemoved") {
+  if (event === "parawing.modelContextToolsRemoved") {
     if (Array.isArray(params.names)) {
       emitToolsRemoved(ctx, target, params.names as string[]);
     }
     return;
   }
 
-  if (event === "kitesurf.navigatedWithinDocument") {
+  if (event === "parawing.navigatedWithinDocument") {
     const url = typeof params.url === "string" ? params.url : null;
     const navigationType =
       typeof params.navigationType === "string" ? params.navigationType : "other";
@@ -4415,7 +4675,7 @@ function handleUpstreamFrameEvent(
       target.autoReloadUrl = url;
       if (target.autoReloadCount > MAX_CONSECUTIVE_AUTO_RELOADS) {
         console.warn(
-          `kitesurf: suppressing self-reload #${target.autoReloadCount} to ` +
+          `parawing: suppressing self-reload #${target.autoReloadCount} to ` +
             `${url}; ${MAX_CONSECUTIVE_AUTO_RELOADS} consecutive reloads ` +
             `fired within ${AUTO_RELOAD_SETTLED_MS}ms of load — reload loop`,
         );
@@ -4427,19 +4687,27 @@ function handleUpstreamFrameEvent(
       (async () => {
         try {
           const { dispatch } = await import("./dispatch.ts");
-          await dispatch(ctx, {
+          const navReq: CdpRequest = {
             id: -1,
             method: "Page.navigate",
             params: {
               url,
-              _kitesurfInternal: true,
-              _kitesurfInitiatorOrigin: initiatorOriginOf(isolateUrl) ?? "null",
+              _parawingInternal: true,
+              _parawingInitiatorOrigin: initiatorOriginOf(isolateUrl) ?? "null",
             },
             sessionId: targetSessionsNetwork(target, sessionId)[0],
-          });
+          };
+          if (
+            ctx.connectionRole === "viewer" ||
+            ctx.browser.controllerLeases?.isAgentObservationPaused(asTargetId(target.targetId)) ===
+              true
+          ) {
+            markInternalHumanRequest(navReq);
+          }
+          await dispatch(ctx, navReq);
         } catch (err) {
           console.warn(
-            `kitesurf: escalated ${kind} Page.navigate failed:`,
+            `parawing: escalated ${kind} Page.navigate failed:`,
             err instanceof Error ? err.message : String(err),
           );
         }
@@ -4459,6 +4727,7 @@ function handleUpstreamFrameEvent(
     } else if (kind === "hash" || kind === "pushState") {
       recordNavigationHistory(target, url, "link");
     }
+    if (isTargetObservationPaused(ctx, target)) return;
     const sessions = targetSessions(target, sessionId);
     for (const s of sessions) {
       ctx.emit({
@@ -4472,7 +4741,7 @@ function handleUpstreamFrameEvent(
 
   const frameId = typeof params.frameId === "string" ? params.frameId : null;
   if (!frameId) return;
-  if (event === "kitesurf.frameAttached") {
+  if (event === "parawing.frameAttached") {
     if (target.frames.has(frameId)) return;
     const url = typeof params.url === "string" && params.url ? params.url : "about:blank";
     const ownerBackendNodeId =
@@ -4497,7 +4766,8 @@ function handleUpstreamFrameEvent(
       ),
     });
     target.frames.set(frameId, frame);
-    const sessions = targetSessions(target, sessionId);
+    const paused = isTargetObservationPaused(ctx, target);
+    const sessions = paused ? [] : targetSessions(target, sessionId);
     for (const s of sessions) {
       ctx.emit({
         method: "Page.frameAttached",
@@ -4522,11 +4792,11 @@ function handleUpstreamFrameEvent(
   if (!frame || frame.parentFrameId === null) return;
   const revived = frame.detached;
   if (revived) {
-    if (event !== "kitesurf.frameNavigated") return;
+    if (event !== "parawing.frameNavigated") return;
     frame.detached = false;
     frame.lifecycle = "init";
   }
-  if (event === "kitesurf.frameNavigated") {
+  if (event === "parawing.frameNavigated") {
     const url = typeof params.url === "string" && params.url ? params.url : frame.url;
     const urlChanged = url !== frame.url;
     // A new document commits its own response policy; a refusal is never inherited by the next
@@ -4555,14 +4825,15 @@ function handleUpstreamFrameEvent(
       emitFrameTarget(ctx, frame);
     }
     if (!frame.pageScript && !frame.oopifSpawning && frameNeedsIsolate(frame)) {
-      ctx.ctx.waitUntil(spawnOopifPipeline(ctx, target, frame).catch(() => {}));
+      ctx.host.tasks.run(spawnOopifPipeline(ctx, target, frame).catch(() => {}));
     }
     return;
   }
-  if (event === "kitesurf.frameLifecycle") {
+  if (event === "parawing.frameLifecycle") {
     const name = typeof params.name === "string" ? params.name : null;
     if (name !== "DOMContentLoaded" && name !== "load") return;
-    const sessions = targetSessions(target, sessionId);
+    const paused = isTargetObservationPaused(ctx, target);
+    const sessions = paused ? [] : targetSessions(target, sessionId);
     const ts = Date.now() / MILLISECONDS_PER_SECOND;
     for (const s of sessions) {
       ctx.emit({
@@ -4585,8 +4856,8 @@ function handleUpstreamFrameEvent(
     }
     return;
   }
-  if (event === "kitesurf.frameStoppedLoading") {
-    if (frame.lifecycle === "load") return;
+  if (event === "parawing.frameStoppedLoading") {
+    if (frame.lifecycle === "load" || isTargetObservationPaused(ctx, target)) return;
     const sessions = targetSessions(target, sessionId);
     for (const s of sessions) {
       ctx.emit({
@@ -4597,10 +4868,11 @@ function handleUpstreamFrameEvent(
     }
     return;
   }
-  if (event === "kitesurf.frameDetached") {
+  if (event === "parawing.frameDetached") {
     frame.detached = true;
     teardownOopifStubForFrame(target, frame, "iframe removed from DOM", ctx);
     releaseFrameDom(frame);
+    if (isTargetObservationPaused(ctx, target)) return;
     const sessions = targetSessions(target, sessionId);
     for (const s of sessions) {
       ctx.emit({
@@ -4611,7 +4883,7 @@ function handleUpstreamFrameEvent(
     }
     return;
   }
-  console.warn(`[kitesurf-iframe] unknown upstream event: ${event}`);
+  console.warn(`[parawing-iframe] unknown upstream event: ${event}`);
 }
 
 function emitChildFrameDclLoad(
@@ -4622,6 +4894,8 @@ function emitChildFrameDclLoad(
 ): void {
   if (frame.parentFrameId === null) return;
   if (frame.lifecycle === "load") return;
+  frame.lifecycle = "load";
+  if (isTargetObservationPaused(ctx, target)) return;
   const sessions = targetSessions(target, sessionId);
   const ts = Date.now() / MILLISECONDS_PER_SECOND;
   for (const name of ["DOMContentLoaded", "load"] as const) {
@@ -4642,7 +4916,6 @@ function emitChildFrameDclLoad(
       sessionId: s,
     });
   }
-  frame.lifecycle = "load";
 }
 
 async function loadChildFrame(
@@ -4695,7 +4968,7 @@ async function loadChildFrame(
     let finalUrl: string;
     const walkAbort = new AbortController();
     const walkTimer = setTimeout(
-      () => walkAbort.abort(new Error("kitesurf: iframe document walk timeout")),
+      () => walkAbort.abort(new Error("parawing: iframe document walk timeout")),
       IFRAME_DOC_WALK_BUDGET_MS,
     );
     try {
@@ -4704,10 +4977,10 @@ async function loadChildFrame(
         signal: walkAbort.signal,
         fetchHop: (hopReq) => docOutbound.fetch(hopReq),
         headers: {
-          "x-kitesurf-allow-cross-origin": "1",
-          "x-kitesurf-resource-type": "Document",
-          "x-kitesurf-frame-id": frame.frameId,
-          "x-kitesurf-initiator": "parser",
+          "x-parawing-allow-cross-origin": "1",
+          "x-parawing-resource-type": "Document",
+          "x-parawing-frame-id": frame.frameId,
+          "x-parawing-initiator": "parser",
           accept: "text/html,application/xhtml+xml,application/xml;q=0.9,*/*;q=0.8",
           "sec-fetch-dest": "iframe",
           "sec-fetch-mode": "navigate",
@@ -4715,7 +4988,7 @@ async function loadChildFrame(
         },
       });
       if (!walk.ok) {
-        console.warn(`[kitesurf-iframe] too many redirects for ${frame.url}`);
+        console.warn(`[parawing-iframe] too many redirects for ${frame.url}`);
         frame.readyState = "complete";
         return;
       }
@@ -4723,7 +4996,7 @@ async function loadChildFrame(
       finalUrl = walk.finalUrl;
     } catch (err) {
       console.warn(
-        `[kitesurf-iframe] fetch failed for ${frame.url}:`,
+        `[parawing-iframe] fetch failed for ${frame.url}:`,
         err instanceof Error ? err.message : String(err),
       );
       frame.readyState = "complete";
@@ -4732,7 +5005,7 @@ async function loadChildFrame(
       clearTimeout(walkTimer);
     }
     if (!resp.ok) {
-      console.warn(`[kitesurf-iframe] fetch ${resp.status} for ${frame.url}`);
+      console.warn(`[parawing-iframe] fetch ${resp.status} for ${frame.url}`);
       frame.readyState = "complete";
       return;
     }
@@ -4763,7 +5036,7 @@ async function loadChildFrame(
       try {
         await resp.body?.cancel();
       } catch {}
-      console.warn(`[kitesurf-iframe] refused ${finalUrl} by ${policy.directive ?? policy.reason}`);
+      console.warn(`[parawing-iframe] refused ${finalUrl} by ${policy.directive ?? policy.reason}`);
       frame.framePolicyBlocked = true;
       frame.dom = null;
       frame.mimeType = "text/html";
@@ -4784,7 +5057,7 @@ async function loadChildFrame(
         ctx.connectionId,
       );
       if (!read.ok) {
-        console.warn(`[kitesurf-iframe] body read refused (${read.failure}) for ${frame.url}`);
+        console.warn(`[parawing-iframe] body read refused (${read.failure}) for ${frame.url}`);
         frame.readyState = "complete";
         return;
       }
@@ -4792,7 +5065,7 @@ async function loadChildFrame(
       html = decodeHtmlBytes(read.bytes, contentType).html;
     } catch (err) {
       console.warn(
-        `[kitesurf-iframe] body read failed for ${frame.url}:`,
+        `[parawing-iframe] body read failed for ${frame.url}:`,
         err instanceof Error ? err.message : String(err),
       );
       frame.readyState = "complete";
@@ -4822,7 +5095,7 @@ async function loadChildFrame(
   if (
     !sameAncestorOrigins(ancestorOrigins, frameAncestorOrigins(frame, target.frames, target.url))
   ) {
-    console.warn(`[kitesurf-iframe] ancestry changed before ${frame.url} committed`);
+    console.warn(`[parawing-iframe] ancestry changed before ${frame.url} committed`);
     frame.readyState = "complete";
     return;
   }
@@ -4832,7 +5105,7 @@ async function loadChildFrame(
     if (!budget.bytesWarned) {
       budget.bytesWarned = true;
       console.warn(
-        `[kitesurf-iframe] child document budget spent at ${frame.url}; ` +
+        `[parawing-iframe] child document budget spent at ${frame.url}; ` +
           `further child documents not parsed`,
       );
     }
@@ -4848,7 +5121,7 @@ async function loadChildFrame(
     frame.hasScript = strip.count > 0;
   } catch (err) {
     console.warn(
-      `[kitesurf-iframe] parse failed for ${frame.url}:`,
+      `[parawing-iframe] parse failed for ${frame.url}:`,
       err instanceof Error ? err.message : String(err),
     );
     frame.dom = null;
@@ -4869,12 +5142,13 @@ async function loadChildFrame(
         target.frames,
         attachableGrandchildren,
         targetSessions(target, sessionId),
+        isTargetObservationPaused(ctx, target),
       );
       const waits: Promise<void>[] = [];
       for (const gc of grandchildren) {
         const cycled = nextAncestors.has(gc.url);
         if (cycled) {
-          console.warn(`[kitesurf-iframe] cycle detected, skipping fetch for ${gc.url}`);
+          console.warn(`[parawing-iframe] cycle detected, skipping fetch for ${gc.url}`);
         }
         // An opaque grandchild has no same-origin view for this document to install.
         if (
@@ -4896,7 +5170,7 @@ async function loadChildFrame(
     } else if (depth + 1 >= MAX_IFRAME_DEPTH) {
       if (findIframes(frame.dom).length > 0) {
         console.warn(
-          `[kitesurf-iframe] MAX_IFRAME_DEPTH=${MAX_IFRAME_DEPTH} reached at ${frame.url}; nested iframes not discovered`,
+          `[parawing-iframe] MAX_IFRAME_DEPTH=${MAX_IFRAME_DEPTH} reached at ${frame.url}; nested iframes not discovered`,
         );
       }
     }
@@ -4911,7 +5185,7 @@ function stripIframeScripts(html: string, url: string): { html: string; count: n
   const stripped = removeHtmlTagSpans(html, spans);
   if (count > 0) {
     console.warn(
-      `[kitesurf-iframe] stripped ${count} <script> tag(s) from ${url} ` +
+      `[parawing-iframe] stripped ${count} <script> tag(s) from ${url} ` +
         `(parent-side contentDocument stays script-free; OOPIF handles frame scripts)`,
     );
   }
@@ -5013,7 +5287,7 @@ async function inlineStylesheets(
   const admit = (css: string, url: string): boolean => {
     const cost = 2 * css.length;
     if (!Number.isSafeInteger(cost) || cost > remaining) {
-      console.warn(`[kitesurf-css] inline budget exhausted (${cost} bytes): ${url}`);
+      console.warn(`[parawing-css] inline budget exhausted (${cost} bytes): ${url}`);
       return false;
     }
     remaining -= cost;
@@ -5054,7 +5328,7 @@ async function inlineStylesheets(
     fetchTasks.map(async (t) => {
       const reqHeaders = {
         accept: "text/css,*/*;q=0.1",
-        "x-kitesurf-page-origin": pageOrigin,
+        "x-parawing-page-origin": pageOrigin,
         "user-agent":
           "Mozilla/5.0 (X11; Linux x86_64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/145.0.0.0 Safari/537.36",
       };
@@ -5088,7 +5362,7 @@ async function inlineStylesheets(
         if (resp.status >= 200 && resp.status < 300) {
           const read = await readCappedText(resp, MAX_STYLESHEET_BYTES, connectionId);
           if (!read.ok) {
-            console.warn(`[kitesurf-css] stylesheet read refused (${read.failure}): ${t.resolved}`);
+            console.warn(`[parawing-css] stylesheet read refused (${read.failure}): ${t.resolved}`);
             if (reqId && tracker) {
               tracker.failRequest(reqId, cappedErrorText(read.failure));
             }
@@ -5149,7 +5423,7 @@ async function inlineStylesheets(
       }
     } catch (err) {
       console.warn(
-        "kitesurf: inlineStylesheets mutation failed for",
+        "parawing: inlineStylesheets mutation failed for",
         t.href,
         err instanceof Error ? err.message : String(err),
       );
@@ -5182,12 +5456,12 @@ async function screencastLoop(
   let noDocPlaceholderSent = false;
 
   console.log(
-    `[kitesurf-screencast] loop start target=${target.targetId} ` +
+    `[parawing-screencast] loop start target=${target.targetId} ` +
       `format=${state.format} quality=${state.quality} ` +
       `maxWidth=${state.maxWidth} maxHeight=${state.maxHeight} ` +
       `everyNthFrame=${state.everyNthFrame}`,
   );
-  const now = makeWallClock(ctx.env);
+  const now = () => ctx.host.clock.now();
   const loopStartedAt = now();
   let exitReason = "unknown";
   type InFlightRender = {
@@ -5201,7 +5475,7 @@ async function screencastLoop(
   const renderedOrInFlightSeq = (): number =>
     Math.max(state.lastRenderedMutationSeq, inFlight?.isCurrent() ? inFlight.seq : -1);
   const autoStopForAck = (why: string): void => {
-    console.warn(`kitesurf: screencast auto-stop ${why}`);
+    console.warn(`parawing: screencast auto-stop ${why}`);
     state.stopped = true;
     ctx.browser.screencasts.delete(target.targetId);
     stopAndRemoveWheelQueue(ctx.browser, target.targetId, state.ownerSessionId, state.wheelQueue);
@@ -5212,7 +5486,7 @@ async function screencastLoop(
         const { renderHtmlToImage } = await import("../wasm.ts");
         const bytes = renderHtmlToImage(
           PLACEHOLDER_HTML,
-          "https://kitesurf.local/",
+          "https://parawing.local/",
           state.maxWidth,
           state.maxHeight,
           state.format,
@@ -5230,7 +5504,7 @@ async function screencastLoop(
         emitFrame(bytes, -1);
         return true;
       } catch (err) {
-        console.warn("kitesurf: placeholder frame render threw", err);
+        console.warn("parawing: placeholder frame render threw", err);
         return false;
       }
     };
@@ -5248,6 +5522,12 @@ async function screencastLoop(
     };
 
     const emitFrame = (bytes: Uint8Array, mutationSeq: number, scrollX = 0, scrollY = 0) => {
+      if (
+        Boolean(target.sealedOrigin) ||
+        ctx.browser.controllerLeases?.isAgentObservationPaused(asTargetId(target.targetId)) === true
+      ) {
+        return;
+      }
       state.lastRenderedMutationSeq = mutationSeq;
       state.frameSeq += 1;
       const sid = state.frameSeq;
@@ -5318,7 +5598,7 @@ async function screencastLoop(
         state.consecutiveRenderFailures += 1;
         if (state.consecutiveRenderFailures >= RENDER_FAILURE_LIMIT) {
           console.warn(
-            "kitesurf: screencast record failed " +
+            "parawing: screencast record failed " +
               `${state.consecutiveRenderFailures}x (${viaRenderer.failed})` +
               " — placeholder until next navigate.",
           );
@@ -5377,6 +5657,14 @@ async function screencastLoop(
       }
 
       ctx.browser.networkEvents.drain();
+
+      if (
+        Boolean(target.sealedOrigin) ||
+        ctx.browser.controllerLeases?.isAgentObservationPaused(asTargetId(target.targetId)) === true
+      ) {
+        idleUntil = now() + IDLE_SCREENCAST_WAKE_MS;
+        continue;
+      }
 
       if (state.pendingAckSessionId !== null) {
         const elapsed = now() - state.pendingAckSetAt;
@@ -5505,7 +5793,7 @@ async function screencastLoop(
     exitReason = state.stopped ? "state.stopped" : exitReason;
     const elapsed = now() - loopStartedAt;
     console.log(
-      `[kitesurf-screencast] loop end target=${target.targetId} ` +
+      `[parawing-screencast] loop end target=${target.targetId} ` +
         `reason=${exitReason} elapsedMs=${elapsed} ` +
         `frameSeq=${state.frameSeq} ` +
         `pendingAck=${state.pendingAckSessionId}`,
@@ -5514,7 +5802,7 @@ async function screencastLoop(
 }
 
 const PLACEHOLDER_HTML = `<!doctype html>
-<html><head><meta charset="utf-8"><title>kitesurf</title>
+<html><head><meta charset="utf-8"><title>parawing</title>
 <style>
   html,body{margin:0;padding:0;background:#1e1e1e;color:#bbb;font:14px sans-serif;height:100%}
   body{display:flex;align-items:center;justify-content:center;height:100vh}
@@ -5523,6 +5811,6 @@ const PLACEHOLDER_HTML = `<!doctype html>
   .panel .sub{font-size:13px;color:#888}
 </style></head>
 <body><div class="panel">
-  <div class="title">kitesurf</div>
+  <div class="title">parawing</div>
   <div class="sub">waiting for navigation…</div>
 </div></body></html>`;

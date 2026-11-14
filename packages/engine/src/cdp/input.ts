@@ -7,9 +7,10 @@
 
 import { makeTargetId, type CdpRequest, type TargetState } from "./types.ts";
 import type { DispatchCtx } from "./dispatch.ts";
+import { isInternalHumanRequest, markInternalHumanRequest } from "./dispatch.ts";
 import { makeFrameInfo, makeMainFrameState } from "./frames.ts";
-import type { MouseEventInit } from "@kitesurf/jsrpc-types/page-script";
-import type { ConsoleEntry } from "@kitesurf/jsrpc-types/shared";
+import type { MouseEventInit } from "@parawing/jsrpc-types/page-script";
+import type { ConsoleEntry } from "@parawing/jsrpc-types/shared";
 import { consoleEntryToCdpEvent } from "../eval/page-script.ts";
 import { emitMutations } from "./dom.ts";
 import {
@@ -19,6 +20,13 @@ import {
   initiatorOriginOf,
 } from "./page.ts";
 import { terminalSceneWheelQueue } from "./scene-stream.ts";
+import { asTargetId } from "../session/identities.ts";
+import {
+  acknowledgeClientInputSeq,
+  clearJournalOnNavigation,
+  clearJournalOnSubmit,
+  recordJournalKeyEvent,
+} from "../rbi-v2-server.ts";
 import {
   fenceWheelQueues,
   flushWheelQueues,
@@ -93,12 +101,36 @@ export interface HandleInputOptions {
   replyOnDispatch?: boolean;
 }
 
+function journalPendingInput(ctx: DispatchCtx, target: TargetState, req: CdpRequest): number {
+  const nextSeq = target.lastAckedInputSeq + 1;
+  if (ctx.sessionManager && ctx.browser.sessionId) {
+    ctx.sessionManager.appendUnackedInput(ctx.browser.sessionId, {
+      seq: nextSeq,
+      targetId: asTargetId(target.targetId),
+      kind: req.method,
+      payload: req.params ?? {},
+    });
+  }
+  return nextSeq;
+}
+
+function recordAckedInput(ctx: DispatchCtx, target: TargetState, seq?: number): void {
+  const ackSeq =
+    seq !== undefined && seq > target.lastAckedInputSeq ? seq : target.lastAckedInputSeq + 1;
+  target.lastAckedInputSeq = ackSeq;
+  if (ctx.sessionManager && ctx.browser.sessionId) {
+    ctx.sessionManager.recordAckedInput(ctx.browser.sessionId, ackSeq);
+  }
+}
+
 export async function handleInput(
   ctx: DispatchCtx,
   req: CdpRequest,
   expected?: { targetId: string; generation: number },
   { replyOnDispatch = false }: HandleInputOptions = {},
 ): Promise<unknown> {
+  const isHumanInput =
+    ctx.connectionRole === "viewer" || ctx.actorRole === "human" || isInternalHumanRequest(req);
   const pendingNavigation = pickTarget(ctx, req.sessionId)?.inputNavigation;
   if (pendingNavigation) await pendingNavigation;
   const expectedStub = expected ? pickTarget(ctx, req.sessionId)?.pageScript : undefined;
@@ -185,17 +217,19 @@ export async function handleInput(
         try {
           // This private flag is not declared by the standard mouse-event protocol shape.
           const syncMove =
-            Reflect.get(p, "_kitesurfSyncMove") === true ||
+            Reflect.get(p, "_parawingSyncMove") === true ||
             ((p.buttons ?? 0) & 1) !== 0 ||
             expected !== undefined;
           assertExpected(target);
           if (!syncMove) {
             scheduleMouseMove(ctx, target, init, req.sessionId);
+            recordAckedInput(ctx, target);
             return {};
           }
           await flushPendingMove(ctx, target);
           assertExpected(target);
           await dispatchMouseMove(ctx, target, init, req.sessionId);
+          recordAckedInput(ctx, target);
           return {};
         } finally {
           for (const release of moveFenceReleases) release();
@@ -223,7 +257,9 @@ export async function handleInput(
           ) {
             assertExpected(target);
             configureWheelDispatch(ctx, target, req.sessionId, queue);
-            return await queue.enqueue(init);
+            const wheelResult = await queue.enqueue(init);
+            recordAckedInput(ctx, target);
+            return wheelResult;
           }
         }
         await waitForWheelHandoffDrain(ctx.browser, target.targetId, req.sessionId);
@@ -242,7 +278,9 @@ export async function handleInput(
         const inputPageScript = target.pageScript;
         const inputPageScriptUrl = target.pageScriptUrl;
         if (!inputPageScript) return {};
+        const pendingSeq = journalPendingInput(ctx, target, req);
         const result = await inputPageScript.dispatchMouseEvent(evType, init);
+        recordAckedInput(ctx, target, pendingSeq);
         emitConsole(ctx, result.console, req.sessionId);
         emitMutations(ctx, target, result.cdpMutations);
         if (p.type !== "mouseReleased") {
@@ -260,6 +298,7 @@ export async function handleInput(
             req.sessionId,
             !replyOnDispatch,
             initiatorOriginOf(inputPageScriptUrl) ?? "null",
+            isHumanInput,
           );
         }
         if (p.type === "mousePressed" && p.button === "right") {
@@ -301,13 +340,14 @@ export async function handleInput(
             req.sessionId,
             !replyOnDispatch,
             initiatorOriginOf(inputPageScriptUrl) ?? "null",
+            isHumanInput,
           );
         }
         return {};
       } catch (err) {
         assertExpected(target);
         console.warn(
-          "kitesurf: Input.dispatchMouseEvent forward failed:",
+          "parawing: Input.dispatchMouseEvent forward failed:",
           err instanceof Error ? err.message : String(err),
         );
         return {};
@@ -349,9 +389,21 @@ export async function handleInput(
         const inputPageScript = target.pageScript;
         const inputPageScriptUrl = target.pageScriptUrl;
         if (!inputPageScript) return {};
+        const pendingSeq = journalPendingInput(ctx, target, req);
+        const rawSeq = Reflect.get(p, "_parawingInputSeq");
+        const clientInputSeq =
+          typeof rawSeq === "number" && Number.isInteger(rawSeq) && rawSeq > 0 ? rawSeq : undefined;
         const result = await inputPageScript.dispatchKeyEvent(evType, init);
         emitConsole(ctx, result.console, req.sessionId);
         emitMutations(ctx, target, result.cdpMutations);
+        if (result.journalInput) {
+          await recordJournalKeyEvent(ctx.browser, target, result.journalInput, clientInputSeq);
+        } else {
+          recordAckedInput(ctx, target, pendingSeq);
+          if (clientInputSeq !== undefined) {
+            await acknowledgeClientInputSeq(ctx.browser, target, clientInputSeq);
+          }
+        }
         for (const release of releaseWheelFences) release();
         if (target.pageScript !== inputPageScript || target.pageScriptUrl !== inputPageScriptUrl) {
           return {};
@@ -363,12 +415,13 @@ export async function handleInput(
           req.sessionId,
           !replyOnDispatch,
           initiatorOriginOf(inputPageScriptUrl) ?? "null",
+          isHumanInput,
         );
         return {};
       } catch (err) {
         assertExpected(target);
         console.warn(
-          "kitesurf: Input.dispatchKeyEvent forward failed:",
+          "parawing: Input.dispatchKeyEvent forward failed:",
           err instanceof Error ? err.message : String(err),
         );
         return {};
@@ -391,6 +444,7 @@ export async function handleInput(
       if (!releaseWheelFences) return {};
       try {
         assertExpected(target);
+        const pendingSeq = journalPendingInput(ctx, target, req);
         const result = await target.pageScript.dispatchKeyEvent("keydown", {
           bubbles: true,
           cancelable: true,
@@ -400,10 +454,15 @@ export async function handleInput(
         });
         emitConsole(ctx, result.console, req.sessionId);
         emitMutations(ctx, target, result.cdpMutations);
+        if (result.journalInput) {
+          await recordJournalKeyEvent(ctx.browser, target, result.journalInput);
+        } else {
+          recordAckedInput(ctx, target, pendingSeq);
+        }
       } catch (err) {
         assertExpected(target);
         console.warn(
-          "kitesurf: Input.insertText forward failed:",
+          "parawing: Input.insertText forward failed:",
           err instanceof Error ? err.message : String(err),
         );
       } finally {
@@ -544,6 +603,13 @@ function emitConsole(
 ): void {
   if (!entries || entries.length === 0) return;
   const target = pickTarget(ctx, sessionId);
+  if (
+    target &&
+    ctx.connectionRole !== "viewer" &&
+    ctx.browser.controllerLeases?.isAgentObservationPaused(asTargetId(target.targetId)) === true
+  ) {
+    return;
+  }
   const ctxId = target?.defaultContextId || 1;
   for (const e of entries) {
     const ev = consoleEntryToCdpEvent(e, ctxId);
@@ -586,14 +652,24 @@ async function followNavigation(
   sessionId: string | undefined,
   wait: boolean,
   initiatorOrigin: string,
+  humanInput = false,
 ): Promise<void> {
   if (!startsNavigation(result)) return;
+  await clearJournalOnSubmit(ctx.browser, target);
+  await clearJournalOnNavigation(ctx.browser, target);
   const loaderId = announceNavigation(ctx, target, result, sessionId);
-  const navigation = maybeFollowAnchor(ctx, result, sessionId, loaderId, initiatorOrigin);
+  const navigation = maybeFollowAnchor(
+    ctx,
+    result,
+    sessionId,
+    loaderId,
+    initiatorOrigin,
+    humanInput,
+  );
   if (wait) return navigation;
   const pending: Promise<void> = navigation
     .catch((err: unknown) =>
-      console.warn("kitesurf: input-started navigation failed", {
+      console.warn("parawing: input-started navigation failed", {
         targetId: target.targetId,
         sessionId,
         error: err instanceof Error ? (err.stack ?? err.message) : String(err),
@@ -639,30 +715,36 @@ async function maybeFollowAnchor(
   sessionId: string | undefined,
   loaderId: string | undefined,
   initiatorOrigin: string,
+  humanInput = false,
 ): Promise<void> {
-  const announced = loaderId ? { _kitesurfLoaderId: loaderId } : {};
+  const announced = loaderId ? { _parawingLoaderId: loaderId } : {};
   const navigateTo = result?.navigateTo;
   const hashNavigateTo = result?.hashNavigateTo;
   const navigatePost = formPost(result);
   if (navigatePost) {
     const { dispatch } = await import("./dispatch.ts");
+    const navReq: CdpRequest = {
+      id: -1,
+      method: "Page.navigate",
+      params: {
+        url: navigatePost.url,
+        _parawingInternal: true,
+        _parawingPostData: navigatePost.postData,
+        _parawingPostContentType: navigatePost.postContentType,
+        _parawingInitiatorOrigin: initiatorOrigin,
+        ...announced,
+      },
+      sessionId,
+    };
+    if (humanInput) markInternalHumanRequest(navReq);
     try {
-      await dispatch(ctx, {
-        id: -1,
-        method: "Page.navigate",
-        params: {
-          url: navigatePost.url,
-          _kitesurfInternal: true,
-          _kitesurfPostData: navigatePost.postData,
-          _kitesurfPostContentType: navigatePost.postContentType,
-          _kitesurfInitiatorOrigin: initiatorOrigin,
-          ...announced,
-        },
-        sessionId,
-      });
+      const navRes = await dispatch(ctx, navReq);
+      if ("error" in navRes) {
+        console.warn("parawing: form-POST Page.navigate rejected:", navRes.error.message);
+      }
     } catch (err) {
       console.warn(
-        "kitesurf: form-POST Page.navigate failed:",
+        "parawing: form-POST Page.navigate failed:",
         err instanceof Error ? err.message : String(err),
       );
     }
@@ -670,21 +752,26 @@ async function maybeFollowAnchor(
   }
   if (typeof navigateTo === "string" && navigateTo.length > 0) {
     const { dispatch } = await import("./dispatch.ts");
+    const navReq: CdpRequest = {
+      id: -1,
+      method: "Page.navigate",
+      params: {
+        url: navigateTo,
+        _parawingInternal: true,
+        _parawingInitiatorOrigin: initiatorOrigin,
+        ...announced,
+      },
+      sessionId,
+    };
+    if (humanInput) markInternalHumanRequest(navReq);
     try {
-      await dispatch(ctx, {
-        id: -1,
-        method: "Page.navigate",
-        params: {
-          url: navigateTo,
-          _kitesurfInternal: true,
-          _kitesurfInitiatorOrigin: initiatorOrigin,
-          ...announced,
-        },
-        sessionId,
-      });
+      const navRes = await dispatch(ctx, navReq);
+      if ("error" in navRes) {
+        console.warn("parawing: anchor-follow Page.navigate rejected:", navRes.error.message);
+      }
     } catch (err) {
       console.warn(
-        "kitesurf: anchor-follow Page.navigate failed:",
+        "parawing: anchor-follow Page.navigate failed:",
         err instanceof Error ? err.message : String(err),
       );
     }
@@ -698,6 +785,12 @@ async function maybeFollowAnchor(
     if (main) {
       main.url = target.url;
       main.securityOrigin = originOfUrl(target.url);
+    }
+    if (
+      ctx.connectionRole !== "viewer" &&
+      ctx.browser.controllerLeases?.isAgentObservationPaused(asTargetId(target.targetId)) === true
+    ) {
+      return;
     }
     const frame =
       main ??

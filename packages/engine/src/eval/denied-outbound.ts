@@ -8,11 +8,11 @@ import { WorkerEntrypoint } from "cloudflare:workers";
 
 export class DeniedOutbound extends WorkerEntrypoint {
   override async fetch(request: Request): Promise<Response> {
-    console.warn(`[kitesurf-renderer] outbound denied: ${request.url}`);
-    return new Response("kitesurf: renderer egress denied", {
+    console.warn(`[parawing-renderer] outbound denied: ${request.url}`);
+    return new Response("parawing: renderer egress denied", {
       status: 403,
       headers: {
-        "x-kitesurf-blocked": "renderer-no-egress",
+        "x-parawing-blocked": "renderer-no-egress",
         "content-type": "text/plain;charset=utf-8",
       },
     });

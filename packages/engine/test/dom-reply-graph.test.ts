@@ -58,14 +58,14 @@ const attributedDocument = (elements: number, entries: number): Node => {
   );
 };
 function call(handler: typeof handleDom, method: string, over: Record<string, unknown> = {}) {
-  // oxlint-disable-next-line kitesurf/no-chained-type-assertions -- only the fields these handlers read are set.
+  // oxlint-disable-next-line parawing/no-chained-type-assertions -- only the fields these handlers read are set.
   const target = {
     sessions: new Set(["s1"]),
     domEnabledSessions: new Set<string>(),
     ...over,
   } as unknown as TargetState;
   const ctx = { browser: { targets: new Map([["t1", target]]) }, emit: () => {} };
-  // oxlint-disable-next-line kitesurf/no-chained-type-assertions -- partial dispatch fixture.
+  // oxlint-disable-next-line parawing/no-chained-type-assertions -- partial dispatch fixture.
   return handler(ctx as unknown as DispatchCtx, { method, sessionId: "s1" } as CdpRequest);
 }
 describe("DOM replies from the page isolate", () => {
@@ -182,7 +182,7 @@ describe("DOM replies from the page isolate", () => {
     const frame = { frameId: "child", isCrossOrigin: true, ownerBackendNodeId: 17 };
     const frames = new Map([["c", frame]]);
     const root = doc(node({ backendNodeId: 17, nodeName: "IFRAME", attributeNamespaces: [] }));
-    // oxlint-disable-next-line kitesurf/no-chained-type-assertions -- only getDocument is stubbed.
+    // oxlint-disable-next-line parawing/no-chained-type-assertions -- only getDocument is stubbed.
     const dom = { getDocument: () => root } as unknown as DomHandle;
     const r = (await call(handleDom, "DOM.getDocument", { dom, frames })) as { root: Node };
     expect((r.root.children as Node[])[0]?.frameId).toBe("child");

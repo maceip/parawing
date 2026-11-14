@@ -6,9 +6,9 @@ import { expect, test } from "../harness";
 
 test("lifecycle-demo", async ({ page }) => {
   const FIXTURE_URL =
-    process.env.KITESURF_FIXTURE ?? "http://127.0.0.1:8787/__fixtures/lifecycle.html";
+    process.env.PARAWING_FIXTURE ?? "http://127.0.0.1:8787/__fixtures/lifecycle.html";
   const SECOND_URL =
-    process.env.KITESURF_FIXTURE2 ?? "http://127.0.0.1:8787/__fixtures/inline-script.html";
+    process.env.PARAWING_FIXTURE2 ?? "http://127.0.0.1:8787/__fixtures/inline-script.html";
 
   const expectFirstNavigate = [
     { label: "inline-1", readyState: "loading" },

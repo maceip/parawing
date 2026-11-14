@@ -4,7 +4,7 @@
 
 // Bundle this sibling once so PageScript and the separate DOM shim share its state.
 
-import type { UpstreamMessage } from "@kitesurf/jsrpc-types/page-script";
+import type { UpstreamMessage } from "@parawing/jsrpc-types/page-script";
 
 export const DEFAULT_VIEWPORT_WIDTH_PX = 1280;
 export const DEFAULT_VIEWPORT_HEIGHT_PX = 720;
@@ -24,7 +24,7 @@ export interface BundleDiag {
   exitDom: unknown;
 }
 
-export interface KitesurfInternalState {
+export interface ParawingInternalState {
   mutationSeq: number;
 
   attrSeq: number;
@@ -111,14 +111,14 @@ export function notePaintWake(): void {
   // One paintDirty event wakes every armed consumer, so consume all thresholds together.
   if (paintWakeAfterSeq.size === 0) return;
   paintWakeAfterSeq.clear();
-  sendUpstreamEvent({ event: "kitesurf.paintDirty", params: {} });
+  sendUpstreamEvent({ event: "parawing.paintDirty", params: {} });
 }
 
 // No prototype: page script can put a setter on Object.prototype, and a write to a field that
 // is not an own property yet would call it with this record as its receiver.
-export function createInternalState(): KitesurfInternalState {
+export function createInternalState(): ParawingInternalState {
   let mutationSeq = 0;
-  const state: KitesurfInternalState = {
+  const state: ParawingInternalState = {
     attrSeq: 0,
     childSeq: 0,
     treeSeq: 0,
@@ -184,13 +184,13 @@ export function clearUpstreamSender(): void {
   upstreamSender = null;
 }
 
-const _state: KitesurfInternalState = createInternalState();
+const _state: ParawingInternalState = createInternalState();
 
 // The hooks dom-shim, page-script and the wasm core call each other through. Declared beside the
 // record so both packages type it the same way without importing each other; dom-shim objects are
 // `object` here for the same reason as BundleDiag's `unknown`. All optional: each side installs
 // its hooks when it loads, and a bare WPT harness never installs page-script's.
-export interface KitesurfInternals {
+export interface ParawingInternals {
   // Installed by page-script for dom-shim. True while a CDP client has the DOM domain enabled;
   // record.ts and element.ts then queue DOM.* mutation events.
   cdpDomActive?: boolean;
@@ -247,6 +247,20 @@ export interface KitesurfInternals {
   // Ms until the next page timer is due, or Infinity.
   readonly nextTimerDelay?: () => number;
 
+  // Persistent web-storage hydration and snapshot hooks for engine continuity.
+  initialWebStorage?: {
+    localStorage?: Record<string, string>;
+    sessionStorage?: Record<string, string>;
+  };
+  hydrateWebStorage?: (entries?: {
+    localStorage?: Record<string, string>;
+    sessionStorage?: Record<string, string>;
+  }) => void;
+  snapshotWebStorage?: () => {
+    localStorage: Record<string, string>;
+    sessionStorage: Record<string, string>;
+  };
+
   // Set by tests, benches and the memprof build. domDebug is the live DomHandle, for e2e tests
   // that inspect wasm state directly; canvasPushMs overrides the canvas push backstop, in ms.
   domDebug?: unknown;
@@ -255,19 +269,66 @@ export interface KitesurfInternals {
   memprofImports?: object;
   memprofDump?: () => string;
   memprofReset?: () => void;
+
+  // Optional native V8 realm evaluator installed by an out-of-Workers host (e.g. Deno node:vm).
+  v8RealmEvaluator?: RealmEvaluatorBridge;
 }
 
-// The one KitesurfInternals record, with no prototype, so a missing hook reads as undefined. The
+export interface RealmEvaluatorRawResult {
+  readonly ok: boolean;
+  readonly value?: unknown;
+  readonly error?: unknown;
+}
+
+export interface RealmEvaluatorBridge {
+  readonly kind: "v8";
+  installGlobals(bindings: Record<string, unknown>): void;
+  evaluateClassic(source: string, sourceURL?: string): unknown;
+  evaluateModule?(url: string, referrer?: string, type?: string): Promise<unknown>;
+  compileScript(
+    expression: string,
+    sourceURL?: string,
+  ): { ok: true } | { ok: false; error: unknown };
+  evalExpression(
+    expression: string,
+    options?: { awaitPromise?: boolean; sourceURL?: string },
+  ): Promise<RealmEvaluatorRawResult>;
+  callFunctionOn(
+    functionDeclaration: string,
+    thisValue: unknown,
+    args: unknown[],
+    options?: { awaitPromise?: boolean },
+  ): Promise<RealmEvaluatorRawResult>;
+  drainMicrotasks?(): Promise<void> | void;
+  pumpTimers?(deadlineMs?: number): number;
+  nextTimerDelay?(): number;
+  dispose?(): void;
+}
+
+const V8_REALM_BRIDGE_SYMBOL = Symbol.for("parawing.v8RealmEvaluator");
+
+// The one ParawingInternals record, with no prototype, so a missing hook reads as undefined. The
 // wasm and the e2e tests have no import, so it is also on globalThis under a registered symbol:
 // non-enumerable and non-writable. Its fields stay writable for the tests that stub a hook.
-const ksInternals: KitesurfInternals = Object.create(null);
-Object.defineProperty(globalThis, Symbol.for("kitesurf.internals"), { value: ksInternals });
+const ksInternals: ParawingInternals = Object.create(null);
+const initialV8Bridge: unknown = Reflect.get(globalThis, V8_REALM_BRIDGE_SYMBOL);
+if (
+  initialV8Bridge &&
+  typeof initialV8Bridge === "object" &&
+  (initialV8Bridge as { kind?: unknown }).kind === "v8"
+) {
+  ksInternals.v8RealmEvaluator = initialV8Bridge as RealmEvaluatorBridge;
+  try {
+    Reflect.deleteProperty(globalThis, V8_REALM_BRIDGE_SYMBOL);
+  } catch {}
+}
+Object.defineProperty(globalThis, Symbol.for("parawing.internals"), { value: ksInternals });
 
-export function getInternals(): KitesurfInternals {
+export function getInternals(): ParawingInternals {
   return ksInternals;
 }
 
-export function getInternalState(): KitesurfInternalState {
+export function getInternalState(): ParawingInternalState {
   return _state;
 }
 

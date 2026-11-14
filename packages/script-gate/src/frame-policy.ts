@@ -6,7 +6,7 @@
 // `frame-ancestors` and `X-Frame-Options`. The engine and the page-script isolate share this
 // module, so both commit paths apply one grammar to one trusted ancestor chain.
 
-import type { CommittedOrigin } from "@kitesurf/jsrpc-types/frame-origin";
+import type { CommittedOrigin } from "@parawing/jsrpc-types/frame-origin";
 import { defaultPortForScheme, parseCspPolicies, schemeMatches, type CspPolicy } from "./csp.ts";
 
 export interface EmbeddingPolicyInput {

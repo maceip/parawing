@@ -4,9 +4,9 @@
 
 // Batch one of the interner-reclaim pair: deliberately shares every
 // local identifier name with batch two (see boa-interner-reclaim e2e).
-const kitesurfInternerProbeLocal = 40;
+const parawingInternerProbeLocal = 40;
 const anotherSharedIdentifierName = 2;
-export const value = kitesurfInternerProbeLocal + anotherSharedIdentifierName;
+export const value = parawingInternerProbeLocal + anotherSharedIdentifierName;
 export const tag = "batch-one";
 export function probe() {
   return "one-alive";

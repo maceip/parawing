@@ -12,7 +12,7 @@ const html = `<script>
   (function () {
     var out = { type: typeof window.alert, threw: null, returned: null };
     try {
-      out.returned = String(alert("kitesurf alert probe"));
+      out.returned = String(alert("parawing alert probe"));
     } catch (e) {
       out.threw = String((e && e.message) || e);
     }

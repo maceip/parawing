@@ -14,7 +14,7 @@ import {
   waitForWheelHandoffDrain,
   type WheelBatch,
 } from "../src/cdp/wheel-queue.ts";
-import type { MouseEventInit } from "@kitesurf/jsrpc-types/page-script";
+import type { MouseEventInit } from "@parawing/jsrpc-types/page-script";
 import type { BrowserState } from "../src/cdp/types.ts";
 
 function wheel(deltaY: number, clientX = 10, shiftKey = false): MouseEventInit {

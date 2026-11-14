@@ -10,7 +10,8 @@ import type { DispatchCtx } from "../src/cdp/dispatch.ts";
 import type { PageScriptStub } from "../src/eval/page-script.ts";
 import { DynamicWorkerBudget } from "../src/eval/worker-budget.ts";
 import { DedicatedWorkers } from "../src/cdp/dedicated-workers.ts";
-import { SANDBOX_ALLOW_ALL } from "@kitesurf/script-gate";
+import { createMemoryHostCapabilities } from "../src/host-capabilities.ts";
+import { SANDBOX_ALLOW_ALL } from "@parawing/script-gate";
 import {
   notifyIsolateLimit,
   registerIsolateLimitListener,
@@ -18,15 +19,20 @@ import {
 } from "../src/eval/limit-registry.ts";
 
 function makeCtx(budget: DynamicWorkerBudget, background: Promise<unknown>[]) {
-  // oxlint-disable-next-line kitesurf/no-chained-type-assertions -- partial DispatchCtx teardown fixture.
+  const host = createMemoryHostCapabilities({
+    tasks: {
+      run: (promise) => {
+        background.push(promise);
+      },
+    },
+  });
+  // oxlint-disable-next-line parawing/no-chained-type-assertions -- partial DispatchCtx teardown fixture.
   return {
     browser: {
       targets: new Map(),
       screencasts: new Map(),
       workerBudget: budget,
-      dedicatedWorkers: new DedicatedWorkers(budget, (p: Promise<unknown>) => {
-        background.push(p);
-      }),
+      dedicatedWorkers: new DedicatedWorkers(budget, host.tasks),
       networkEvents: {
         deleteTargetAttribution: vi.fn(),
         forgetSession: vi.fn(),
@@ -34,11 +40,7 @@ function makeCtx(budget: DynamicWorkerBudget, background: Promise<unknown>[]) {
       layoutMode: "full",
     },
     emit: vi.fn(),
-    ctx: {
-      waitUntil: (promise: Promise<unknown>) => {
-        background.push(promise);
-      },
-    },
+    host,
     connectionId: "test",
   } as unknown as DispatchCtx;
 }
@@ -75,7 +77,7 @@ describe("closeTargetInternal", () => {
     const ctx = makeCtx(budget, []);
     const target = createPageTarget(ctx, "https://example.com");
     let releaseKill = () => {};
-    // oxlint-disable-next-line kitesurf/no-chained-type-assertions -- partial lifecycle RPC stub.
+    // oxlint-disable-next-line parawing/no-chained-type-assertions -- partial lifecycle RPC stub.
     target.pageScript = {
       close: vi.fn(),
       killIsolate: vi.fn(() => new Promise<void>((resolve) => (releaseKill = resolve))),

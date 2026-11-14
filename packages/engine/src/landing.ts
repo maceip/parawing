@@ -7,11 +7,11 @@
 
 import { absoluteInspectorBaseUrl, inspectorTargetUrl } from "./inspector.ts";
 
-const README = "https://github.com/cloudflare/kitesurf#readme";
+const README = "https://github.com/cloudflare/parawing#readme";
 
 const EXAMPLES: ReadonlyArray<{ title: string; url: string }> = [
   { title: "Example Domain", url: "https://example.com/" },
-  { title: "Wikipedia: Kitesurfing", url: "https://en.wikipedia.org/wiki/Kitesurfing" },
+  { title: "Wikipedia: Parawinging", url: "https://en.wikipedia.org/wiki/Parawinging" },
   { title: "The Cloudflare Blog", url: "https://blog.cloudflare.com/" },
   { title: "Browser Run docs", url: "https://developers.cloudflare.com/browser-run/" },
 ];
@@ -63,7 +63,7 @@ ${frontendNote}`;
 function cdpSection(url: URL): string {
   const ws = url.protocol === "https:" ? "wss" : "ws";
   const browserWs = escapeHtml(`${ws}://${url.host}/devtools/browser`);
-  const pageWs = escapeHtml(`${ws}://${url.host}/devtools/page/kitesurf`);
+  const pageWs = escapeHtml(`${ws}://${url.host}/devtools/page/parawing`);
   const origin = escapeHtml(url.origin);
   return `<h2>Connect a CDP client</h2>
 <p>Point your agent, Puppeteer, Playwright or another DevTools client at this engine:</p>
@@ -87,7 +87,7 @@ function chromeInspectSection(url: URL): string {
 <ol>
 <li>Open <code>chrome://inspect/#devices</code> in Chrome. Type or paste it into the address bar: web pages cannot link to it.</li>
 <li>Select <strong>Discover network targets</strong>, click <strong>Configure…</strong> and add <code>${escapeHtml(discoveryTarget(url))}</code>.</li>
-<li>Under <strong>Remote Target</strong>, click <strong>inspect</strong> next to <strong>kitesurf</strong>.</li>
+<li>Under <strong>Remote Target</strong>, click <strong>inspect</strong> next to <strong>parawing</strong>.</li>
 <li>Type a page URL in the address bar above the screencast.</li>
 </ol>`;
 }
@@ -105,7 +105,7 @@ export function landingPage(url: URL, inspectorBase: string | null = null): Resp
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
-<title>Kitesurf</title>
+<title>Parawing</title>
 <style>
 body { font: 16px/1.5 system-ui, sans-serif; max-width: 40rem; margin: 3rem auto; padding: 0 1rem; color: #1a1a1a; }
 code { background: #f2f2f2; padding: 0.1em 0.3em; border-radius: 3px; }
@@ -125,7 +125,7 @@ dd { margin: 0.25rem 0 0; }
 </style>
 </head>
 <body>
-<h1>Kitesurf</h1>
+<h1>Parawing</h1>
 ${intro}
 ${cdpSection(url)}
 ${chromeInspectSection(url)}

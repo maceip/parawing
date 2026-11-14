@@ -52,7 +52,7 @@ test("scene stream rejects malformed CDP parameters and the retired splash comma
   if (!ws) throw new Error(`CDP upgrade failed: ${response.status}`);
   ws.accept();
   let id = 0;
-  const send = (params: Record<string, unknown>, method = "Kitesurf.startSceneStream") =>
+  const send = (params: Record<string, unknown>, method = "Parawing.startSceneStream") =>
     new Promise<{ error?: unknown }>((resolve) => {
       const requestId = ++id;
       const onMessage = (event: { data: string | ArrayBuffer }) => {
@@ -66,7 +66,7 @@ test("scene stream rejects malformed CDP parameters and the retired splash comma
       ws.send(JSON.stringify({ id: requestId, method, params }));
     });
   try {
-    expect(await send({}, "Kitesurf.getRbiStartUrl")).toHaveProperty("error");
+    expect(await send({}, "Parawing.getRbiStartUrl")).toHaveProperty("error");
     for (const params of [
       { width: "800", height: 600 },
       { width: 800, height: 600, fps: 60.5 },
@@ -108,7 +108,7 @@ test("CDP scene stream preserves credit and resets after navigation", async () =
         replies.delete(message.id);
         resolve(message.error ? { error: message.error.message } : (message.result ?? {}));
       }
-    } else if (message.method === "Kitesurf.sceneFrame" && message.params?.data) {
+    } else if (message.method === "Parawing.sceneFrame" && message.params?.data) {
       expect(message.sessionId).toBe(sessionId);
       const binary = atob(message.params.data);
       frames.push(Uint8Array.from(binary, (char) => char.charCodeAt(0)));
@@ -157,7 +157,7 @@ test("CDP scene stream preserves credit and resets after navigation", async () =
       }),
     ).not.toHaveProperty("error");
     expect(
-      await send("Kitesurf.startSceneStream", {
+      await send("Parawing.startSceneStream", {
         width: 800,
         height: 600,
         fps: 60,
@@ -190,17 +190,17 @@ test("CDP scene stream preserves credit and resets after navigation", async () =
     ).toBe(true);
     expect(scenes().length).toBe(stalled);
     expect((await send("Browser.getVersion")).product).toBe("Chrome/145.0.0.0");
-    expect(await send("Kitesurf.sceneFrameAck", { seq: "0", painted: true })).not.toHaveProperty(
+    expect(await send("Parawing.sceneFrameAck", { seq: "0", painted: true })).not.toHaveProperty(
       "error",
     );
-    expect(await send("Kitesurf.getSceneResources", { missingB64: 123 })).toHaveProperty("error");
-    expect(await send("Kitesurf.sceneFrameAck", { seq: 99999, painted: true })).not.toHaveProperty(
+    expect(await send("Parawing.getSceneResources", { missingB64: 123 })).toHaveProperty("error");
+    expect(await send("Parawing.sceneFrameAck", { seq: 99999, painted: true })).not.toHaveProperty(
       "error",
     );
     await new Promise((resolve) => setTimeout(resolve, 150));
     expect(scenes().length).toBe(stalled);
     expect(
-      await send("Kitesurf.sceneFrameAck", { seq: sequence(scenes()[0]!), painted: false }),
+      await send("Parawing.sceneFrameAck", { seq: sequence(scenes()[0]!), painted: false }),
     ).not.toHaveProperty("error");
     expect(await waitFor(() => scenes().length > stalled)).toBe(true);
     expect(scenes().at(-1)?.[0]).toBe(3);
@@ -212,7 +212,7 @@ test("CDP scene stream preserves credit and resets after navigation", async () =
     expect(await waitFor(() => scenes().length > before)).toBe(true);
     expect(scenes().at(-1)?.[0]).toBe(3);
     expect(sequence(scenes().at(-1)!)).toBeGreaterThan(sequence(scenes()[before - 1]!));
-    const resources = await send("Kitesurf.getSceneResources", { missingB64: "AAAAAA==" });
+    const resources = await send("Parawing.getSceneResources", { missingB64: "AAAAAA==" });
     expect(resources).not.toHaveProperty("error");
     expect(typeof resources.batchB64).toBe("string");
     expect(
@@ -225,7 +225,7 @@ test("CDP scene stream preserves credit and resets after navigation", async () =
     ).not.toHaveProperty("error");
     const beforeResize = scenes().length;
     expect(
-      await send("Kitesurf.startSceneStream", { width: 640, height: 480, allowPartial: false }),
+      await send("Parawing.startSceneStream", { width: 640, height: 480, allowPartial: false }),
     ).not.toHaveProperty("error");
     expect(await waitFor(() => scenes().length > beforeResize)).toBe(true);
     const resized = scenes().at(-1)!;
@@ -235,7 +235,7 @@ test("CDP scene stream preserves credit and resets after navigation", async () =
     expect(new DataView(resized.buffer, resized.byteOffset).getUint16(9, true)).toBe(480);
     const heartbeatStart = frames.length;
     for (const frame of scenes().slice(beforeResize)) {
-      await send("Kitesurf.sceneFrameAck", { seq: sequence(frame), painted: true });
+      await send("Parawing.sceneFrameAck", { seq: sequence(frame), painted: true });
     }
     expect(
       await waitFor(
@@ -251,7 +251,7 @@ test("CDP scene stream preserves credit and resets after navigation", async () =
       ),
     ).toBe(true);
   } finally {
-    await send("Kitesurf.stopSceneStream");
+    await send("Parawing.stopSceneStream");
     ws.close();
   }
 });

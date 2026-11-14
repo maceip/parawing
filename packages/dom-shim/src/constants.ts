@@ -89,9 +89,9 @@ export const SANDBOX_SUPPORTED = new Set([
   "allow-top-navigation-to-custom-protocols",
 ]);
 
-export const NS_MSG = "kitesurf: not yet supported in this sandbox (Day 6)";
+export const NS_MSG = "parawing: not yet supported in this sandbox (Day 6)";
 
-export const GET_COMPUTED_STYLE_INTERNAL = Symbol("kitesurf.getComputedStyleInternal");
+export const GET_COMPUTED_STYLE_INTERNAL = Symbol("parawing.getComputedStyleInternal");
 
 export function notSupported(prop: string): TypeError {
   return new TypeError(NS_MSG + " (tried to set/call '" + prop + "')");

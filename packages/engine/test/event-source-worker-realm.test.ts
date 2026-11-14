@@ -83,6 +83,6 @@ describe("EventSource in the dedicated-worker realm", () => {
     source.close();
     expect(sent.length).toBe(before + 1);
     const headers = new Map(sent[before]!.headers);
-    expect(headers.get("x-kitesurf-resource-type")).toBe("EventSource");
+    expect(headers.get("x-parawing-resource-type")).toBe("EventSource");
   });
 });

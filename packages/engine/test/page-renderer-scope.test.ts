@@ -8,8 +8,10 @@ vi.mock("../src/eval/page-script.ts", () => ({
   loadWasmBytesFromVfs: () => new Uint8Array(0),
 }));
 
-import type { RenderFrameOpts, RenderPortStub } from "@kitesurf/jsrpc-types/page-renderer";
-import { PageRendererManager, type RendererEnv } from "../src/eval/page-renderer.ts";
+import type { RenderFrameOpts, RenderPortStub } from "@parawing/jsrpc-types/page-renderer";
+import { PageRendererManager } from "../src/eval/page-renderer.ts";
+import { createMemoryHostCapabilities } from "../src/host-capabilities.ts";
+import type { HostIsolateLoader, IsolateLoadSpec } from "../src/isolate-loader.ts";
 
 // The renderer cache serves resources a page reports by hash, so a render RPC may only use the
 // resources of the isolate that supplied it.
@@ -21,13 +23,17 @@ describe("renderer resource scope", () => {
       return { bytes: new Uint8Array([1]), seq: 1, scrollX: 0, scrollY: 0 };
     };
     const stub = { renderFrame: record(), renderPdf: record() };
-    const env = { LOADER: { load: () => ({ getEntrypoint: () => stub }) } };
-    const ctx = { exports: { DeniedOutbound: () => ({}), PageScriptTail: () => ({}) } };
+    const isolateLoader: HostIsolateLoader = {
+      load: ((spec: IsolateLoadSpec) => ({
+        kind: spec.kind,
+        entrypoint: stub,
+        async terminate() {},
+        [Symbol.dispose]() {},
+      })) as HostIsolateLoader["load"],
+    };
     const manager = new PageRendererManager(
-      // oxlint-disable-next-line kitesurf/no-chained-type-assertions -- partial platform fixtures.
-      env as unknown as RendererEnv,
-      // oxlint-disable-next-line kitesurf/no-chained-type-assertions -- partial platform fixtures.
-      ctx as unknown as ExecutionContext,
+      createMemoryHostCapabilities(),
+      isolateLoader,
       "test-connection",
     );
     const source = () => ({ getRenderPort: async () => ({}) as RenderPortStub });

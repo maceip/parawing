@@ -25,13 +25,13 @@ test("page-renderer-relaunch-cache", async ({ page, cdpSession }) => {
   });
   await new Promise((r) => setTimeout(r, 400));
 
-  const info = () => cdpSession.send("Kitesurf.getRendererInfo");
+  const info = () => cdpSession.send("Parawing.getRendererInfo");
 
   const shot1 = new Uint8Array(await page.screenshot({ type: "png" }));
   const before = await info();
   expect(before.framesRendered).toBeGreaterThanOrEqual(1);
 
-  const disposed = await cdpSession.send("Kitesurf.disposeRenderer");
+  const disposed = await cdpSession.send("Parawing.disposeRenderer");
   expect(disposed.disposed).toBe(true);
 
   const shot2 = new Uint8Array(await page.screenshot({ type: "png" }));

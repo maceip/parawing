@@ -18,7 +18,7 @@ interface BridgeStats {
 async function bridgeStats(page: Page): Promise<BridgeStats> {
   const session = await page.createCDPSession();
   const targetId = await targetIdForSession(session);
-  const stats = await session.send("Kitesurf.getMemoryStats", { targetId });
+  const stats = await session.send("Parawing.getMemoryStats", { targetId });
   await session.detach().catch(() => {});
   const bridge = stats.bridge;
   if (!bridge) throw new Error(`no bridge stats in ${JSON.stringify(stats).slice(0, 200)}`);

@@ -4,13 +4,14 @@
 
 import { describe, expect, it } from "vitest";
 import type Protocol from "devtools-protocol";
-import type { PackedResult } from "@kitesurf/jsrpc-types/shared";
+import type { PackedResult } from "@parawing/jsrpc-types/shared";
 import type { DispatchCtx } from "../src/cdp/dispatch.ts";
 import { makeChildFrameState } from "../src/cdp/frames.ts";
 import { handleRuntime } from "../src/cdp/runtime.ts";
 import type { CdpRequest, FrameState, TargetState } from "../src/cdp/types.ts";
 import { createCookieJar } from "../src/cookies.ts";
 import { consoleEntryToCdpEvent, type PageScriptStub } from "../src/eval/page-script.ts";
+import { createMemoryHostCapabilities } from "../src/host-capabilities.ts";
 
 const FIRST = "https://first.test/";
 const NEXT = "https://next.test/";
@@ -24,7 +25,7 @@ function heldStub(stamp?: string) {
       ),
     );
   const stub = { evaluate: call, callFunctionOn: call, runScript: call, isolateStamp: stamp };
-  // oxlint-disable-next-line kitesurf/no-chained-type-assertions -- only the three eval methods are stubbed.
+  // oxlint-disable-next-line parawing/no-chained-type-assertions -- only the three eval methods are stubbed.
   return { stub: stub as unknown as PageScriptStub, held };
 }
 
@@ -46,9 +47,9 @@ function setup(stamp?: string) {
     defaultContextId: 1,
   } as TargetState;
   const cookies = createCookieJar();
-  // oxlint-disable-next-line kitesurf/no-chained-type-assertions -- only the fields the Runtime handlers read are set.
+  // oxlint-disable-next-line parawing/no-chained-type-assertions -- only the fields the Runtime handlers read are set.
   const ctx = {
-    env: {},
+    host: createMemoryHostCapabilities(),
     emit: () => {},
     browser: { targets: new Map([["T", target]]), cookies, contexts: new Map() },
   } as unknown as DispatchCtx;
@@ -225,7 +226,7 @@ describe("runtime value json", () => {
 
   async function evaluate(valueJson: string) {
     const { ctx, target } = setup();
-    // oxlint-disable-next-line kitesurf/no-chained-type-assertions -- only evaluate is stubbed.
+    // oxlint-disable-next-line parawing/no-chained-type-assertions -- only evaluate is stubbed.
     target.pageScript = { evaluate: async () => reply(valueJson) } as unknown as PageScriptStub;
     return (await handleRuntime(ctx, {
       id: 1,
@@ -256,7 +257,7 @@ function owner(stamp: string) {
   for (const m of ["callFunctionOn", "compileScript", "runScript"]) {
     stub[m] = () => (calls.push(m), Promise.resolve({ ok: true, scriptId: null }));
   }
-  // oxlint-disable-next-line kitesurf/no-chained-type-assertions -- only the routed methods are stubbed.
+  // oxlint-disable-next-line parawing/no-chained-type-assertions -- only the routed methods are stubbed.
   return { stub: stub as unknown as PageScriptStub, calls };
 }
 
@@ -265,7 +266,7 @@ function setupOwners() {
   const parent = owner("p");
   const child = owner("c");
   const childUrl = "https://child.test/";
-  // oxlint-disable-next-line kitesurf/no-chained-type-assertions -- only the fields these handlers read are set.
+  // oxlint-disable-next-line parawing/no-chained-type-assertions -- only the fields these handlers read are set.
   const frame = { frameId: "C", url: childUrl, pageScript: child.stub } as unknown as FrameState;
   target.pageScript = parent.stub;
   target.frames.set("C", frame);

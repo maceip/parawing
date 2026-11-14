@@ -31,13 +31,13 @@ describe("page-script engine error channel", () => {
     JSON.stringify = (value: unknown) => (seenByPage.push(value), realStringify(value));
 
     writeEngineErrorLine({ origin: "shim", message: "boom" });
-    writeIsolateKillLine("[ks-kill]", "generation retired");
+    writeIsolateKillLine("[pw-kill]", "generation retired");
     console.error = nativeError;
     console.log = nativeLog;
     JSON.stringify = realStringify;
 
     expect(seenByPage).toEqual([]);
     expect(String(nativeError.mock.calls[0]?.[0])).toContain(`"token":"${TOKEN}"`);
-    expect(nativeLog.mock.calls[0]?.[0]).toBe(`[ks-kill] ${TOKEN} generation retired`);
+    expect(nativeLog.mock.calls[0]?.[0]).toBe(`[pw-kill] ${TOKEN} generation retired`);
   });
 });

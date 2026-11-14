@@ -45,7 +45,7 @@ test("page-renderer-parity", async ({ page, cdpSession }) => {
 
   const viaRenderer = new Uint8Array(await page.screenshot({ type: "png" }));
 
-  const info = await cdpSession.send("Kitesurf.getRendererInfo");
+  const info = await cdpSession.send("Parawing.getRendererInfo");
   console.log("[parity] renderer info:", JSON.stringify(info));
   expect(info.enabled, "renderer path enabled").toBe(true);
   expect(info.framesRendered, "scene path produced the frame").toBeGreaterThanOrEqual(1);

@@ -3,6 +3,7 @@
 // https://opensource.org/licenses/Apache-2.0
 
 import { describe, it, expect, beforeEach } from "vitest";
+import { createMemoryHostCapabilities } from "../src/host-capabilities.ts";
 import {
   CARRIED_STATUS_HEADER,
   SandboxOutbound,
@@ -40,10 +41,10 @@ describe("stylesheet response MIME", () => {
   ])("%s", async (_name, url, type, nosniff, status, verdict) => {
     const result = await walkRedirects({
       url,
-      headers: { "x-kitesurf-resource-type": "Stylesheet", "x-kitesurf-allow-cross-origin": "1" },
+      headers: { "x-parawing-resource-type": "Stylesheet", "x-parawing-allow-cross-origin": "1" },
       fetchHop: (request) =>
         SandboxOutbound.handle(
-          { FONT_ASSETS: { fetch: async () => new Response() } },
+          createMemoryHostCapabilities({ assets: { fetch: async () => new Response() } }),
           {
             pageOrigin: ORIGIN,
             externalOutbound: {
@@ -66,7 +67,7 @@ describe("stylesheet response MIME", () => {
     });
     if (!result.ok) throw new Error(`redirect walk failed: ${result.reason}`);
     expect(result.response.status).toBe(status);
-    expect(result.response.headers.get("x-kitesurf-cors")).toBe(verdict);
+    expect(result.response.headers.get("x-parawing-cors")).toBe(verdict);
     expect((await result.response.text()).includes("secret{color:red}")).toBe(status === 200);
   });
 
@@ -86,7 +87,7 @@ describe("stylesheet response MIME", () => {
     registerTracker(PARTITION, tracker);
     try {
       const response = await SandboxOutbound.handle(
-        { FONT_ASSETS: { fetch: async () => new Response() } },
+        createMemoryHostCapabilities({ assets: { fetch: async () => new Response() } }),
         {
           pageOrigin: ORIGIN,
           connectionId: PARTITION,
@@ -100,8 +101,8 @@ describe("stylesheet response MIME", () => {
         },
         new Request("http://remote.test/sheet", {
           headers: {
-            "x-kitesurf-resource-type": "Stylesheet",
-            "x-kitesurf-allow-cross-origin": "1",
+            "x-parawing-resource-type": "Stylesheet",
+            "x-parawing-allow-cross-origin": "1",
           },
         }),
       );
@@ -224,7 +225,7 @@ describe("needsPreflight / corsUnsafeRequestHeaderNames", () => {
     const h = new Headers({
       origin: ORIGIN,
       referer: `${ORIGIN}/`,
-      "x-kitesurf-page-origin": ORIGIN,
+      "x-parawing-page-origin": ORIGIN,
       "sec-fetch-mode": "cors",
       accept: "test",
     });
@@ -236,7 +237,7 @@ describe("needsPreflight / corsUnsafeRequestHeaderNames", () => {
     const fromMode = new Headers({
       "cache-control": "no-cache",
       pragma: "no-cache",
-      "x-kitesurf-cache-mode": "pragma,cache-control",
+      "x-parawing-cache-mode": "pragma,cache-control",
     });
     expect(needsPreflight("GET", fromMode)).toBe(false);
     const fromPage = new Headers({ "cache-control": "no-cache", pragma: "no-cache" });
@@ -245,11 +246,11 @@ describe("needsPreflight / corsUnsafeRequestHeaderNames", () => {
     const mixed = new Headers({
       "cache-control": "no-cache",
       pragma: "no-cache",
-      "x-kitesurf-cache-mode": "pragma",
+      "x-parawing-cache-mode": "pragma",
     });
     expect(corsUnsafeRequestHeaderNames(mixed)).toEqual(["cache-control"]);
     // The mark covers only the two cache headers, whatever it names.
-    const spoofed = new Headers({ "x-custom": "1", "x-kitesurf-cache-mode": "x-custom" });
+    const spoofed = new Headers({ "x-custom": "1", "x-parawing-cache-mode": "x-custom" });
     expect(corsUnsafeRequestHeaderNames(spoofed)).toEqual(["x-custom"]);
   });
 
@@ -359,12 +360,12 @@ describe("filterCorsResponseHeaders", () => {
     expect(filterCorsResponseHeaders(h, false).get("set-cookie")).toBeNull();
   });
 
-  it("never exposes the x-kitesurf-* plumbing namespace", () => {
+  it("never exposes the x-parawing-* plumbing namespace", () => {
     const h = source();
-    h.set("x-kitesurf-status", "699");
-    h.set("access-control-expose-headers", "x-kitesurf-status, *");
+    h.set("x-parawing-status", "699");
+    h.set("access-control-expose-headers", "x-parawing-status, *");
     const out = filterCorsResponseHeaders(h, false);
-    expect(out.get("x-kitesurf-status")).toBeNull();
+    expect(out.get("x-parawing-status")).toBeNull();
   });
 
   it("exposes nothing extra when the header fails to parse", () => {

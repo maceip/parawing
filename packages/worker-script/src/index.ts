@@ -13,19 +13,20 @@ import type {
   WorkerStartParams,
   WorkerStartReply,
   WorkerUpstreamMessage,
-} from "@kitesurf/jsrpc-types/dedicated-worker";
-import type { IsolateKillMarker } from "@kitesurf/jsrpc-types/shared";
-import { installEventSource } from "@kitesurf/page-script/event-source";
-import { installFetchShim } from "@kitesurf/page-script/fetch-shim";
+} from "@parawing/jsrpc-types/dedicated-worker";
+import type { IsolateKillMarker } from "@parawing/jsrpc-types/shared";
+import type { RpcStub } from "@parawing/jsrpc-types/rpc";
+import { installEventSource } from "@parawing/page-script/event-source";
+import { installFetchShim } from "@parawing/page-script/fetch-shim";
 import {
   clearSessionOutbound,
   setSessionOutbound,
   type OutboundStub,
-} from "@kitesurf/page-script/session-outbound";
-import { state } from "@kitesurf/page-script/state";
+} from "@parawing/page-script/session-outbound";
+import { state } from "@parawing/page-script/state";
 // Imported statically so it binds the native console before the page's worker script loads.
-import { setTailToken, writeIsolateKillLine } from "@kitesurf/page-script/tail-channel";
-import { captureTrustedFetch } from "@kitesurf/page-script/trusted-fetch";
+import { setTailToken, writeIsolateKillLine } from "@parawing/page-script/tail-channel";
+import { captureTrustedFetch } from "@parawing/page-script/trusted-fetch";
 import {
   deliverToScope,
   errorInfo,
@@ -36,11 +37,11 @@ import {
 } from "./scope.ts";
 
 type ReceivedInit = {
-  upstream?: Rpc.Stub<OpenWorkerSessionInit["upstream"]>;
+  upstream?: RpcStub<OpenWorkerSessionInit["upstream"]>;
   outbound?: OutboundStub;
 };
 
-const ISOLATE_KILL_MARKER: IsolateKillMarker = "[ks-kill]";
+const ISOLATE_KILL_MARKER: IsolateKillMarker = "[pw-kill]";
 
 let started = false;
 
@@ -54,7 +55,7 @@ export class DedicatedWorker extends WorkerEntrypoint<unknown, DedicatedWorkerPr
     const why = reason || "worker terminated";
     setTailToken(this.ctx.props?.KS_TAIL_TOKEN);
     writeIsolateKillLine(ISOLATE_KILL_MARKER, why);
-    abortIsolate(`kitesurf: ${why}`);
+    abortIsolate(`parawing: ${why}`);
   }
 
   openSession(init: ReceivedInit | undefined): RetainedWorkerSession {
@@ -66,7 +67,7 @@ export class DedicatedWorker extends WorkerEntrypoint<unknown, DedicatedWorkerPr
     const send = (message: WorkerUpstreamMessage): void => {
       if (closed || !upstream) return;
       const dropped = (error: unknown) => {
-        console.debug(`[kitesurf-worker] dropped ${message.event}: the engine is gone:`, error);
+        console.debug(`[parawing-worker] dropped ${message.event}: the engine is gone:`, error);
       };
       try {
         Promise.resolve(upstream(message)).catch(dropped);
@@ -78,7 +79,7 @@ export class DedicatedWorker extends WorkerEntrypoint<unknown, DedicatedWorkerPr
       try {
         stub?.[Symbol.dispose]?.();
       } catch (error) {
-        console.debug(`[kitesurf-worker] ${name} stub dispose failed:`, error);
+        console.debug(`[parawing-worker] ${name} stub dispose failed:`, error);
       }
     };
     const closeSession = () => {

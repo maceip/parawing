@@ -13,7 +13,7 @@ import { finalizeInterface, idlInterfaceMeta } from "./webidl.js";
 
 export const fileInputFiles: Map<number, File[]> = new Map();
 
-const FILELIST_GUARD = Symbol("kitesurf-filelist-guard");
+const FILELIST_GUARD = Symbol("parawing-filelist-guard");
 
 // FileList is a FileAPI interface: the generated types have it, but the
 // conformance model leaves it out.
@@ -170,7 +170,7 @@ export class KsFile extends NativeFile {
 // (drag-and-drop and paste polyfills, WPT file-upload tests).
 // DataTransferItem and DataTransferItemList have no IDL constructor; only
 // this module, which holds the token, makes them.
-const DATA_TRANSFER_TOKEN = Symbol("kitesurf-data-transfer");
+const DATA_TRANSFER_TOKEN = Symbol("parawing-data-transfer");
 
 class KsDataTransferItem implements Idl.DataTransferItem {
   readonly #type: string;

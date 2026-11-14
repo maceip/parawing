@@ -11,7 +11,7 @@ import type {
   PageScriptSession,
   PageScriptWireParams,
   WireMeta,
-} from "@kitesurf/jsrpc-types/page-script";
+} from "@parawing/jsrpc-types/page-script";
 import { drainDeferParked } from "./defer-shim.ts";
 import { state } from "./state.ts";
 import { noteSyncOp } from "./lag-monitor.ts";
@@ -65,6 +65,7 @@ export const PAGE_SCRIPT_METHODS: PageScriptArgBuilders = {
     params.opts ?? {},
   ],
   releaseObject: (params): MethodArguments<"releaseObject"> => [params.objectId],
+  releaseObjectGroup: (params): MethodArguments<"releaseObjectGroup"> => [params.objectGroup],
   getProperties: (params): MethodArguments<"getProperties"> => [params.objectId, params.opts ?? {}],
   compileScript: (params): MethodArguments<"compileScript"> => [
     params.expression,
@@ -81,6 +82,7 @@ export const PAGE_SCRIPT_METHODS: PageScriptArgBuilders = {
     params.type,
     params.init ?? {},
   ],
+  getHandlerRegions: (): MethodArguments<"getHandlerRegions"> => [],
 };
 
 export async function invokeSessionMethod<M extends PageScriptMethod>(

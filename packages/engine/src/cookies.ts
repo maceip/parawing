@@ -52,7 +52,7 @@ export function createCookieJar(): CookieJar {
   function warnOnce(msg: string): void {
     if (warned) return;
     warned = true;
-    console.warn(`[kitesurf-cookies] ${msg}`);
+    console.warn(`[parawing-cookies] ${msg}`);
   }
 
   function purgeExpired(host: string): void {

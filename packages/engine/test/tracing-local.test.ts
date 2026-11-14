@@ -317,22 +317,22 @@ describe("OTLP payload shape", () => {
 });
 
 describe("armLocalTracing gating", () => {
-  // oxlint-disable-next-line kitesurf/no-chained-type-assertions -- tracing only calls waitUntil here.
+  // oxlint-disable-next-line parawing/no-chained-type-assertions -- tracing only calls waitUntil here.
   const ctx = { waitUntil() {} } as unknown as ExecutionContext;
   const req = (headers?: Record<string, string>) =>
     new Request("http://localhost:8787/screenshot", { headers });
 
-  it("never arms outside KITESURF_ENV=local or over a real binding", () => {
-    expect(armLocalTracing({ KITESURF_ENV: "prod" }, ctx, req())).toBeNull();
+  it("never arms outside PARAWING_ENV=local or over a real binding", () => {
+    expect(armLocalTracing({ PARAWING_ENV: "prod" }, ctx, req())).toBeNull();
     const realBinding = { enterSpan() {} };
-    const env = { KITESURF_ENV: "local", HOST_TRACER: realBinding };
+    const env = { PARAWING_ENV: "local", HOST_TRACER: realBinding };
     expect(armLocalTracing(env, ctx, req({ traceparent: "x" }))).toBeNull();
     expect(env.HOST_TRACER).toBe(realBinding);
   });
 
   it("adopts a full propagated context: the request nests under the caller", () => {
-    const env: { KITESURF_ENV: string; HOST_TRACER?: unknown } = {
-      KITESURF_ENV: "local",
+    const env: { PARAWING_ENV: string; HOST_TRACER?: unknown } = {
+      PARAWING_ENV: "local",
     };
     const t = "f".repeat(32);
     const callerSpan = "1234567890abcdef";
@@ -349,7 +349,7 @@ describe("armLocalTracing gating", () => {
   });
 
   it("forwards the active context as a W3C traceparent", () => {
-    const env: { KITESURF_ENV: string; HOST_TRACER?: unknown } = { KITESURF_ENV: "local" };
+    const env: { PARAWING_ENV: string; HOST_TRACER?: unknown } = { PARAWING_ENV: "local" };
     const t = "a".repeat(32);
     const runner = armLocalTracing(env, ctx, req({ traceparent: `00-${t}-1234567890abcdef-01` }));
     const forwarded = runner!(() => localTraceparentHeader());
@@ -362,7 +362,7 @@ describe("armLocalTracing gating", () => {
       `00-${"f".repeat(32)}-${"0".repeat(16)}-01`,
       `01-${"f".repeat(32)}-1234567890abcdef-01`,
     ]) {
-      const env: { KITESURF_ENV: string; HOST_TRACER?: unknown } = { KITESURF_ENV: "local" };
+      const env: { PARAWING_ENV: string; HOST_TRACER?: unknown } = { PARAWING_ENV: "local" };
       const runner = armLocalTracing(env, ctx, req({ traceparent: header }));
       expect(runner).not.toBeNull();
       const inside = runner!(() =>
@@ -375,8 +375,8 @@ describe("armLocalTracing gating", () => {
   });
 
   it("installs the shim always, samples only with traceparent", () => {
-    const env: { KITESURF_ENV: string; HOST_TRACER?: unknown } = {
-      KITESURF_ENV: "local",
+    const env: { PARAWING_ENV: string; HOST_TRACER?: unknown } = {
+      PARAWING_ENV: "local",
     };
     expect(armLocalTracing(env, ctx, req())).toBeNull();
     expect(env.HOST_TRACER).toBeDefined();

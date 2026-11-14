@@ -77,6 +77,11 @@ export function isolateRetainedBodyBytesTotal(): number {
   return isolateRetainedBodyBytes;
 }
 
+export interface NetworkTrackerPolicyHooks {
+  isObservationPaused?: (sessionIds: Array<string | undefined>, ev: CdpEvent) => boolean;
+  sanitizeHeaders?: (headers: Protocol.Network.Headers) => Protocol.Network.Headers;
+}
+
 export class NetworkEventTracker {
   private nextSeq = 1;
   private records = new Map<string, RequestRecord>();
@@ -200,16 +205,33 @@ export class NetworkEventTracker {
     return this.isEnabled(undefined);
   }
 
+  private isObservationPaused?: NetworkTrackerPolicyHooks["isObservationPaused"];
+  private sanitizeHeaders?: NetworkTrackerPolicyHooks["sanitizeHeaders"];
+
   constructor(
     private readonly emit: EventEmitter,
     private readonly connectionId: string,
-  ) {}
+    hooks?: NetworkTrackerPolicyHooks,
+  ) {
+    this.isObservationPaused = hooks?.isObservationPaused;
+    this.sanitizeHeaders = hooks?.sanitizeHeaders;
+  }
+
+  setPolicyHooks(hooks: NetworkTrackerPolicyHooks): void {
+    this.isObservationPaused = hooks.isObservationPaused;
+    this.sanitizeHeaders = hooks.sanitizeHeaders;
+  }
+
+  private redactHeaders(headers: Protocol.Network.Headers): Protocol.Network.Headers {
+    return this.sanitizeHeaders ? this.sanitizeHeaders(headers) : headers;
+  }
 
   drain(): void {
     if (this.pending.length === 0) return;
     const batch = this.pending;
     this.pending = [];
     for (const ev of batch) {
+      if (this.isObservationPaused?.(ev.sessionId ? [ev.sessionId] : [], ev)) continue;
       try {
         this.emit(ev);
       } catch {
@@ -219,6 +241,7 @@ export class NetworkEventTracker {
   }
 
   private enqueue(ev: CdpEvent, sessionIds: Array<string | undefined>): void {
+    if (this.isObservationPaused?.(sessionIds, ev)) return;
     this.enqueueTo((sessionId) => this.isEnabled(sessionId), ev, sessionIds);
   }
 
@@ -244,15 +267,14 @@ export class NetworkEventTracker {
   /** Queues a Log entry for the owning target's sessions; the page never sees it. */
   logEntry(sessionIds: Array<string | undefined>, entry: Protocol.Log.LogEntry): void {
     if (this.disposed) return;
-    this.enqueueTo(
-      (sessionId) => this.isLogEnabled(sessionId),
-      { method: "Log.entryAdded", params: { entry }, sessionId: undefined },
-      sessionIds,
-    );
+    const ev: CdpEvent = { method: "Log.entryAdded", params: { entry }, sessionId: undefined };
+    if (this.isObservationPaused?.(sessionIds, ev)) return;
+    this.enqueueTo((sessionId) => this.isLogEnabled(sessionId), ev, sessionIds);
   }
 
   queueRaw(ev: CdpEvent): void {
     if (this.disposed) return;
+    if (this.isObservationPaused?.(ev.sessionId ? [ev.sessionId] : [], ev)) return;
     this.pending.push(ev);
   }
 
@@ -282,10 +304,11 @@ export class NetworkEventTracker {
     this.inFlightCount++;
     this.evictIfFull();
 
+    const visibleReqHeaders = this.redactHeaders(opts.headers);
     const request: Protocol.Network.Request = {
       url: opts.url,
       method: opts.method,
-      headers: opts.headers,
+      headers: visibleReqHeaders,
       initialPriority: opts.type === "Document" ? "VeryHigh" : "Medium",
       referrerPolicy: "strict-origin-when-cross-origin",
       mixedContentType: "none",
@@ -316,7 +339,7 @@ export class NetworkEventTracker {
     const reqExtra: Protocol.Network.RequestWillBeSentExtraInfoEvent = {
       requestId,
       associatedCookies: [],
-      headers: opts.headers,
+      headers: visibleReqHeaders,
       connectTiming: { requestTime: ts },
       siteHasCookieInOtherPartition: false,
     };
@@ -352,11 +375,13 @@ export class NetworkEventTracker {
     const sessionIds = rec?.sessionIds ?? [];
     if (!this.wantsEvents(sessionIds)) return;
     const ts = this.monotonicSeconds();
+    const visibleRespHeaders = this.redactHeaders(opts.responseHeaders);
+    const visibleReqHeaders = this.redactHeaders(opts.headers);
     const redirectResponse: Protocol.Network.Response = {
       url: prevUrl,
       status: opts.status,
       statusText: opts.statusText,
-      headers: opts.responseHeaders,
+      headers: visibleRespHeaders,
       mimeType: "",
       encodedDataLength: 0,
       fromDiskCache: false,
@@ -378,7 +403,7 @@ export class NetworkEventTracker {
       request: {
         url: opts.newUrl,
         method: opts.method,
-        headers: opts.headers,
+        headers: visibleReqHeaders,
         initialPriority: opts.type === "Document" ? "VeryHigh" : "Medium",
         referrerPolicy: "strict-origin-when-cross-origin",
         mixedContentType: "none",
@@ -449,11 +474,12 @@ export class NetworkEventTracker {
       receiveHeadersStart: 0,
       receiveHeadersEnd: 0,
     };
+    const visibleRespHeaders = this.redactHeaders(opts.headers);
     const response: Protocol.Network.Response = {
       url: opts.url,
       status: opts.status,
       statusText: opts.statusText,
-      headers: opts.headers,
+      headers: visibleRespHeaders,
       mimeType: opts.mimeType,
       encodedDataLength: opts.bodyLength,
       fromDiskCache: opts.fromDiskCache ?? false,
@@ -476,7 +502,7 @@ export class NetworkEventTracker {
         certificateId: 0,
         subjectName: hostFromUrl(opts.url),
         sanList: [hostFromUrl(opts.url)],
-        issuer: "Kitesurf POC",
+        issuer: "Parawing POC",
         validFrom: Math.floor(Date.now() / MILLISECONDS_PER_SECOND) - SECONDS_PER_DAY,
         validTo:
           Math.floor(Date.now() / MILLISECONDS_PER_SECOND) +
@@ -491,7 +517,7 @@ export class NetworkEventTracker {
     const respExtra: Protocol.Network.ResponseReceivedExtraInfoEvent = {
       requestId,
       blockedCookies: [],
-      headers: opts.headers,
+      headers: visibleRespHeaders,
       resourceIPAddressSpace: "Public",
       statusCode: opts.status,
       cookiePartitionKey: { topLevelSite: "", hasCrossSiteAncestor: false },

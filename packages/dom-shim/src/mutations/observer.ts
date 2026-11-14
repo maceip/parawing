@@ -104,7 +104,7 @@ function notifyLinkInserts(insertedNode: LinkishNode, nested: LinkishNode[]): vo
 }
 
 // Lets makeRecord construct records; pages can't.
-const RECORD_TOKEN = Symbol("kitesurfMutationRecord");
+const RECORD_TOKEN = Symbol("parawingMutationRecord");
 
 // addedNodes and removedNodes are arrays (idl/type-gaps.json).
 export class MutationRecord implements Idl.MutationRecord {

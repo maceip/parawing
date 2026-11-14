@@ -35,7 +35,7 @@ export function installMessageChannel(
   };
   const EventTargetConstructor: typeof EventTarget = ksGlobal.EventTarget;
   const MessageEventConstructor: unknown = ksGlobal.MessageEvent;
-  const PORT_TOKEN = Symbol("kitesurf-port-token");
+  const PORT_TOKEN = Symbol("parawing-port-token");
   class KsMessagePort extends EventTargetConstructor {
     _other: KsMessagePort | null = null;
     _queue: QueuedMessage[] = [];

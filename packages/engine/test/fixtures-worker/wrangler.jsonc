@@ -1,6 +1,6 @@
 {
   "$schema": "node_modules/wrangler/config-schema.json",
-  "name": "kitesurf-fixtures",
+  "name": "parawing-fixtures",
   "main": "src/index.ts",
   "compatibility_date": "2026-09-11",
   // `fallthrough: false` states the default: wrangler's built-in Text and Data rules stay off,
@@ -26,6 +26,6 @@
     },
   ],
   "env": {
-    "local": { "name": "kitesurf-fixtures" },
+    "local": { "name": "parawing-fixtures" },
   },
 }

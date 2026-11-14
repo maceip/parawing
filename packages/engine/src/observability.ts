@@ -28,9 +28,9 @@ export class SafePerformance {
 // Host-defined analytics label for how a session was opened.
 export type SessionEntrypoint = string;
 
-// Returned on the CDP upgrade response and by Kitesurf.getSessionInfo.
+// Returned on the CDP upgrade response and by Parawing.getSessionInfo.
 // Never forwarded to origins.
-export const SESSION_ID_HEADER = "x-kitesurf-session-id";
+export const SESSION_ID_HEADER = "x-parawing-session-id";
 
 // Identify DevTools page URLs when the host supplies no entrypoint label.
 export function resolveEntrypoint(request: Request): SessionEntrypoint {
@@ -86,11 +86,15 @@ export interface SessionTelemetry {
   emit(event: TelemetryEvent): void;
 }
 
+import type { TaskCapability } from "./host-capabilities.ts";
+
 export interface TelemetryInit {
   meta: SessionMeta;
   request: Request;
   props: unknown;
-  env: Env;
+  env?: Env;
+  tasks: TaskCapability;
+  /** @deprecated Prefer `tasks.run(promise)`. */
   waitUntil(p: Promise<unknown>): void;
   sessionAgeMs(): number;
   reportException(err: unknown): void;
@@ -98,7 +102,7 @@ export interface TelemetryInit {
 
 export type TelemetryFactory = (init: TelemetryInit) => SessionTelemetry | undefined;
 
-export class KitesurfAnalytics {
+export class ParawingAnalytics {
   #sink: SessionTelemetry | undefined;
   #meta: SessionMeta;
   #perf: SafePerformance;
@@ -113,10 +117,10 @@ export class KitesurfAnalytics {
       factory: TelemetryFactory | undefined;
       request: Request;
       props: unknown;
-      env: Env;
-      waitUntil(p: Promise<unknown>): void;
+      env?: Env;
+      tasks: TaskCapability;
     },
-    reportException: (err: unknown) => void = (err) => console.warn("[kitesurf-telemetry]", err),
+    reportException: (err: unknown) => void = (err) => console.warn("[parawing-telemetry]", err),
   ) {
     this.#meta = meta;
     this.#perf = perf;
@@ -128,7 +132,8 @@ export class KitesurfAnalytics {
         request: open.request,
         props: open.props,
         env: open.env,
-        waitUntil: open.waitUntil,
+        tasks: open.tasks,
+        waitUntil: (p) => open.tasks.run(p),
         sessionAgeMs: () => this.sessionAgeMs(),
         reportException,
       });
@@ -165,12 +170,12 @@ export class KitesurfAnalytics {
   }
 }
 
-export function emitSessionStart(analytics: KitesurfAnalytics, fields: SessionStartFields): void {
+export function emitSessionStart(analytics: ParawingAnalytics, fields: SessionStartFields): void {
   if (!analytics.once("session_start")) return;
   analytics.emit({ name: "session_start", fields });
 }
 
-export function emitSessionEnd(analytics: KitesurfAnalytics, fields: SessionEndFields): void {
+export function emitSessionEnd(analytics: ParawingAnalytics, fields: SessionEndFields): void {
   if (!analytics.once("session_end")) return;
   analytics.emit({
     name: "session_end",

@@ -7,7 +7,7 @@ import { expect, test } from "../harness";
 test("cross-origin-nav-demo", async ({ page }) => {
   const FIRST_URL = "https://example.com/__fixtures/inline-script.html";
   const SECOND_URL =
-    process.env.KITESURF_FIXTURE ?? "http://127.0.0.1:8787/__fixtures/inline-script.html";
+    process.env.PARAWING_FIXTURE ?? "http://127.0.0.1:8787/__fixtures/inline-script.html";
 
   await page.goto(FIRST_URL, { timeout: 15000 });
 

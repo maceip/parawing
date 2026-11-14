@@ -6,7 +6,7 @@
 
 import type { BrowserState } from "./types.ts";
 
-import type { MouseEventInit } from "@kitesurf/jsrpc-types/page-script";
+import type { MouseEventInit } from "@parawing/jsrpc-types/page-script";
 
 export interface WheelBatch {
   init: MouseEventInit;

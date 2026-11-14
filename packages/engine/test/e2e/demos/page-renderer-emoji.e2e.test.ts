@@ -40,7 +40,7 @@ test("page-renderer-emoji-stripped-fonts", async ({ page, cdpSession }) => {
   await new Promise((r) => setTimeout(r, 800));
 
   const viaRenderer = decodePng(new Uint8Array(await page.screenshot({ type: "png" })));
-  const info = await cdpSession.send("Kitesurf.getRendererInfo");
+  const info = await cdpSession.send("Parawing.getRendererInfo");
   expect(info.framesRendered, "scene path produced the frame").toBeGreaterThanOrEqual(1);
   expect(colorfulPixels(viaRenderer), "renderer path paints color emoji").toBeGreaterThan(500);
 });

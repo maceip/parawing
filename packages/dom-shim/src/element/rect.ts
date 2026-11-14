@@ -99,7 +99,7 @@ function makeDomRect(x: number, y: number, w: number, h: number): DOMRect {
   return new DOMRect(x, y, w, h);
 }
 
-const DOMRectListToken = Symbol("kitesurfDOMRectList");
+const DOMRectListToken = Symbol("parawingDOMRectList");
 export class DOMRectList implements Idl.DOMRectList {
   readonly [index: number]: Idl.DOMRect | null;
   readonly #rects: readonly Idl.DOMRect[];

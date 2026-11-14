@@ -18,7 +18,7 @@ test("Runtime.getHeapUsage returns wasm bytes after a navigate", async ({ page }
 
   await page.screenshot({ type: "png" });
   const { sessionId } = await cdp.send("Target.attachToTarget", {
-    targetId: "kitesurf-page-renderer",
+    targetId: "parawing-page-renderer",
     flatten: true,
   });
   expect(sessionId).toBeTruthy();
@@ -36,7 +36,7 @@ test("getMemoryStats.total covers engine + pageScripts + renderer", async ({ pag
   const cdp = await page.createCDPSession();
   await page.screenshot({ type: "png" });
 
-  const { total, engine, renderer } = await cdp.send("Kitesurf.getMemoryStats");
+  const { total, engine, renderer } = await cdp.send("Parawing.getMemoryStats");
   if (!total || !engine || !renderer) {
     throw new Error("getMemoryStats without a targetId must carry the aggregates");
   }
@@ -58,8 +58,8 @@ test("getMemoryStats.total covers engine + pageScripts + renderer", async ({ pag
   };
   const SLACK = 16 * 1024 * 1024;
   const mainRow = (await cdp.send("Runtime.getHeapUsage")).usedSize;
-  const engineRow = await rowOf("kitesurf-engine");
-  const rendererRow = await rowOf("kitesurf-page-renderer");
+  const engineRow = await rowOf("parawing-engine");
+  const rendererRow = await rowOf("parawing-page-renderer");
   for (const [part, row] of [
     [total.pageScriptBytes, mainRow],
     [total.engineBytes, engineRow],

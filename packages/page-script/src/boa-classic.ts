@@ -8,7 +8,7 @@ import {
   extractTopLevelDecls,
   hasUseStrictDirective,
   predeclareVarsHead,
-} from "@kitesurf/script-gate";
+} from "@parawing/script-gate";
 
 const BLOCKED_GLOBAL_NAMES = new Set([
   "module",

@@ -23,7 +23,7 @@ test("full JPEG frames detect changes in an unaligned row tail", async ({ page, 
     document.getElementById("layout")!.style.height = "2px";
   });
   const changed = await cdpSession.send("Page.captureScreenshot", { format: "jpeg", quality: 95 });
-  await cdpSession.send("Kitesurf.setPartialRaster", { enabled: false });
+  await cdpSession.send("Parawing.setPartialRaster", { enabled: false });
   const fresh = await cdpSession.send("Page.captureScreenshot", { format: "jpeg", quality: 95 });
   expect(changed.data).not.toBe(before.data);
   expect(changed.data).toBe(fresh.data);
@@ -109,7 +109,7 @@ test("screencast ships paint-only mutations as partial composites", async ({
 
   await cdpSession.send("Page.stopScreencast");
 
-  const info = await cdpSession.send("Kitesurf.getRendererInfo");
+  const info = await cdpSession.send("Parawing.getRendererInfo");
   console.log(
     `[partial-frames] frames=${frames.length} rendered=${info.framesRendered} ` +
       `partial=${info.partialFramesRendered} relaunches=${info.relaunchCount}`,
@@ -153,7 +153,7 @@ test("a partial composite does not drag position:fixed boxes into the clip", asy
     }
     expect(frames.length >= n, what).toBe(true);
   };
-  const getInfo = () => cdpSession.send("Kitesurf.getRendererInfo");
+  const getInfo = () => cdpSession.send("Parawing.getRendererInfo");
   const headerRect = () =>
     page.evaluate(() => {
       const r = document.getElementById("header")!.getBoundingClientRect();
@@ -232,7 +232,7 @@ test("a transform move ships as a partial that clears the old position", async (
   await cdpSession.send("Page.startScreencast", { format: "png", everyNthFrame: 1 });
   await expect.poll(() => frames.length, { timeout: 15_000 }).toBeGreaterThan(0);
 
-  const getInfo = () => cdpSession.send("Kitesurf.getRendererInfo");
+  const getInfo = () => cdpSession.send("Parawing.getRendererInfo");
   const partialsBefore = (await getInfo()).partialFramesRendered;
 
   const WHITE: [number, number, number] = [255, 255, 255];
@@ -289,7 +289,7 @@ test("a transform move of a box with overflowing text clears the old text", asyn
   await cdpSession.send("Page.startScreencast", { format: "png", everyNthFrame: 1 });
   await expect.poll(() => frames.length, { timeout: 15_000 }).toBeGreaterThan(0);
 
-  const getInfo = () => cdpSession.send("Kitesurf.getRendererInfo");
+  const getInfo = () => cdpSession.send("Parawing.getRendererInfo");
   const partialsBefore = (await getInfo()).partialFramesRendered;
 
   const BLUE: [number, number, number] = [0, 0, 255];
@@ -356,7 +356,7 @@ test.for(["png", "jpeg"] as const)(
     await cdpSession.send("Page.startScreencast", { format, quality: 80, everyNthFrame: 1 });
     await expect.poll(() => frames.length, { timeout: 15_000 }).toBeGreaterThan(0);
 
-    const getInfo = () => cdpSession.send("Kitesurf.getRendererInfo");
+    const getInfo = () => cdpSession.send("Parawing.getRendererInfo");
     const partialsBefore = (await getInfo()).partialFramesRendered;
 
     const scrolls = [100, 137, 60, 700, 650, 666, 634];
@@ -375,7 +375,7 @@ test.for(["png", "jpeg"] as const)(
     ).toBeGreaterThanOrEqual(3);
     expect(info.relaunchCount, "no renderer relaunch burned the base").toBe(0);
 
-    await cdpSession.send("Kitesurf.setPartialRaster", { enabled: false });
+    await cdpSession.send("Parawing.setPartialRaster", { enabled: false });
     for (const [i, y] of scrolls.entries()) {
       await page.evaluate((top: number) => window.scrollTo(0, top), y);
       const { data } = await cdpSession.send("Page.captureScreenshot", { format, quality: 80 });
@@ -432,7 +432,7 @@ test("inner-element scrolling damages its retained-frame region", async ({ page,
     expect(await waitForFrames(count, timeoutMs), "inner-scroll frame arrives").toBe(true);
   };
   const getPartialCount = async () => {
-    const info = await cdpSession.send("Kitesurf.getRendererInfo");
+    const info = await cdpSession.send("Parawing.getRendererInfo");
     return info.partialFramesRendered;
   };
 
@@ -514,7 +514,7 @@ test("disabling partials keeps the pixels, and re-enabling resumes them", async 
   const waitForCount = async (n: number, what: string, timeoutMs: number) => {
     expect(await waitForFrames(n, timeoutMs), what).toBe(true);
   };
-  const getInfo = () => cdpSession.send("Kitesurf.getRendererInfo");
+  const getInfo = () => cdpSession.send("Parawing.getRendererInfo");
   const paint = async (css: string) => {
     const before = frames.length;
     await page.evaluate((c: string) => {
@@ -533,7 +533,7 @@ test("disabling partials keeps the pixels, and re-enabling resumes them", async 
   const partialsWhileOn = (await getInfo()).partialFramesRendered;
   expect(partialsWhileOn, "composites engaged before the switch").toBeGreaterThanOrEqual(1);
 
-  const off = await cdpSession.send("Kitesurf.setPartialRaster", { enabled: false });
+  const off = await cdpSession.send("Parawing.setPartialRaster", { enabled: false });
   expect(off.enabled).toBe(false);
   expect((await getInfo()).partialRaster, "switch reflected").toBe(false);
 
@@ -552,7 +552,7 @@ test("disabling partials keeps the pixels, and re-enabling resumes them", async 
     partialsWhileOn,
   );
 
-  await cdpSession.send("Kitesurf.setPartialRaster", { enabled: true });
+  await cdpSession.send("Parawing.setPartialRaster", { enabled: true });
   const resumed = await paint("#0000ff");
   expect(near(sample(resumed, 330, 230), [0, 0, 255]), "re-keyed frame").toBe(true);
   const after = await paint("#ff00ff");
@@ -624,7 +624,7 @@ test("a mid-cast resize forces a full frame at the new size", async ({ page, cdp
     const el = document.getElementById("patch");
     if (el) (el as HTMLElement).style.background = "#ff0000";
   });
-  const getInfo = () => cdpSession.send("Kitesurf.getRendererInfo");
+  const getInfo = () => cdpSession.send("Parawing.getRendererInfo");
   await waitFor(() => frames.length >= 2, "frame after the pre-resize mutation", 10_000);
 
   const infoBefore = await getInfo();
@@ -746,7 +746,7 @@ test("a cross-origin child frame leaves the main document's partial base intact"
     });
   expect(await waitForCount(1, "first (full) frame arrives", 15_000)).toBe(true);
 
-  const getInfo = () => cdpSession.send("Kitesurf.getRendererInfo");
+  const getInfo = () => cdpSession.send("Parawing.getRendererInfo");
   const partialsBefore = (await getInfo()).partialFramesRendered;
   for (const css of ["#ff0000", "#00ff00", "#ff00ff"]) {
     const before = frames.length;

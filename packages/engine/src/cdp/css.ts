@@ -5,7 +5,7 @@
 // Implements CDP CSS commands and syncs stylesheet state with PageScript.
 
 import type { CdpRequest, ParsedStyleSheet, StyleSheetEntry, TargetState } from "./types.ts";
-import type { CdpMutation } from "@kitesurf/jsrpc-types/shared";
+import type { CdpMutation } from "@parawing/jsrpc-types/shared";
 import type { DispatchCtx } from "./dispatch.ts";
 import { outboundPolicyRefusal } from "../eval/outbound.ts";
 import type { PageScriptStub } from "../eval/page-script.ts";
@@ -46,7 +46,7 @@ interface MatchBudget {
 function warnMatchBudget(budget: MatchBudget): void {
   if (budget.warned) return;
   budget.warned = true;
-  console.warn("kitesurf: CSS matched-style reply is over budget; skipping larger matches");
+  console.warn("parawing: CSS matched-style reply is over budget; skipping larger matches");
 }
 
 export async function handleCss(ctx: DispatchCtx, req: CdpRequest): Promise<unknown> {
@@ -493,8 +493,7 @@ function cachedSheetAdmissible(
       return false;
     }
     return (
-      (ctx.env.KITESURF_ALLOW_PRIVATE_NETWORK === "1" ||
-        privateNetworkRefusal(hopUrl, initiator) === null) &&
+      (ctx.host.config.allowPrivateNetwork || privateNetworkRefusal(hopUrl, initiator) === null) &&
       outboundPolicyRefusal(connectionId, hop, "Stylesheet", pageHost, false) === null
     );
   });
@@ -604,8 +603,8 @@ async function fetchSheetOnce(
       // The page loaded this sheet without CORS, so the engine's copy skips the check too.
       headers: {
         accept: "text/css,*/*;q=0.1",
-        "x-kitesurf-resource-type": "Stylesheet",
-        "x-kitesurf-allow-cross-origin": "1",
+        "x-parawing-resource-type": "Stylesheet",
+        "x-parawing-allow-cross-origin": "1",
       },
       signal: AbortSignal.timeout(OPAQUE_SHEET_FETCH_TIMEOUT_MS),
       fetchHop: (hopReq) => outbound.fetch(hopReq),
@@ -615,7 +614,7 @@ async function fetchSheetOnce(
     if (!walk.response.ok) {
       // The connection's gateway refuses a filtered or blocked hop with this status.
       const policy =
-        walk.response.status === 451 && walk.response.headers.has("x-kitesurf-blocked-reason");
+        walk.response.status === 451 && walk.response.headers.has("x-parawing-blocked-reason");
       void walk.response.body?.cancel().catch(() => {});
       return { text: null, hops, failure: policy ? "policy" : null };
     }
@@ -738,7 +737,7 @@ export function syncStyleSheetsFromMutations(
   if (!needsEnumerate) return;
   const ps = target.pageScript;
   if (!ps) return;
-  ctx.ctx.waitUntil(
+  ctx.host.tasks.run(
     (async () => {
       try {
         await syncStyleSheetsFromEnumeration(ctx, target, ps);
@@ -788,7 +787,7 @@ function copyParsedRules(raw: unknown, entry: StyleSheetEntry): ParsedStyleSheet
   if (raw.length > limit && entry.warnedRulesCap !== true) {
     entry.warnedRulesCap = true;
     console.warn(
-      `kitesurf: stylesheet has more than ${MAX_PARSED_RULES_PER_SHEET} rules; keeping the first ${MAX_PARSED_RULES_PER_SHEET}`,
+      `parawing: stylesheet has more than ${MAX_PARSED_RULES_PER_SHEET} rules; keeping the first ${MAX_PARSED_RULES_PER_SHEET}`,
     );
   }
   let keptDeclarations = 0;
@@ -824,7 +823,7 @@ function copyParsedRules(raw: unknown, entry: StyleSheetEntry): ParsedStyleSheet
       if (entry.warnedDeclarationsCap !== true) {
         entry.warnedDeclarationsCap = true;
         console.warn(
-          `kitesurf: stylesheet has more than ${MAX_PARSED_DECLARATIONS_PER_SHEET} declarations; keeping the first ${MAX_PARSED_DECLARATIONS_PER_SHEET}`,
+          `parawing: stylesheet has more than ${MAX_PARSED_DECLARATIONS_PER_SHEET} declarations; keeping the first ${MAX_PARSED_DECLARATIONS_PER_SHEET}`,
         );
       }
       break;

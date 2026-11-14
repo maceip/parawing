@@ -6,7 +6,7 @@ import { expect, test } from "../harness";
 
 test("img-srcset-reload-complete", async ({ page }) => {
   const FIXTURE_URL =
-    process.env.KITESURF_FIXTURE ?? "http://127.0.0.1:8787/__fixtures/image-heavy.html";
+    process.env.PARAWING_FIXTURE ?? "http://127.0.0.1:8787/__fixtures/image-heavy.html";
 
   await page.goto(FIXTURE_URL, { timeout: 30000 });
 
@@ -69,7 +69,7 @@ test("img-srcset-reload-complete", async ({ page }) => {
 
 test("img-srcset-terminal-broken-completes", async ({ page }) => {
   const FIXTURE_URL =
-    process.env.KITESURF_FIXTURE ?? "http://127.0.0.1:8787/__fixtures/image-heavy.html";
+    process.env.PARAWING_FIXTURE ?? "http://127.0.0.1:8787/__fixtures/image-heavy.html";
 
   await page.goto(FIXTURE_URL, { timeout: 30000 });
 

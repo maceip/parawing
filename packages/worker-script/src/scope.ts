@@ -8,9 +8,9 @@ import type {
   WorkerErrorInfo,
   WorkerStartParams,
   WorkerUpstreamMessage,
-} from "@kitesurf/jsrpc-types/dedicated-worker";
-import { installMessageChannel } from "@kitesurf/page-script/message-channel";
-import { holdsSharedMemory } from "@kitesurf/page-script/shared-memory";
+} from "@parawing/jsrpc-types/dedicated-worker";
+import { installMessageChannel } from "@parawing/page-script/message-channel";
+import { holdsSharedMemory } from "@parawing/page-script/shared-memory";
 
 type Listener = (this: unknown, ...args: unknown[]) => unknown;
 
@@ -311,7 +311,7 @@ function importScripts(...urls: unknown[]): void {
   if (urls.length === 0) return;
   throw new DOMException(
     `Failed to execute 'importScripts' on 'WorkerGlobalScope': ` +
-      `Kitesurf cannot load scripts synchronously (${String(urls[0])}).`,
+      `Parawing cannot load scripts synchronously (${String(urls[0])}).`,
     "NetworkError",
   );
 }
@@ -442,7 +442,7 @@ function installWorkerClock(createdAt: number): void {
       enumerable: true,
     });
   } catch (error) {
-    console.debug("[kitesurf-worker] could not move performance's time origin:", error);
+    console.debug("[parawing-worker] could not move performance's time origin:", error);
   }
 }
 
@@ -483,7 +483,7 @@ function installUncaughtReporting(): void {
       if (handled) native.preventDefault();
     });
   } catch (error) {
-    console.debug("[kitesurf-worker] could not listen for unhandledrejection:", error);
+    console.debug("[parawing-worker] could not listen for unhandledrejection:", error);
   }
 }
 

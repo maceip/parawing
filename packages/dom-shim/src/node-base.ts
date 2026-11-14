@@ -4,7 +4,7 @@
 
 // Implements node wrappers, tree mutations, cloning, and text operations over the wasm DOM.
 
-import type { DomHandle, KsNodeInfo } from "../../core/pkg/kitesurf_core";
+import type { DomHandle, KsNodeInfo } from "../../core/pkg/parawing_core";
 import type * as Idl from "./idl/types.generated.js";
 import {
   ksGlobal,

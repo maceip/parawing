@@ -17,21 +17,25 @@ export function emitChildFrameAttachAndStart(
   allFrames: ReadonlyMap<string, FrameState>,
   frames: Iterable<FrameState>,
   sessions: readonly (string | undefined)[],
+  observationPaused = false,
 ): void {
   const timestamp = Date.now() / MILLISECONDS_PER_SECOND;
   for (const frame of frames) {
     const parentFrameId = frame.parentFrameId;
     if (parentFrameId === null) continue;
 
-    for (const sessionId of sessions) {
-      ctx.emit({
-        method: "Page.frameAttached",
-        params: { frameId: frame.frameId, parentFrameId },
-        sessionId,
-      });
+    if (!observationPaused) {
+      for (const sessionId of sessions) {
+        ctx.emit({
+          method: "Page.frameAttached",
+          params: { frameId: frame.frameId, parentFrameId },
+          sessionId,
+        });
+      }
     }
 
     emitFrameTarget(ctx, frame);
+    if (observationPaused) continue;
 
     for (const sessionId of sessions) {
       ctx.emit({

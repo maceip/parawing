@@ -6,18 +6,17 @@
 
 import type Protocol from "devtools-protocol";
 import { pageIsolateEntry } from "./page-isolate-entry.ts";
-import wasmGlueSource from "../../../core/pkg/kitesurf_core.glue.js";
-import { DOM_SHIM_SOURCE } from "@kitesurf/dom-shim";
-import { INTERNAL_STATE_SOURCE, PAGE_SCRIPT_SOURCE } from "@kitesurf/page-script";
-import type { RenderPortStub } from "@kitesurf/jsrpc-types/page-renderer";
-import type { SandboxRestrictions } from "@kitesurf/script-gate";
+import wasmGlueSource from "../../../core/pkg/parawing_core.glue.js";
+import { DOM_SHIM_SOURCE } from "@parawing/dom-shim";
+import { INTERNAL_STATE_SOURCE, PAGE_SCRIPT_SOURCE } from "@parawing/page-script";
+import type { RenderPortStub } from "@parawing/jsrpc-types/page-renderer";
+import type { SandboxRestrictions } from "@parawing/script-gate";
 import type {
-  PageScriptEntrypoint,
   PageScriptEntrypointStub,
   PageScriptSession,
   ReceivedUpstreamParams,
   UpstreamEventName,
-} from "@kitesurf/jsrpc-types/page-script";
+} from "@parawing/jsrpc-types/page-script";
 
 export type UpstreamEventHandler = (
   event: UpstreamEventName,
@@ -28,18 +27,17 @@ import type {
   ExceptionEntry,
   PackedException,
   PackedResult,
-} from "@kitesurf/jsrpc-types/shared";
-import type { OutboundProps } from "./outbound.ts";
+} from "@parawing/jsrpc-types/shared";
 import {
   openPageScriptRpcSession,
   type RpcSessionCallable,
   type RpcSessionEntrypoint,
 } from "./page-script-rpc-session.ts";
-import { traceSpan, type Tracer } from "../tracing.ts";
+import { traceSpan } from "../tracing.ts";
 import { localTraceParentProps } from "../tracing-local.ts";
 import { MAX_DOCUMENT_BYTES } from "../read-capped.ts";
-import { attributionTails, type AttributionTailExports } from "./attribution-tail.ts";
-import { makeWallClock, type HostClock } from "./host-clock.ts";
+import type { HostCapabilities } from "../host-capabilities.ts";
+import type { HostIsolateLoader, IsolateModule } from "../isolate-loader.ts";
 import type { SandboxOutboundOverride } from "./outbound.ts";
 import fs from "node:fs";
 import type { ParentScriptDescriptor } from "../wasm.ts";
@@ -48,7 +46,18 @@ import { FALLBACK_MODULE_RESOLVER_SOURCE } from "./walk-module-graph.ts";
 import type { WasmBake } from "./prefetch-wasm.ts";
 
 const cachedWasmBytes = new Map<string, ArrayBuffer>();
-export function loadWasmBytesFromVfs(filename = "kitesurf_core_bg.wasm"): ArrayBuffer {
+
+export function registerVfsWasmBytes(filename: string, bytes: ArrayBuffer | Uint8Array): void {
+  if (bytes instanceof ArrayBuffer) {
+    cachedWasmBytes.set(filename, bytes);
+    return;
+  }
+  const copy = new ArrayBuffer(bytes.byteLength);
+  new Uint8Array(copy).set(bytes);
+  cachedWasmBytes.set(filename, copy);
+}
+
+export function loadWasmBytesFromVfs(filename = "parawing_core_bg.wasm"): ArrayBuffer {
   const cached = cachedWasmBytes.get(filename);
   if (cached) return cached;
   const entries = fs.readdirSync("/bundle");
@@ -75,21 +84,6 @@ export interface PageScriptStub extends PageScriptSession {
   getRenderPort(): Promise<RenderPortStub>;
 }
 
-type CtxWithExports = ExecutionContext & {
-  exports: AttributionTailExports & {
-    SandboxOutbound(opts: { props: OutboundProps }): Fetcher;
-    PageScriptTail(opts: {
-      props: {
-        scriptName: string;
-        pageDomain?: string;
-        ksErrToken?: string;
-        sessionId?: string;
-      };
-    }): Fetcher;
-    SpanSink(opts: { props: { kind: string } }): unknown;
-  };
-};
-
 export const PAGE_SCRIPT_COMPAT_DATE = "2026-09-11";
 export const PAGE_SCRIPT_COMPAT_FLAGS: readonly string[] = [
   "new_module_registry",
@@ -113,26 +107,17 @@ export interface PageIsolateCaps {
   wallMs: number;
 }
 
-// Env-tunable isolate caps (a deployment may set both): CPU rides
-// the Worker Loader's limits.cpuMs, wall arms the session kill timer.
+// Host-configurable isolate caps: CPU sets limit on isolate load, wall arms the kill timer.
 export function pageIsolateCaps(
-  env: {
-    KITESURF_PAGE_CPU_MS_CAP?: string;
-    KITESURF_PAGE_WALL_MS_CAP?: string;
-  },
+  host: HostCapabilities,
   overrides?: PageIsolateCapOverrides,
 ): PageIsolateCaps {
-  const envCpu = parseCapMs(env.KITESURF_PAGE_CPU_MS_CAP);
-  const envWall = parseCapMs(env.KITESURF_PAGE_WALL_MS_CAP);
+  const configuredCpu = host.limits.pageCpuMsCap ?? 0;
+  const configuredWall = host.limits.pageWallMsCap ?? 0;
   return {
-    cpuMs: minCap(envCpu || PAGE_SCRIPT_CPU_TIME_MS_CAP, overrides?.cpuMs),
-    wallMs: minCap(envWall, overrides?.wallMs),
+    cpuMs: minCap(configuredCpu || PAGE_SCRIPT_CPU_TIME_MS_CAP, overrides?.cpuMs),
+    wallMs: minCap(configuredWall, overrides?.wallMs),
   };
-}
-
-function parseCapMs(raw: string | undefined): number {
-  const n = raw ? Number.parseInt(raw, 10) : 0;
-  return Number.isFinite(n) && n > 0 ? n : 0;
 }
 
 function minCap(configured: number, override: number | undefined): number {
@@ -182,17 +167,9 @@ function emptyWasmBytes(): ArrayBuffer {
 }
 
 interface GetOrCreatePageScriptOptions {
-  env: {
-    LOADER: WorkerLoader;
-    KITESURF_SIMULATE_PROD_EVAL?: string;
-    KITESURF_RESOURCE_DRAIN_QUIET_TURNS?: string;
-    KITESURF_LAG_WATCHDOG?: string;
-    KITESURF_PAGE_CPU_MS_CAP?: string;
-    KITESURF_PAGE_WALL_MS_CAP?: string;
-    HOST_TRACER?: Tracer;
-    HOST_CLOCK?: HostClock;
-  };
-  ctx: ExecutionContext;
+  host: HostCapabilities;
+  isolateLoader: HostIsolateLoader;
+  kind?: "page-script" | "oopif-frame";
   key: PageScriptKey;
   pageOrigin: string;
   cookieSiteOrigin?: string;
@@ -209,8 +186,9 @@ interface GetOrCreatePageScriptOptions {
 
 /** Loads one PageScript worker for the supplied target generation and returns its RPC adapter. */
 export function getOrCreatePageScript({
-  env,
-  ctx,
+  host,
+  isolateLoader,
+  kind = "page-script",
   key,
   pageOrigin,
   cookieSiteOrigin,
@@ -223,12 +201,11 @@ export function getOrCreatePageScript({
   sandboxOutbound,
   pageIsolate,
 }: GetOrCreatePageScriptOptions): PageScriptStub {
-  const cx = ctx as CtxWithExports;
-  const wall = makeWallClock(env);
+  const wall = () => host.clock.now();
   const name = pageScriptCacheKey(key);
-  const caps = pageIsolateCaps(env, capOverrides);
-  // Authenticates the child's [ks-err] engine error channel (see engine-errors.ts
-  // parseKsErrLine): page JS can spoof console prefixes, not this.
+  const caps = pageIsolateCaps(host, capOverrides);
+  // Authenticates the child's [pw-err] engine error channel (see engine-errors.ts
+  // parsePwErrLine): page JS can spoof console prefixes, not this.
   const tailToken = crypto.randomUUID();
   // Routes Runtime handles and compiled-script ids back to the isolate that minted them.
   const isolateStamp = crypto.randomUUID();
@@ -253,11 +230,11 @@ export function getOrCreatePageScript({
   const cdpDebug = startupInput.cdpDebug === true;
   const pixelFree = startupInput.pixelFree === true;
   const fontDefer = startupInput.fontDefer === true;
-  const configuredQuietTurns = Number.parseInt(env.KITESURF_RESOURCE_DRAIN_QUIET_TURNS ?? "", 10);
+  const configuredQuietTurns = Number.parseInt(host.config.resourceDrainQuietTurns ?? "", 10);
   const resourceDrainQuietTurns = Number.isFinite(configuredQuietTurns)
     ? Math.max(1, configuredQuietTurns)
     : 1;
-  const lagWatchdog = cdpDebug || env.KITESURF_LAG_WATCHDOG === "1";
+  const lagWatchdog = cdpDebug || host.config.lagWatchdog;
   const scriptBundle = startupInput.scriptBundle ?? null;
   const wasmBake = startupInput.wasmBake ?? null;
   const moduleScriptUrls = scriptBundle ? scriptBundle.moduleScriptUrls : [];
@@ -298,10 +275,7 @@ export const metaCsp = ${JSON.stringify(metaCsp)};
 export const insertedBaked = ${JSON.stringify(scriptBundle?.insertedManifest ?? [])};
 `;
 
-  const modules: Record<
-    string,
-    string | { wasm: ArrayBuffer } | { cjs: string } | { js: string } | { json: unknown }
-  > = {
+  const modules: Record<string, IsolateModule> = {
     "page.js": PAGE_SCRIPT_SOURCE,
     "dom-shim.js": DOM_SHIM_SOURCE,
     "internal-state.js": INTERNAL_STATE_SOURCE,
@@ -373,56 +347,44 @@ export const manifest = ${JSON.stringify(wasmBake ? wasmBake.manifest : {})};
     pixelFree,
   };
   const mainModule = pageIsolateEntry(modules, pageIsolate);
-  const stub = env.LOADER.load({
-    compatibilityDate: PAGE_SCRIPT_COMPAT_DATE,
-    compatibilityFlags: [...PAGE_SCRIPT_COMPAT_FLAGS],
+  const compat = host.config.workerCompat;
+  const loaded = isolateLoader.load<PageScriptEntrypointStub>({
+    kind,
+    entrypoint: "PageScript",
+    entrypointProps: { KS_TAIL_TOKEN: tailToken, KS_ISOLATE_STAMP: isolateStamp },
+    compatibilityDate: compat?.compatibilityDate ?? PAGE_SCRIPT_COMPAT_DATE,
+    compatibilityFlags: compat?.compatibilityFlags ?? PAGE_SCRIPT_COMPAT_FLAGS,
     mainModule,
     modules,
-    // Page modules run in this worker and can import its env, so the tail
-    // token goes in the entrypoint props below instead.
-    env: {
-      ...(env.HOST_TRACER
-        ? {
-            KS_SPAN_SINK: cx.exports.SpanSink({
-              props: { kind: "pagescript", ...localTraceParentProps() },
-            }),
-          }
-        : {}),
+    outbound: {
+      mode: "sandbox",
+      props: sandboxOutbound.loadedProps(outboundProps),
     },
-    globalOutbound: sandboxOutbound.loaded(outboundProps),
-    tails: [
-      cx.exports.PageScriptTail({
-        props: {
-          scriptName: name,
-          // Navigate-time domain for error reports; a
-          // [ks-err] report's live pageUrl wins over it (SPA routing).
-          pageDomain: hostnameOf(url ?? ""),
-          ksErrToken: tailToken,
-          sessionId: key.connectionId,
-        },
-      }),
-      ...attributionTails(cx.exports, attributionHeaders, "kitesurf-page-script"),
-    ],
+    ...(host.tracer ? { spanSink: { kind: "pagescript", ...localTraceParentProps() } } : {}),
+    tail: {
+      scriptName: name,
+      // Navigate-time domain for error reports; a
+      // [pw-err] report's live pageUrl wins over it (SPA routing).
+      pageDomain: hostnameOf(url ?? ""),
+      ksErrToken: tailToken,
+      sessionId: key.connectionId,
+    },
+    attributionHeaders,
+    attributionScriptName: "parawing-page-script",
     limits: {
       cpuMs: caps.cpuMs,
       subRequests: PAGE_SCRIPT_SUBREQUEST_CAP,
     },
   });
 
-  const workerEntrypoint: PageScriptEntrypointStub = stub.getEntrypoint<PageScriptEntrypoint>(
-    "PageScript",
-    {
-      props: { KS_TAIL_TOKEN: tailToken, KS_ISOLATE_STAMP: isolateStamp },
-    },
-  );
+  const workerEntrypoint: PageScriptEntrypointStub = loaded.entrypoint;
   // The RPC adapter needs promises; the local entrypoint contract is synchronous.
 
-  // SAFETY: WorkerLoader follows the PageScript JSRPC contract, but Rpc.Provider loses generic
-  // call/reply correlation and annotates cloneable reply objects with Disposable.
-  // Runtime replies remain PageScriptReply data.
+  // SAFETY: HostIsolateLoader follows the PageScript JSRPC contract, while RemoteFetcher drops
+  // generic call/reply correlation. Runtime replies remain PageScriptReply data.
   // Verified by: packages/engine/test/e2e/demos/page-script-demo.e2e.test.ts.
   const entrypoint = workerEntrypoint as RpcSessionEntrypoint;
-  const tracer = env.HOST_TRACER;
+  const tracer = host.tracer;
   const spanWrap = tracer
     ? (open: () => Promise<RpcSessionCallable>) =>
         traceSpan(tracer, "init.ws_upgrade", () => open())
@@ -438,12 +400,13 @@ export const manifest = ${JSON.stringify(wasmBake ? wasmBake.manifest : {})};
       }
     : spanWrap;
   const session = openPageScriptRpcSession(entrypoint, {
-    now: makeWallClock(env),
+    now: wall,
     outbound: sandboxOutbound.session(outboundProps),
     wallCapMs: caps.wallMs > 0 ? caps.wallMs : undefined,
     scriptName: name,
     getTraceParent: tracer ? () => tracer.getSpanContext()?.spanId ?? null : undefined,
     wrapOpen,
+    isolate: loaded,
   });
   session.isolateStamp = isolateStamp;
   return session;
@@ -454,12 +417,8 @@ export interface PageScriptInitTimings {
 }
 
 export function spawnFramePageScript(
-  env: {
-    LOADER: WorkerLoader;
-    KITESURF_SIMULATE_PROD_EVAL?: string;
-    KITESURF_LAG_WATCHDOG?: string;
-  },
-  ctx: ExecutionContext,
+  host: HostCapabilities,
+  isolateLoader: HostIsolateLoader,
   args: {
     connectionId: string;
     targetId: string;
@@ -486,8 +445,9 @@ export function spawnFramePageScript(
     cookieKey: args.cookieKey,
   };
   return getOrCreatePageScript({
-    env,
-    ctx,
+    host,
+    isolateLoader,
+    kind: "oopif-frame",
     key,
     pageOrigin,
     cookieSiteOrigin: args.cookieSiteOrigin,

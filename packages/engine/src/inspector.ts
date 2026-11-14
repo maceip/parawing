@@ -6,15 +6,15 @@
 
 /** Return the hosted inspector URL; unset, empty or non-string disables the web shortcut. */
 export function inspectorBaseUrlOrNull(env: {
-  KITESURF_INSPECTOR_BASE_URL?: unknown;
+  PARAWING_INSPECTOR_BASE_URL?: unknown;
 }): string | null {
-  const raw = env.KITESURF_INSPECTOR_BASE_URL;
+  const raw = env.PARAWING_INSPECTOR_BASE_URL;
   if (typeof raw !== "string") return null;
   const trimmed = raw.trim();
   return trimmed === "" ? null : trimmed;
 }
 
-const ASSETS_ORIGIN = "https://kitesurf.invalid";
+const ASSETS_ORIGIN = "https://parawing.invalid";
 const ASSET_PROBE_TIMEOUT_MS = 2000;
 const assetProbes = new WeakMap<object, Promise<boolean>>();
 
@@ -38,17 +38,17 @@ async function hasAsset(assets: AssetFetcher, path: string): Promise<boolean> {
   }
 }
 
-// The frontend for the routes. KITESURF_INSPECTOR_FALLBACK_URL replaces a path base that the
+// The frontend for the routes. PARAWING_INSPECTOR_FALLBACK_URL replaces a path base that the
 // assets do not have, so `wrangler dev` serves a `--config=devtools` build's same-origin copy
 // and otherwise Chrome's hosted one. Without a fallback, the assets are never read.
 export async function resolveInspectorBaseUrl(env: {
-  KITESURF_INSPECTOR_BASE_URL?: unknown;
-  KITESURF_INSPECTOR_FALLBACK_URL?: unknown;
+  PARAWING_INSPECTOR_BASE_URL?: unknown;
+  PARAWING_INSPECTOR_FALLBACK_URL?: unknown;
   FONT_ASSETS?: AssetFetcher;
 }): Promise<string | null> {
   const base = inspectorBaseUrlOrNull(env);
   const fallback = inspectorBaseUrlOrNull({
-    KITESURF_INSPECTOR_BASE_URL: env.KITESURF_INSPECTOR_FALLBACK_URL,
+    PARAWING_INSPECTOR_BASE_URL: env.PARAWING_INSPECTOR_FALLBACK_URL,
   });
   if (fallback === null || (base !== null && !base.startsWith("/"))) return base;
   if (base === null || env.FONT_ASSETS === undefined) return base ?? fallback;
@@ -86,7 +86,7 @@ export function inspectorTargetUrl(
     initialUrl === undefined ? "" : "?initialUrl=" + encodeURIComponent(initialUrl);
   const params = new URLSearchParams();
   const wsScheme = url.protocol === "https:" ? "wss" : "ws";
-  params.set(wsScheme, `${endpointHost(base, host)}/devtools/page/kitesurf${initialQuery}`);
+  params.set(wsScheme, `${endpointHost(base, host)}/devtools/page/parawing${initialQuery}`);
   // Response.redirect needs an absolute URL; a same-origin frontend shares the WebSocket's host.
   const frontend = absoluteInspectorBaseUrl(base, `${url.protocol}//${host}`);
   return frontend.replace(/\/$/, "") + "?" + params.toString();
@@ -98,15 +98,15 @@ const BUNDLED_INSPECTOR_ORIGIN = "devtools://devtools";
  *  from the engine itself or an inspector. Non-browser clients send no Origin. */
 export function cdpUpgradeOriginAllowed(
   request: Request,
-  env: { KITESURF_INSPECTOR_BASE_URL?: unknown; KITESURF_INSPECTOR_FALLBACK_URL?: unknown },
+  env: { PARAWING_INSPECTOR_BASE_URL?: unknown; PARAWING_INSPECTOR_FALLBACK_URL?: unknown },
 ): boolean {
   const origin = request.headers.get("origin");
   if (origin === null) return true;
   if (origin === new URL(request.url).origin || origin === BUNDLED_INSPECTOR_ORIGIN) return true;
   // A path-only base is either served same-origin or replaced by the fallback, so the
   // fallback's origin is a frontend that can open this upgrade too.
-  for (const value of [env.KITESURF_INSPECTOR_BASE_URL, env.KITESURF_INSPECTOR_FALLBACK_URL]) {
-    const base = inspectorBaseUrlOrNull({ KITESURF_INSPECTOR_BASE_URL: value });
+  for (const value of [env.PARAWING_INSPECTOR_BASE_URL, env.PARAWING_INSPECTOR_FALLBACK_URL]) {
+    const base = inspectorBaseUrlOrNull({ PARAWING_INSPECTOR_BASE_URL: value });
     if (base === null || base.startsWith("/")) continue;
     try {
       if (origin === new URL(base).origin) return true;

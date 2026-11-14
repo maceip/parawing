@@ -4,9 +4,9 @@
 
 // Handles child-frame document loads and rasterization in separate PageScript isolates.
 
-import type { NavigateOptions } from "@kitesurf/jsrpc-types/page-script";
-import type { CommittedOrigin } from "@kitesurf/jsrpc-types/frame-origin";
-import type { SandboxRestrictions } from "@kitesurf/script-gate";
+import type { NavigateOptions } from "@parawing/jsrpc-types/page-script";
+import type { CommittedOrigin } from "@parawing/jsrpc-types/frame-origin";
+import type { SandboxRestrictions } from "@parawing/script-gate";
 import type { PageRendererManager } from "./page-renderer.ts";
 
 export interface RasterizeOptions {
@@ -33,10 +33,12 @@ import {
 import { DEFAULT_VIEWPORT_HEIGHT, DEFAULT_VIEWPORT_WIDTH } from "../cdp/viewport.ts";
 import { MAX_DOCUMENT_BYTES, readCappedBytes, readCappedText } from "../read-capped.ts";
 import { localTraceParentProps } from "../tracing-local.ts";
+import type { HostCapabilities } from "../host-capabilities.ts";
+import type { HostIsolateLoader } from "../isolate-loader.ts";
 import { schemefulSite } from "../public-suffix.ts";
 import { scanDocument } from "../wasm.ts";
 import { documentBaseUrl } from "./script-gate.ts";
-import { committedOriginOfUrl, embeddingPolicyVerdict } from "@kitesurf/script-gate";
+import { committedOriginOfUrl, embeddingPolicyVerdict } from "@parawing/script-gate";
 import { modulePreloadSeeds } from "./walk-module-graph.ts";
 
 const OOPIF_DOC_WALK_BUDGET_MS = 15_000;
@@ -74,12 +76,6 @@ export interface RenderFrameResult {
 
 // `refused` marks a document the frame must not render; a retry would only fetch it again.
 export type RenderFrameError = { ok: false; error: string; refused?: true };
-
-export interface FrameSpawnEnv {
-  LOADER: WorkerLoader;
-  KITESURF_SIMULATE_PROD_EVAL?: string;
-  KITESURF_LAG_WATCHDOG?: string;
-}
 
 export interface PrespawnedFrame {
   ok: true;
@@ -121,7 +117,7 @@ function prepareFrameIsolate(stub: PageScriptStub, args: RenderFrameArgs): Promi
       });
     } catch (e) {
       console.warn(
-        `[kitesurf-oopif] setFrameContext failed: ${e instanceof Error ? e.message : String(e)}`,
+        `[parawing-oopif] setFrameContext failed: ${e instanceof Error ? e.message : String(e)}`,
       );
     }
   })();
@@ -170,18 +166,18 @@ function attachUpstreamHandler(
 }
 
 export async function spawnAndNavigateFrame(
-  env: FrameSpawnEnv,
-  ctx: ExecutionContext,
+  host: HostCapabilities,
+  isolateLoader: HostIsolateLoader,
   args: RenderFrameArgs,
 ): Promise<{ ok: true; stub: PageScriptStub; finalUrl: string } | RenderFrameError> {
-  const pre = await prespawnFrameIsolate(env, ctx, args);
+  const pre = await prespawnFrameIsolate(host, isolateLoader, args);
   if (!pre.ok) return pre;
   return navigatePrespawnedFrame(pre, args);
 }
 
 export async function prespawnFrameIsolate(
-  env: FrameSpawnEnv,
-  ctx: ExecutionContext,
+  host: HostCapabilities,
+  isolateLoader: HostIsolateLoader,
   args: RenderFrameArgs,
 ): Promise<PrespawnedFrame | RenderFrameError> {
   const sandbox = args.sandbox;
@@ -208,7 +204,7 @@ export async function prespawnFrameIsolate(
 
   let stub: PageScriptStub;
   try {
-    stub = spawnFramePageScript(env, ctx, {
+    stub = spawnFramePageScript(host, isolateLoader, {
       connectionId: args.connectionId,
       targetId: args.targetId,
       frameId: args.frameId,
@@ -233,7 +229,7 @@ export async function prespawnFrameIsolate(
   let finalUrl: string;
   const walkAbort = new AbortController();
   const walkTimer = setTimeout(
-    () => walkAbort.abort(new Error("kitesurf: oopif document walk timeout")),
+    () => walkAbort.abort(new Error("parawing: oopif document walk timeout")),
     OOPIF_DOC_WALK_BUDGET_MS,
   );
   try {
@@ -244,12 +240,12 @@ export async function prespawnFrameIsolate(
       signal: walkAbort.signal,
       fetchHop: (hopReq) => docOutbound.fetch(hopReq),
       headers: {
-        "x-kitesurf-resource-type": "Document",
-        "x-kitesurf-initiator": "parser",
-        "x-kitesurf-allow-cross-origin": "1",
-        "x-kitesurf-page-origin": pageOrigin,
-        ...(args.connectionId ? { "x-kitesurf-connection-id": args.connectionId } : {}),
-        "x-kitesurf-frame-id": args.frameId,
+        "x-parawing-resource-type": "Document",
+        "x-parawing-initiator": "parser",
+        "x-parawing-allow-cross-origin": "1",
+        "x-parawing-page-origin": pageOrigin,
+        ...(args.connectionId ? { "x-parawing-connection-id": args.connectionId } : {}),
+        "x-parawing-frame-id": args.frameId,
         accept: "text/html,application/xhtml+xml,application/xml;q=0.9,*/*;q=0.8",
         "sec-fetch-dest": "iframe",
         "sec-fetch-mode": "navigate",
@@ -376,7 +372,7 @@ export async function prespawnFrameIsolate(
   if (originOfFrameUrl(finalUrl) !== pageOrigin) {
     await discardFrameIsolate(stub, warmup, "oopif doc redirected cross-origin");
     try {
-      stub = spawnFramePageScript(env, ctx, {
+      stub = spawnFramePageScript(host, isolateLoader, {
         connectionId: args.connectionId,
         targetId: args.targetId,
         frameId: args.frameId,
@@ -435,7 +431,7 @@ export async function navigatePrespawnedFrame(
       ]);
       if (timedOut) {
         console.warn(
-          `[kitesurf-oopif] load timed out after ${OOPIF_LOAD_TIMEOUT_MS}ms, ` +
+          `[parawing-oopif] load timed out after ${OOPIF_LOAD_TIMEOUT_MS}ms, ` +
             `painting what it has: ${finalUrl}`,
         );
       }

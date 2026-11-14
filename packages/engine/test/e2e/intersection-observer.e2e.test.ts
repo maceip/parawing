@@ -11,7 +11,7 @@ async function paintPrepares(page: Page): Promise<number> {
   const session = await page.createCDPSession();
   const targetId = await targetIdForSession(session);
   try {
-    const stats = await session.send("Kitesurf.getMemoryStats", { targetId });
+    const stats = await session.send("Parawing.getMemoryStats", { targetId });
     const paint = stats.paint;
     if (typeof paint?.prepares !== "number") {
       throw new Error(`no paint stats in ${JSON.stringify(stats).slice(0, 200)}`);

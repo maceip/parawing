@@ -406,7 +406,7 @@ export function installEventSource(): void {
       } catch (error) {
         // A non-shim event cannot cross the shim's EventTarget; report instead of reconnecting.
         try {
-          console.error("[kitesurf] EventSource dispatch threw:", error);
+          console.error("[parawing] EventSource dispatch threw:", error);
         } catch {}
       }
     }

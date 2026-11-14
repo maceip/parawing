@@ -4,8 +4,8 @@
 
 // Applies DOM operation-log entries and records direct mutations for CDP.
 
-import type { RawCdpMutation } from "@kitesurf/jsrpc-types/shared";
-import type { DomHandle } from "../../core/pkg/kitesurf_core";
+import type { RawCdpMutation } from "@parawing/jsrpc-types/shared";
+import type { DomHandle } from "../../core/pkg/parawing_core";
 import { dom, ops, cdpMutations, type DomOperation } from "./state.js";
 import { stampNamedGlobal } from "./window.js";
 import { bumpMutationSeq } from "./mutations/seq.js";
@@ -61,7 +61,7 @@ function recordOpImpl(op: DomOperation): void {
     const message =
       typeof err === "object" && err !== null && "message" in err ? err.message : undefined;
     const msg = message ? String(message) : String(err);
-    throw new TypeError("kitesurf: mutation rejected: " + msg);
+    throw new TypeError("parawing: mutation rejected: " + msg);
   }
   if (applied > 0) {
     ops.push(op);

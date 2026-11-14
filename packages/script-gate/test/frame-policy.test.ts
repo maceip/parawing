@@ -13,7 +13,7 @@ import {
   embeddingPolicyVerdict,
   type EmbeddingPolicyInput,
 } from "../src/frame-policy.ts";
-import type { CommittedOrigin } from "@kitesurf/jsrpc-types/frame-origin";
+import type { CommittedOrigin } from "@parawing/jsrpc-types/frame-origin";
 
 const A: CommittedOrigin = { kind: "tuple", origin: "https://a.example" };
 const B: CommittedOrigin = { kind: "tuple", origin: "https://b.example" };

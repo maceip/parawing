@@ -8,61 +8,38 @@ vi.mock("../src/eval/page-script.ts", () => ({
   loadWasmBytesFromVfs: () => new Uint8Array(0),
 }));
 
-import type { RenderPortStub } from "@kitesurf/jsrpc-types/page-renderer";
-import { PageRendererManager, type RendererEnv } from "../src/eval/page-renderer.ts";
+import type { RenderPortStub } from "@parawing/jsrpc-types/page-renderer";
+import { PageRendererManager } from "../src/eval/page-renderer.ts";
+import { createMemoryHostCapabilities } from "../src/host-capabilities.ts";
+import type { HostIsolateLoader, IsolateLoadSpec } from "../src/isolate-loader.ts";
 
 function harness(
   renderFrame: () => Promise<unknown>,
   getRenderPort: () => Promise<RenderPortStub> = async () => ({}) as RenderPortStub,
 ) {
   const counts = { loads: 0, kills: 0 };
-  const stub = {
-    renderFrame,
-    killIsolate: () => {
-      counts.kills += 1;
-      return Promise.resolve();
-    },
+  const stub = { renderFrame };
+  const isolateLoader: HostIsolateLoader = {
+    load: ((spec: IsolateLoadSpec) => {
+      counts.loads += 1;
+      return {
+        kind: spec.kind,
+        entrypoint: stub,
+        async terminate() {
+          counts.kills += 1;
+        },
+        [Symbol.dispose]() {},
+      };
+    }) as HostIsolateLoader["load"],
   };
-  const env = {
-    LOADER: {
-      get: () => {
-        throw new Error("harness: LOADER.get unused");
-      },
-      load: () => {
-        counts.loads += 1;
-        // oxlint-disable-next-line kitesurf/no-chained-type-assertions -- partial platform WorkerStub.
-        return {
-          getEntrypoint: () => stub,
-          getDurableObjectClass: () => {
-            throw new Error("harness: getDurableObjectClass unused");
-          },
-        } as unknown as WorkerStub;
-      },
-    },
-    FONT_ASSETS: {
+  const host = createMemoryHostCapabilities({
+    assets: {
       fetch: () => {
-        throw new Error("harness: FONT_ASSETS.fetch unused");
-      },
-      connect: () => {
-        throw new Error("harness: FONT_ASSETS.connect unused");
+        throw new Error("harness: assets.fetch unused");
       },
     },
-  } satisfies RendererEnv;
-  const ctx = {
-    exports: {
-      DeniedOutbound: () => ({}),
-      PageScriptTail: () => ({}),
-      SpanSink: () => ({}),
-    },
-    waitUntil: () => {},
-    passThroughOnException: () => {},
-  };
-  const manager = new PageRendererManager(
-    env,
-    // oxlint-disable-next-line kitesurf/no-chained-type-assertions -- partial renderer context fixture.
-    ctx as unknown as ExecutionContext,
-    "test-connection",
-  );
+  });
+  const manager = new PageRendererManager(host, isolateLoader, "test-connection");
   const source = { getRenderPort };
   const render = () =>
     manager.renderFrame(source, {

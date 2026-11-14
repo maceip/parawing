@@ -10,11 +10,8 @@ import {
   unregisterOutboundFilters,
 } from "../src/cdp/outbound-filter-registry.ts";
 import { createCookieJar } from "../src/cookies.ts";
-import {
-  SandboxOutbound,
-  type OutboundProps,
-  type SandboxOutboundEnv,
-} from "../src/eval/outbound.ts";
+import { SandboxOutbound, type OutboundProps } from "../src/eval/outbound.ts";
+import { createMemoryHostCapabilities } from "../src/host-capabilities.ts";
 
 const CONN = "ws-conn";
 
@@ -25,7 +22,7 @@ function upgrade(): Response {
 async function handshake(headers: Record<string, string>, props: Partial<OutboundProps> = {}) {
   const seen: Request[] = [];
   const resp = await SandboxOutbound.handle(
-    {} as SandboxOutboundEnv,
+    createMemoryHostCapabilities(),
     {
       connectionId: CONN,
       cookieKey: CONN,
@@ -55,19 +52,19 @@ describe("WebSocket handshakes and outbound filters", () => {
 
   it.each(["Fetch", "Image", ""])("classifies a handshake labelled %j as websocket", async (t) => {
     register({ rejectResourceTypes: ["websocket"] });
-    const { status, seen } = await handshake(t ? { "x-kitesurf-resource-type": t } : {});
+    const { status, seen } = await handshake(t ? { "x-parawing-resource-type": t } : {});
     expect(status).toBe(451);
     expect(seen).toEqual([]);
   });
 
   it("does not let a fetch-only allow list admit a handshake", async () => {
     register({ allowResourceTypes: ["fetch"] });
-    expect((await handshake({ "x-kitesurf-resource-type": "Fetch" })).status).toBe(451);
+    expect((await handshake({ "x-parawing-resource-type": "Fetch" })).status).toBe(451);
   });
 
   it("lets a websocket allow list admit a handshake", async () => {
     register({ allowResourceTypes: ["websocket"] });
-    const { seen } = await handshake({ "x-kitesurf-resource-type": "Fetch" });
+    const { seen } = await handshake({ "x-parawing-resource-type": "Fetch" });
     expect(seen.map((r) => r.url)).toEqual(["https://socket.test/echo"]);
   });
 
@@ -118,7 +115,7 @@ describe("WebSocket handshake headers", () => {
   });
 
   it("keeps the sealed origin when the page marks the request opaque", async () => {
-    const { origin, ua } = await sent({ "x-kitesurf-page-origin": "null" });
+    const { origin, ua } = await sent({ "x-parawing-page-origin": "null" });
     expect(origin).toBe("https://page.test");
     expect(ua).toBeTruthy();
   });

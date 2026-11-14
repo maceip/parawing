@@ -16,6 +16,7 @@ import {
   resolveInspectorBaseUrl,
 } from "./inspector.ts";
 import { DEFAULT_ENGINE_HOST, type EngineHost } from "./host.ts";
+import { acceptRbiV2WebSocket } from "./rbi-v2-server.ts";
 
 // Loopback service binding for PageScript subresource fetches.
 export { SandboxOutbound } from "./eval/outbound.ts";
@@ -28,7 +29,7 @@ export { PageScriptTail } from "./eval/page-script-tail.ts";
 
 // Puppeteer reads the protocol version and WebSocket endpoint from /json/version.
 const VERSION_INFO = {
-  Browser: "Kitesurf/0.0.1",
+  Browser: "Parawing/0.0.1",
   "Protocol-Version": "1.3",
   "User-Agent":
     "Mozilla/5.0 (X11; Linux x86_64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/145.0.0.0 Safari/537.36",
@@ -39,7 +40,7 @@ const VERSION_INFO = {
 const CHROME_BUNDLED_INSPECTOR_URL = "devtools://devtools/bundled/inspector.html";
 
 type EngineBindings = {
-  engine: KitesurfEngine;
+  engine: ParawingEngine;
   env: Env;
   ctx: ExecutionContext;
   host: EngineHost;
@@ -52,7 +53,7 @@ const rethrow: ErrorHandler<EngineApp> = (err) => {
   throw err;
 };
 
-const ASSETS_ORIGIN = "https://kitesurf.invalid";
+const ASSETS_ORIGIN = "https://parawing.invalid";
 async function serveRbiAsset(
   env: Env,
   assetPath: string,
@@ -84,6 +85,12 @@ upgrades.use("/__fixtures/*", async (c, next) => {
   await next();
 });
 
+upgrades.get("/rbi/ws", (c) =>
+  !cdpUpgradeOriginAllowed(c.req.raw, c.env.env)
+    ? c.text("RBI v2 WebSocket connections from this origin are not allowed", 403)
+    : acceptRbiV2WebSocket(c.req.raw),
+);
+
 upgrades.all("*", (c) =>
   !cdpUpgradeOriginAllowed(c.req.raw, c.env.env)
     ? c.text("CDP connections from this origin are not allowed", 403)
@@ -102,7 +109,7 @@ app.notFound(
     (await c.env.host.serveFallback?.(new URL(c.req.url), c.env.env)) ?? c.text("not found", 404),
 );
 
-for (const retired of ["/tui", "/tui/*", "/rbi/ws"]) {
+for (const retired of ["/tui", "/tui/*"]) {
   app.all(retired, (c) => c.text("not found", 404));
 }
 
@@ -119,6 +126,8 @@ app.use(async (c, next) => {
   }
   await next();
 });
+
+app.all("/rbi/ws", (c) => c.text("not found", 404));
 
 app.get("/rbi/scene_host.wasm", (c) =>
   serveRbiAsset(c.env.env, "/rbi/scene_host.wasm", "application/wasm"),
@@ -156,7 +165,7 @@ app.get("/", async (c, next) => {
   if (inspectorBase === null) {
     return new Response(
       "Inspector base URL not configured. Set the\n" +
-        "KITESURF_INSPECTOR_BASE_URL env var on the engine worker\n" +
+        "PARAWING_INSPECTOR_BASE_URL env var on the engine worker\n" +
         "to a hosted Chrome DevTools Frontend build (any URL that\n" +
         "accepts `?wss=<endpoint>`), or to /inspector/inspector.html\n" +
         "after a `--config=devtools` build, or use\n" +
@@ -175,7 +184,7 @@ app.get("/", async (c, next) => {
 app.get(
   "/health",
   () =>
-    new Response("kitesurf: OK\n", {
+    new Response("parawing: OK\n", {
       headers: { "content-type": "text/plain" },
     }),
 );
@@ -196,14 +205,14 @@ async function discoveryList(c: Context<EngineApp>): Promise<Response> {
   const url = new URL(c.req.url);
   const host = c.req.header("host") ?? url.host;
   const scheme = url.protocol === "https:" ? "wss" : "ws";
-  const wsUrl = `${scheme}://${host}/devtools/page/kitesurf`;
+  const wsUrl = `${scheme}://${host}/devtools/page/parawing`;
   const inspectorBase = await resolveInspectorBaseUrl(c.env.env);
   const entry: Record<string, unknown> = {
-    id: "kitesurf",
+    id: "parawing",
     type: "page",
-    title: "kitesurf",
+    title: "parawing",
     url: "about:blank",
-    description: "kitesurf headless target",
+    description: "parawing headless target",
     webSocketDebuggerUrl: wsUrl,
     faviconUrl: `${url.protocol}//${host}/favicon.ico`,
   };
@@ -212,7 +221,7 @@ async function discoveryList(c: Context<EngineApp>): Promise<Response> {
   // stays relative, like Chrome's own /json/list, which chrome://inspect accepts.
   entry.devtoolsFrontendUrl =
     (inspectorBase ?? CHROME_BUNDLED_INSPECTOR_URL).replace(/\/$/, "") +
-    `?${scheme}=${host}/devtools/page/kitesurf`;
+    `?${scheme}=${host}/devtools/page/parawing`;
   return Response.json([entry]);
 }
 app.get("/json", discoveryList);
@@ -225,7 +234,7 @@ app.all("/__fixtures/*", (c) =>
   c.env.env.FIXTURES ? c.env.env.FIXTURES.fetch(c.req.raw) : c.text("not found", 404),
 );
 
-export class KitesurfEngine extends WorkerEntrypoint<Env> {
+export class ParawingEngine extends WorkerEntrypoint<Env> {
   protected host(): EngineHost {
     return DEFAULT_ENGINE_HOST;
   }
@@ -245,4 +254,4 @@ export class KitesurfEngine extends WorkerEntrypoint<Env> {
   }
 }
 
-export default KitesurfEngine;
+export default ParawingEngine;

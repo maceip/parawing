@@ -63,7 +63,7 @@ async function valueOf(select: FakeNode): Promise<unknown> {
     sessions: new Set<string>(),
     // handleAccessibility calls only queryDom; PageScriptStub also carries the
     // isolate lifecycle and render-port RPCs that this unit fixture never invokes.
-    // oxlint-disable-next-line kitesurf/no-chained-type-assertions -- partial PageScript fixture.
+    // oxlint-disable-next-line parawing/no-chained-type-assertions -- partial PageScript fixture.
     pageScript: stub as unknown as PageScriptStub,
     blankReady: null,
     frameId: "F",

@@ -157,7 +157,7 @@ test("setDocumentContent on a synthetic origin runs the page's scripts", async (
     expression: "JSON.stringify([location.href, window.r])",
     returnByValue: true,
   });
-  expect(JSON.parse(r.result.value)).toEqual(["https://kitesurf.local/", EXPECTED]);
+  expect(JSON.parse(r.result.value)).toEqual(["https://parawing.local/", EXPECTED]);
 });
 
 test("setDocumentContent enforces the markup's meta CSP", async ({ cdpSession }) => {

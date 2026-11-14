@@ -14,7 +14,7 @@ import {
   makeChildFrameState,
   makeMainFrameState,
 } from "../src/cdp/frames.ts";
-import { SANDBOX_ALLOW_ALL, type SandboxRestrictions } from "@kitesurf/script-gate";
+import { SANDBOX_ALLOW_ALL, type SandboxRestrictions } from "@parawing/script-gate";
 import type { FrameState } from "../src/cdp/types.ts";
 
 const MAIN_URL = "https://a.example/index.html";

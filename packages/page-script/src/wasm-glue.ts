@@ -47,7 +47,7 @@ export declare function ks_bridge_install_desc_helpers(
 ): void;
 // O(1) gate for the above: false until the page mints its first wrapper.
 export declare function ks_bridge_ever_minted(): boolean;
-export { DomHandle } from "../../core/pkg/kitesurf_core";
+export { DomHandle } from "../../core/pkg/parawing_core";
 
 export declare function ks_parse_stylesheet_structured(css: string): {
   rules: Array<{

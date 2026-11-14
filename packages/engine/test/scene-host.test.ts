@@ -35,7 +35,7 @@ function assets(status: number, body = wasm, manifest: unknown = info): Pick<Fet
 
 const read = {
   id: 1,
-  method: "Kitesurf.readSceneHost",
+  method: "Parawing.readSceneHost",
   params: { sha256: info.sha256, offset: 2, length: 4 },
 } as const;
 
@@ -81,7 +81,7 @@ test("scene-host metadata is cached only within its CDP connection", async () =>
     },
   };
   const session = {};
-  await sceneHostCommand(counted, { id: 1, method: "Kitesurf.getSceneHostManifest" }, session);
+  await sceneHostCommand(counted, { id: 1, method: "Parawing.getSceneHostManifest" }, session);
   await sceneHostCommand(counted, read, session);
   await sceneHostCommand(counted, read, session);
   expect(manifestReads).toBe(1);
@@ -144,17 +144,17 @@ test("scene-host manifests reject invalid or oversized deployment metadata", asy
     await expect(
       sceneHostCommand(
         assets(200, wasm, manifest),
-        { id: 1, method: "Kitesurf.getSceneHostManifest" },
+        { id: 1, method: "Parawing.getSceneHostManifest" },
         {},
       ),
     ).rejects.toThrow("invalid deployed");
   }
   const oversized = { fetch: async () => new Response(" ".repeat(16 * 1024 + 1)) };
   await expect(
-    sceneHostCommand(oversized, { id: 1, method: "Kitesurf.getSceneHostManifest" }, {}),
+    sceneHostCommand(oversized, { id: 1, method: "Parawing.getSceneHostManifest" }, {}),
   ).rejects.toThrow("too large");
   const missing = { fetch: async () => new Response(null, { status: 404 }) };
   await expect(
-    sceneHostCommand(missing, { id: 1, method: "Kitesurf.getSceneHostManifest" }, {}),
+    sceneHostCommand(missing, { id: 1, method: "Parawing.getSceneHostManifest" }, {}),
   ).rejects.toThrow("unavailable");
 });

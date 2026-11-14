@@ -4,7 +4,7 @@
 
 // Handles document and element scroll offsets, wheel chaining, and trusted scroll events.
 
-import type { KsScrollInfo } from "../../../core/pkg/kitesurf_core";
+import type { KsScrollInfo } from "../../../core/pkg/parawing_core";
 import type { NodeBase } from "../node-base.js";
 import { ksGlobal, dom, WINDOW_KEY, opts, nodeFor } from "../state.js";
 import type { AuthScrollInfoSnapshot } from "../state.js";

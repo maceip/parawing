@@ -6,12 +6,13 @@ import type { DispatchCtx } from "../src/cdp/dispatch.ts";
 import { sceneStreamCommand, type SceneStreamRequest } from "../src/cdp/scene-stream.ts";
 import type { TargetState } from "../src/cdp/types.ts";
 import type { PageScriptStub } from "../src/eval/page-script.ts";
+import { createMemoryHostCapabilities } from "../src/host-capabilities.ts";
 import { MAX_CONCURRENT_READ_BYTES } from "../src/read-capped.ts";
 
 test("warns once when a scene is over the read cap", async () => {
   const oversized = new Uint8Array(MAX_CONCURRENT_READ_BYTES + 1);
   let records = 0;
-  // oxlint-disable-next-line kitesurf/no-chained-type-assertions -- only recordScene is stubbed.
+  // oxlint-disable-next-line parawing/no-chained-type-assertions -- only recordScene is stubbed.
   const stub = {
     queryDom: () => {
       records++;
@@ -25,17 +26,17 @@ test("warns once when a scene is over the read cap", async () => {
     pageScript: stub,
     navigateGeneration: 0,
   } as TargetState;
-  // oxlint-disable-next-line kitesurf/no-chained-type-assertions -- partial dispatch context fixture.
+  // oxlint-disable-next-line parawing/no-chained-type-assertions -- partial dispatch context fixture.
   const ctx = {
     browser: { targets: new Map([["t", target]]) },
     emit: () => {},
-    ctx: { waitUntil: () => {} },
+    host: createMemoryHostCapabilities(),
   } as unknown as DispatchCtx;
   const send = (method: SceneStreamRequest["method"], params: Record<string, unknown> = {}) =>
     sceneStreamCommand(ctx, { id: 1, method, params } as SceneStreamRequest);
   const warn = vi.spyOn(console, "warn").mockImplementation(() => {});
   try {
-    await send("Kitesurf.startSceneStream", { width: 800, height: 600 });
+    await send("Parawing.startSceneStream", { width: 800, height: 600 });
     await vi.waitFor(() => expect(records).toBeGreaterThanOrEqual(2));
     const overBudget = warn.mock.calls.filter((call) => String(call[0]).includes("scene of"));
     expect(overBudget).toHaveLength(1);
@@ -43,6 +44,6 @@ test("warns once when a scene is over the read cap", async () => {
     expect(String(overBudget[0]?.[0])).toContain(String(MAX_CONCURRENT_READ_BYTES));
   } finally {
     warn.mockRestore();
-    await send("Kitesurf.stopSceneStream");
+    await send("Parawing.stopSceneStream");
   }
 });

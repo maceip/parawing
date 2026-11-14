@@ -7,7 +7,7 @@
 // Owns page-local WebMCP tool registration, declarative forms, execution, and cancellation.
 
 import type * as Idl from "./idl/types.generated.js";
-import type { UpstreamMessage, WebMcpTool } from "@kitesurf/jsrpc-types/page-script";
+import type { UpstreamMessage, WebMcpTool } from "@parawing/jsrpc-types/page-script";
 import { sendUpstreamEvent } from "./internal-state.js";
 import { KsEvent, KsInputEvent, KsSubmitEvent, submitEventResponse } from "./events/event.js";
 import { dispatchTrustedEvent } from "./events/dispatch.js";
@@ -286,10 +286,10 @@ function refreshDeclarativeTools(notify: boolean): void {
   if (removed.length === 0 && added.length === 0) return;
   if (declarativeWatchActive) {
     if (removed.length > 0) {
-      sendDelta({ event: "kitesurf.modelContextToolsRemoved", params: { names: removed } });
+      sendDelta({ event: "parawing.modelContextToolsRemoved", params: { names: removed } });
     }
     if (added.length > 0) {
-      sendDelta({ event: "kitesurf.modelContextToolsAdded", params: { tools: added } });
+      sendDelta({ event: "parawing.modelContextToolsAdded", params: { tools: added } });
     }
   }
   if (mainContext) notifyChanged(mainContext);
@@ -323,7 +323,7 @@ export function stopModelContextToolWatch(watchRevision: unknown): void {
 }
 
 function sendDelta(
-  message: UpstreamMessage<"kitesurf.modelContextToolsAdded" | "kitesurf.modelContextToolsRemoved">,
+  message: UpstreamMessage<"parawing.modelContextToolsAdded" | "parawing.modelContextToolsRemoved">,
 ): void {
   // Early upstream deltas are best-effort; post-load reconciliation is the correctness path.
   sendUpstreamEvent(message);
@@ -377,7 +377,7 @@ class ToolEventTarget {
 
 function reportListenerError(err: unknown): void {
   try {
-    console.error("[kitesurf] modelContext listener threw:", err);
+    console.error("[parawing] modelContext listener threw:", err);
   } catch {}
 }
 
@@ -544,7 +544,7 @@ export class ModelContext extends ToolEventTarget implements Idl.ModelContext {
     const registry = this._tools;
     registry.set(def.name, def);
     if (this._isMain) {
-      sendDelta({ event: "kitesurf.modelContextToolsAdded", params: { tools: [toCdpTool(def)] } });
+      sendDelta({ event: "parawing.modelContextToolsAdded", params: { tools: [toCdpTool(def)] } });
     }
 
     const context = this;
@@ -555,7 +555,7 @@ export class ModelContext extends ToolEventTarget implements Idl.ModelContext {
             registry.delete(def.name);
             if (context._isMain) {
               sendDelta({
-                event: "kitesurf.modelContextToolsRemoved",
+                event: "parawing.modelContextToolsRemoved",
                 params: {
                   names: [def.name],
                 },

@@ -7,7 +7,7 @@
 // parent supplied no bundle (an OOPIF child, or a navigate whose bake threw). Everything runs on
 // boa. Classic and inline parser scripts pass the gate as parser inserts, not runtime inserts.
 
-import { globalizeForBoa } from "./boa-classic.ts";
+import { getExecutionBackend } from "./exec-backend.ts";
 import { fetchInsertedScript } from "./resource-fetch.ts";
 import {
   importHitFailedFetch,
@@ -19,7 +19,6 @@ import {
 } from "./script-policy.ts";
 import { ksEventCtors, state } from "./state.ts";
 import type { ShimElement } from "./types.ts";
-import { ks_eval_page, ks_import } from "./wasm-glue.js";
 
 export interface ScriptDescriptor {
   src: string | null;
@@ -189,7 +188,7 @@ async function fetchScriptSource(script: ScriptDescriptor, url: string): Promise
 async function runOneClassic(source: string, label: string): Promise<void> {
   if (!source) return;
   try {
-    ks_eval_page(globalizeForBoa(source));
+    getExecutionBackend().evaluateGlobalClassic(source);
   } catch (err) {
     console.error("[" + label + "]", err);
   }
@@ -238,7 +237,7 @@ export function planScripts(scripts: ScriptDescriptor[]): ScriptPlan {
     if (!script.src) continue;
     const url = resolveScriptUrl(script.src);
     if (!url) {
-      console.error("[kitesurf] cannot resolve <script src>: " + String(script.src));
+      console.error("[parawing] cannot resolve <script src>: " + String(script.src));
       continue;
     }
     script._resolvedUrl = url;
@@ -269,7 +268,7 @@ export async function runRegularPhase(plan: ScriptPlan): Promise<void> {
       const fetchResult = await plan.sourceCache.get(script);
       if (!fetchResult || !fetchResult.ok) {
         console.error(
-          "[kitesurf] <script src> fetch failed for " + url + ": " + fetchErrorDetail(fetchResult),
+          "[parawing] <script src> fetch failed for " + url + ": " + fetchErrorDetail(fetchResult),
         );
         fireScriptLifecycle(script, false);
         continue;
@@ -296,7 +295,7 @@ export async function runRegularPhase(plan: ScriptPlan): Promise<void> {
     const fetchResult = await plan.sourceCache.get(script);
     if (!fetchResult || !fetchResult.ok) {
       console.error(
-        "[kitesurf] deferred <script src> fetch failed for " +
+        "[parawing] deferred <script src> fetch failed for " +
           url +
           ": " +
           fetchErrorDetail(fetchResult),
@@ -326,7 +325,7 @@ export async function runAsyncPhase(plan: ScriptPlan): Promise<void> {
       const fetchResult = await plan.sourceCache.get(s);
       if (!fetchResult || !fetchResult.ok) {
         console.error(
-          "[kitesurf] async <script src> fetch failed for " +
+          "[parawing] async <script src> fetch failed for " +
             url +
             ": " +
             fetchErrorDetail(fetchResult),
@@ -394,7 +393,7 @@ export async function runModulePhase(plan: ScriptPlan): Promise<void> {
     const url = script.src ? (script._resolvedUrl ?? null) : null;
     const source = script.src ? "" : script.body || "";
     if (script.src && !url) {
-      console.error("[kitesurf] cannot resolve module <script src>: " + String(script.src));
+      console.error("[parawing] cannot resolve module <script src>: " + String(script.src));
       continue;
     }
     if (!script.src && !source.trim()) continue;
@@ -425,7 +424,7 @@ export async function runModulePhase(plan: ScriptPlan): Promise<void> {
       try {
         moduleUrl = inlineModuleUrl(state.pageUrl || "about:blank");
       } catch {
-        console.error("[kitesurf] cannot address inline module for " + state.pageUrl);
+        console.error("[parawing] cannot address inline module for " + state.pageUrl);
         continue;
       }
       inlineModuleSources.set(moduleUrl, source);
@@ -437,7 +436,7 @@ export async function runModulePhase(plan: ScriptPlan): Promise<void> {
       });
     }
     try {
-      await ks_import(moduleUrl, state.pageUrl || "about:blank");
+      await getExecutionBackend().evaluateModule(moduleUrl, state.pageUrl || "about:blank");
     } catch (err) {
       console.error("[" + (script.src ? moduleUrl : "<inline-module>") + "]", err);
       // A refused fetch (CSP, integrity, MIME) fails the element, as runRegularPhase does for
@@ -516,6 +515,6 @@ export function dispatchLifecycle(
     ) => unknown)(type, init || {});
     target.dispatchEvent(event);
   } catch (err) {
-    console.error("[kitesurf] lifecycle " + type + " dispatch failed", err);
+    console.error("[parawing] lifecycle " + type + " dispatch failed", err);
   }
 }

@@ -25,7 +25,7 @@ export function writeIsolateKillLine(marker: string, reason: string): void {
   if (tailToken) nativeLog(`${marker} ${tailToken} ${reason}`);
 }
 
-/** Writes a `[ks-err]` report carrying the token ahead of `fields`. */
+/** Writes a `[pw-err]` report carrying the token ahead of `fields`. */
 export function writeEngineErrorLine(fields: Record<string, unknown>): void {
-  nativeError("[ks-err] " + stringify({ token: tailToken, ...fields }));
+  nativeError("[pw-err] " + stringify({ token: tailToken, ...fields }));
 }

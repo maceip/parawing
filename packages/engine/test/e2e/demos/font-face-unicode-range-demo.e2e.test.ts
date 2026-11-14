@@ -18,7 +18,7 @@ test("font-face-unicode-range-demo", async ({ browser }) => {
   let rangeFont: { family: string; faceCount: number } | null = null;
   const faceDeadline = Date.now() + 15_000;
   while (Date.now() < faceDeadline) {
-    const dump = await cdp.send("Kitesurf.getFontFaces");
+    const dump = await cdp.send("Parawing.getFontFaces");
     rangeFont = null;
     for (const entry of Object.values("byTarget" in dump ? dump.byTarget : {})) {
       if (!entry || typeof entry.json !== "string") continue;

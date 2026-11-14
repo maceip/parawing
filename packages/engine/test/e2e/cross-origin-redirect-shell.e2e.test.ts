@@ -5,7 +5,7 @@
 import { expect, test } from "./harness";
 
 const HOST = "https://ks.invalid/__fixtures/lifecycle.html";
-const SECRET = "kitesurf-cross-origin-secret";
+const SECRET = "parawing-cross-origin-secret";
 const LOUD = "https://ks-other.invalid/__fixtures/loud-redirect";
 
 test("a cross-origin redirect hands back only status and Location", async ({ page }) => {

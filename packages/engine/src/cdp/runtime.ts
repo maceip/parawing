@@ -12,13 +12,14 @@ import {
   pageScriptResultToCdp,
   type PageScriptStub,
 } from "../eval/page-script.ts";
-import type { ConsoleEntry } from "@kitesurf/jsrpc-types/shared";
+import type { ConsoleEntry } from "@parawing/jsrpc-types/shared";
 import { emitScriptParsed, hasDebuggerListeners, makeCompiledScriptMeta } from "./debugger.ts";
 import { emitMutations } from "./dom.ts";
 import { sessionOf } from "./page-session.ts";
 import { jarForTarget } from "./target.ts";
 import { emitFrameDclComplete, emitFrameLoadComplete } from "./page.ts";
 import { traceSpan } from "../tracing.ts";
+import { asTargetId } from "../session/identities.ts";
 import type { Protocol } from "devtools-protocol";
 
 const EXEC_CONTEXT_ID = 1;
@@ -279,6 +280,8 @@ export async function handleRuntime(ctx: DispatchCtx, req: CdpRequest): Promise<
       );
       const returnByValue = Boolean(req.params?.returnByValue);
       const awaitPromise = Boolean(req.params?.awaitPromise);
+      const objectGroup =
+        typeof req.params?.objectGroup === "string" ? req.params.objectGroup : undefined;
 
       const target = pickTarget(ctx, req.sessionId);
       const requestedCtx = (req.params as { contextId?: number } | undefined)?.contextId;
@@ -302,9 +305,9 @@ export async function handleRuntime(ctx: DispatchCtx, req: CdpRequest): Promise<
       }
       try {
         const result = await traceSpan(
-          ctx.env.HOST_TRACER,
+          ctx.host.tracer,
           "eval.pagescript_rpc",
-          () => ps.evaluate(expression, { returnByValue, awaitPromise }),
+          () => ps.evaluate(expression, { returnByValue, awaitPromise, objectGroup }),
           { exprBytes: expression.length, returnByValue, awaitPromise },
         );
         emitCapturedConsole(ctx, result.console, req.sessionId);
@@ -326,6 +329,8 @@ export async function handleRuntime(ctx: DispatchCtx, req: CdpRequest): Promise<
       const functionDeclaration = req.params!.functionDeclaration;
       const returnByValue = Boolean(req.params?.returnByValue);
       const awaitPromise = Boolean(req.params?.awaitPromise);
+      const objectGroup =
+        typeof req.params?.objectGroup === "string" ? req.params.objectGroup : undefined;
       const objectId = req.params?.objectId;
 
       const target = pickTarget(ctx, req.sessionId);
@@ -381,13 +386,14 @@ export async function handleRuntime(ctx: DispatchCtx, req: CdpRequest): Promise<
         ps === target?.pageScript ? null : (oopifFrameCfn ?? frameOfStub(target, ps));
       try {
         const result = await traceSpan(
-          ctx.env.HOST_TRACER,
+          ctx.host.tracer,
           "eval.pagescript_rpc",
           () =>
             ps.callFunctionOn(functionDeclaration, argSpecs, {
               returnByValue,
               awaitPromise,
               thisObjectId,
+              objectGroup,
             }),
           {
             fnBytes: functionDeclaration.length,
@@ -512,6 +518,8 @@ export async function handleRuntime(ctx: DispatchCtx, req: CdpRequest): Promise<
       const scriptId = req.params!.scriptId;
       const returnByValue = Boolean(req.params?.returnByValue);
       const awaitPromise = Boolean(req.params?.awaitPromise);
+      const objectGroup =
+        typeof req.params?.objectGroup === "string" ? req.params.objectGroup : undefined;
       const target = pickTarget(ctx, req.sessionId);
       const requestedCtxRun = (req.params as { executionContextId?: number } | undefined)
         ?.executionContextId;
@@ -555,6 +563,7 @@ export async function handleRuntime(ctx: DispatchCtx, req: CdpRequest): Promise<
         const result = await ps.runScript(scriptId, {
           returnByValue,
           awaitPromise,
+          objectGroup,
         });
         emitCapturedConsole(ctx, result.console, req.sessionId);
         if (!childFrame) replayReopenedLifecycle(ctx, target, result, req.sessionId);
@@ -566,13 +575,38 @@ export async function handleRuntime(ctx: DispatchCtx, req: CdpRequest): Promise<
       }
     }
 
-    case "Runtime.releaseObjectGroup":
+    case "Runtime.releaseObjectGroup": {
+      const objectGroup = req.params?.objectGroup;
+      if (typeof objectGroup === "string" && objectGroup.length > 0) {
+        await releaseTargetObjectGroup(pickTarget(ctx, req.sessionId), objectGroup);
+      }
+      return {};
+    }
+
     case "Runtime.awaitPromise":
     case "Runtime.queryObjects":
       return {};
 
     default:
       return {};
+  }
+}
+
+async function releaseTargetObjectGroup(
+  target: TargetState | null | undefined,
+  objectGroup: string,
+): Promise<void> {
+  if (!target) return;
+  if (target.pageScript) {
+    try {
+      await target.pageScript.releaseObjectGroup(objectGroup);
+    } catch {}
+  }
+  for (const frame of target.frames.values()) {
+    if (!frame.pageScript) continue;
+    try {
+      await frame.pageScript.releaseObjectGroup(objectGroup);
+    } catch {}
   }
 }
 
@@ -604,6 +638,12 @@ function emitCapturedConsole(
 ): void {
   if (!entries || entries.length === 0) return;
   const target = pickTarget(ctx, sessionId);
+  if (
+    target &&
+    ctx.browser.controllerLeases?.isAgentObservationPaused(asTargetId(target.targetId)) === true
+  ) {
+    return;
+  }
   const ctxId = target?.defaultContextId || 1;
   for (const e of entries) {
     const ev = consoleEntryToCdpEvent(e, ctxId);

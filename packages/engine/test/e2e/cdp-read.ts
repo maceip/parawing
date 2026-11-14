@@ -44,10 +44,10 @@ function booleanField(source: object, key: string, what: string): boolean {
 
 export async function readEngineMemory(session: CdpSender): Promise<EngineMemory> {
   const reply = asRecord(
-    await session.send("Kitesurf.getMemoryStats", {}),
-    "Kitesurf.getMemoryStats",
+    await session.send("Parawing.getMemoryStats", {}),
+    "Parawing.getMemoryStats",
   );
-  const engine = asRecord(Reflect.get(reply, "engine"), "Kitesurf.getMemoryStats.engine");
+  const engine = asRecord(Reflect.get(reply, "engine"), "Parawing.getMemoryStats.engine");
   const what = "engine";
   return {
     wasmBytes: numberField(engine, "wasmBytes", what),
@@ -71,8 +71,8 @@ export interface RendererInfo {
 
 export async function readRendererInfo(session: CdpSender): Promise<RendererInfo> {
   const reply = asRecord(
-    await session.send("Kitesurf.getRendererInfo"),
-    "Kitesurf.getRendererInfo",
+    await session.send("Parawing.getRendererInfo"),
+    "Parawing.getRendererInfo",
   );
   const what = "rendererInfo";
   return {

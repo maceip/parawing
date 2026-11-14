@@ -17,7 +17,7 @@ test("engine hooks are not page globals", async ({ page }) => {
     page,
     `<script>
       const prefix = /^__(ks|KS|Ks|memprof)/;
-      const key = Symbol.for("kitesurf.internals");
+      const key = Symbol.for("parawing.internals");
       const descriptor = Object.getOwnPropertyDescriptor(globalThis, key);
       document.body.dataset.out = JSON.stringify({
         globals: Object.getOwnPropertyNames(globalThis).filter((n) => prefix.test(n)).sort(),

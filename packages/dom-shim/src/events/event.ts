@@ -362,7 +362,7 @@ export class KsBeforeUnloadEvent extends KsEvent implements Idl.BeforeUnloadEven
   }
 }
 
-const INTERNAL_CONSTRUCT = Symbol("kitesurfInternalConstruct");
+const INTERNAL_CONSTRUCT = Symbol("parawingInternalConstruct");
 
 function nullableDouble(value: unknown, member: string): number | null {
   if (value === undefined || value === null) return null;

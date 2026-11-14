@@ -34,7 +34,7 @@ test("module graph resolves through the new module registry", async ({ page }) =
     dynamicConfig: { greeting: "hello" },
     queryA: `${ORIGIN}/__fixtures/module-registry-meta.js?v=a`,
     queryB: `${ORIGIN}/__fixtures/module-registry-meta.js?v=b`,
-    metaUrl: `${ORIGIN}/__fixtures/__kitesurf_inline_0.js`,
+    metaUrl: `${ORIGIN}/__fixtures/__parawing_inline_0.js`,
     css: {
       name: "TypeError",
       message: 'Unsupported import attribute type: "css"',

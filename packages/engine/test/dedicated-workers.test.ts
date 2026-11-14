@@ -16,7 +16,7 @@ const spawned: Array<{
   opts: SpawnOpts;
 }> = [];
 vi.mock("../src/eval/dedicated-worker.ts", () => ({
-  spawnDedicatedWorker: (_env: unknown, _ctx: unknown, opts: SpawnOpts) => {
+  spawnDedicatedWorker: (_host: unknown, _loader: unknown, opts: SpawnOpts) => {
     const handle = {
       opts,
       start: vi.fn(async () => ({ ok: true })),
@@ -29,6 +29,8 @@ vi.mock("../src/eval/dedicated-worker.ts", () => ({
 }));
 
 import { DedicatedWorkers } from "../src/cdp/dedicated-workers.ts";
+import { createMemoryHostCapabilities, parsePositiveMsCap } from "../src/host-capabilities.ts";
+import type { HostIsolateLoader } from "../src/isolate-loader.ts";
 import { DynamicWorkerBudget } from "../src/eval/worker-budget.ts";
 import { notifyIsolateLimit } from "../src/eval/limit-registry.ts";
 import type { DispatchCtx } from "../src/cdp/dispatch.ts";
@@ -40,7 +42,7 @@ const PAGE_ORIGIN = "https://example.test";
 
 function fakeStub() {
   const delivered: unknown[] = [];
-  // oxlint-disable-next-line kitesurf/no-chained-type-assertions -- partial worker-event RPC fixture.
+  // oxlint-disable-next-line parawing/no-chained-type-assertions -- partial worker-event RPC fixture.
   const stub = {
     deliverWorkerEvent: vi.fn(async (p: unknown) => {
       delivered.push(p);
@@ -54,8 +56,12 @@ function setup(env: Record<string, string> = {}) {
   const budget = new DynamicWorkerBudget();
   budget.acquire("pageScript");
   budget.acquire("renderer");
-  const workers = new DedicatedWorkers(budget, () => {});
-  // oxlint-disable-next-line kitesurf/no-chained-type-assertions -- only worker-owner fields are set.
+  const host = createMemoryHostCapabilities({
+    limits: { pageWallMsCap: parsePositiveMsCap(env.PARAWING_PAGE_WALL_MS_CAP) },
+  });
+  const isolateLoader = {} as HostIsolateLoader;
+  const workers = new DedicatedWorkers(budget, host.tasks);
+  // oxlint-disable-next-line parawing/no-chained-type-assertions -- only worker-owner fields are set.
   const target = {
     targetId: "t1",
     frameId: "t1",
@@ -70,14 +76,14 @@ function setup(env: Record<string, string> = {}) {
       sandboxOutbound: {},
       targets: new Map([["t1", target]]),
     },
-    env: { LOADER: {}, ...env },
-    ctx: {},
+    host,
+    isolateLoader,
     connectionId: "c1",
   } as DispatchCtx;
   const page = fakeStub();
   const owner = workers.ownerFor(target, "t1", page.stub, PAGE, "l1", PAGE_ORIGIN);
   const create = (workerId: number, own = owner, url = "blob:https://example.test/1") =>
-    workers.handle(ctx, own, "kitesurf.workerCreate", {
+    workers.handle(ctx, own, "parawing.workerCreate", {
       workerId,
       url,
       name: "",
@@ -105,7 +111,7 @@ describe("DedicatedWorkers", () => {
     await settle();
     expect(budget.liveOf("worker")).toBe(1);
     expect(spawned[0]!.opts.origin).toBe("https://example.test");
-    workers.handle(ctx, owner, "kitesurf.workerTerminate", { workerId: 1 });
+    workers.handle(ctx, owner, "parawing.workerTerminate", { workerId: 1 });
     expect(budget.liveOf("worker")).toBe(0);
     expect(spawned[0]!.terminate).toHaveBeenCalledOnce();
   });
@@ -150,7 +156,7 @@ describe("DedicatedWorkers", () => {
     await settle();
     const newer = fakeStub();
     workers.ownerFor(target, "t1", newer.stub, PAGE, "l2", PAGE_ORIGIN);
-    workers.handle(ctx, owner, "kitesurf.workerPostMessage", { workerId: 1, data: "x" });
+    workers.handle(ctx, owner, "parawing.workerPostMessage", { workerId: 1, data: "x" });
     expect(spawned[0]!.deliverMessage).toHaveBeenCalledWith("x");
     spawned[0]!.opts.onUpstream({ event: "worker.message", params: { data: "reply" } });
     expect(delivered).toEqual([{ workerId: 1, type: "message", data: "reply" }]);
@@ -159,7 +165,7 @@ describe("DedicatedWorkers", () => {
 
   it("enforces the page wall cap on the worker", async () => {
     vi.useFakeTimers();
-    const { create, delivered, budget } = setup({ KITESURF_PAGE_WALL_MS_CAP: "5000" });
+    const { create, delivered, budget } = setup({ PARAWING_PAGE_WALL_MS_CAP: "5000" });
     create(1);
     await vi.advanceTimersByTimeAsync(4_999);
     expect(budget.liveOf("worker")).toBe(1);
@@ -191,7 +197,7 @@ describe("DedicatedWorkers", () => {
     create(1);
     await settle();
     spawned[0]!.deliverMessage.mockRejectedValueOnce(new Error("isolate gone"));
-    workers.handle(ctx, owner, "kitesurf.workerPostMessage", { workerId: 1, data: "x" });
+    workers.handle(ctx, owner, "parawing.workerPostMessage", { workerId: 1, data: "x" });
     await settle();
     expect(budget.liveOf("worker")).toBe(0);
     expect(delivered).toContainEqual({ workerId: 1, type: "closed" });

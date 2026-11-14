@@ -45,6 +45,8 @@ import { handlePage } from "../src/cdp/page.ts";
 import { createPageTarget } from "../src/cdp/target.ts";
 import { MAX_DOCUMENT_BYTES } from "../src/read-capped.ts";
 import type { DispatchCtx } from "../src/cdp/dispatch.ts";
+import { createMemoryHostCapabilities } from "../src/host-capabilities.ts";
+import type { HostIsolateLoader } from "../src/isolate-loader.ts";
 
 function stub<T>(fields: Record<string, unknown> = {}): T {
   const proxy = new Proxy(() => stub<T>(), {
@@ -67,7 +69,11 @@ async function navigate(mode: "fanout" | "large", url: string): Promise<void> {
     cdpDebug: false,
     wsClosing: false,
   });
-  const ctx = stub<DispatchCtx>({ browser, env: {} });
+  const ctx = stub<DispatchCtx>({
+    browser,
+    host: createMemoryHostCapabilities(),
+    isolateLoader: stub<HostIsolateLoader>(),
+  });
   const target = createPageTarget(ctx, "about:blank");
   const nav = { id: 1, method: "Page.navigate", params: { url }, sessionId: "S1" } as never;
   await handlePage(ctx, nav).catch(() => {});

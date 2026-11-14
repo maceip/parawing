@@ -45,7 +45,7 @@ test("script font references and :dir()", async ({ page, cdpSession: cdp }) => {
     textareaValue: true,
   });
 
-  const dump = await cdp.send("Kitesurf.getFontFaces");
+  const dump = await cdp.send("Parawing.getFontFaces");
   const families = Object.values("byTarget" in dump ? dump.byTarget : {}).flatMap((entry) =>
     entry?.json ? (JSON.parse(entry.json) as Array<{ family: string }>) : [],
   );

@@ -10,23 +10,23 @@ describe("resolveConnectionOptions", () => {
   it("uses generic defaults based on the WebSocket path", () => {
     expect(
       resolveConnectionOptions(
-        new Request("https://kitesurf.invalid/devtools/page/kitesurf"),
+        new Request("https://parawing.invalid/devtools/page/parawing"),
         "connection-1",
       ),
     ).toEqual({ entrypoint: "devtools", fontDefer: false });
     expect(
       resolveConnectionOptions(
-        new Request("https://kitesurf.invalid/devtools/browser"),
+        new Request("https://parawing.invalid/devtools/browser"),
         "connection-2",
       ),
     ).toEqual({ entrypoint: "puppeteer", fontDefer: false });
   });
 
   it("ignores internal session headers on the public default host", () => {
-    const request = new Request("https://kitesurf.invalid/devtools/browser", {
+    const request = new Request("https://parawing.invalid/devtools/browser", {
       headers: {
-        "x-kitesurf-entrypoint": "html",
-        "x-kitesurf-font-defer": "1",
+        "x-parawing-entrypoint": "html",
+        "x-parawing-font-defer": "1",
       },
     });
 
@@ -37,7 +37,7 @@ describe("resolveConnectionOptions", () => {
   });
 
   it("uses host-owned entrypoint and font options", () => {
-    const request = new Request("https://kitesurf.invalid/devtools/page/kitesurf");
+    const request = new Request("https://parawing.invalid/devtools/page/parawing");
 
     let receivedRequest: Request | undefined;
     let receivedConnectionId: string | undefined;
@@ -55,7 +55,7 @@ describe("resolveConnectionOptions", () => {
   });
 
   it("keeps the generic entrypoint when the host only supplies font options", () => {
-    const request = new Request("https://kitesurf.invalid/devtools/page/kitesurf");
+    const request = new Request("https://parawing.invalid/devtools/page/parawing");
 
     expect(
       resolveConnectionOptions(request, "connection-5", {

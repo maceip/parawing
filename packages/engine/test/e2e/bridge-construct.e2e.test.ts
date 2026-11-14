@@ -11,7 +11,7 @@ test("V8 `new` on a boa constructor runs boa's [[Construct]]", async ({ browser 
     page,
     `<!doctype html>
 <html>
-<head><meta charset="utf-8" /><title>kitesurf bridge construct fixture</title></head>
+<head><meta charset="utf-8" /><title>parawing bridge construct fixture</title></head>
 <body>
 <script>
   globalThis.__ksNewFromV8 = function (Ctor, arg) {

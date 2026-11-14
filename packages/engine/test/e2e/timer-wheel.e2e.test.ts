@@ -182,7 +182,7 @@ test("an awaited evaluation sleeps until the next page timer", async ({ page }) 
   const session = await page.createCDPSession();
   const targetId = await targetIdForSession(session);
   const wakes = async (): Promise<number> => {
-    const stats = await session.send("Kitesurf.getMemoryStats", { targetId });
+    const stats = await session.send("Parawing.getMemoryStats", { targetId });
     const fired = stats.timerWheel?.wakesFired;
     if (typeof fired !== "number") throw new Error("no timer wheel stats");
     return fired;

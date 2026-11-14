@@ -96,6 +96,6 @@ test("puppeteer exposeFunction before goto round-trips", async ({ page, cdpSessi
 test("puppeteer exposeFunction added after load round-trips", async ({ page }) => {
   await page.goto(FIXTURE, { waitUntil: "domcontentloaded" });
   await page.exposeFunction("ksLate", (s: string) => s.toUpperCase());
-  const result = await page.evaluate("window.ksLate('kitesurf')");
-  expect(result).toBe("KITESURF");
+  const result = await page.evaluate("window.ksLate('parawing')");
+  expect(result).toBe("PARAWING");
 }, 120_000);

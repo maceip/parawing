@@ -338,7 +338,7 @@ class HTMLFormElement extends HTMLElement implements Idl.HTMLFormElement {
       targetsTop = keyword === "_top" || keyword === "_parent";
     } catch (error) {
       try {
-        console.warn("[kitesurf-form] target resolution failed", {
+        console.warn("[parawing-form] target resolution failed", {
           error: error instanceof Error ? error.message : String(error),
         });
       } catch {}
@@ -395,7 +395,7 @@ class HTMLFormElement extends HTMLElement implements Idl.HTMLFormElement {
         // Defer navigation until the trusted user event finishes, preserving default-action order.
         cs.pendingSubmitNav = navReq;
       } else if (typeof ksSendUpstreamEvent === "function") {
-        ksSendUpstreamEvent({ event: "kitesurf.formSubmitNavigate", params: navReq });
+        ksSendUpstreamEvent({ event: "parawing.formSubmitNavigate", params: navReq });
       }
       return method === "post" ? null : navReq.url;
     } catch {

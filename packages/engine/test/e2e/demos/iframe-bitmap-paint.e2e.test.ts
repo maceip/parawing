@@ -27,7 +27,7 @@ test("iframe-bitmap-paint", async ({ page }) => {
       rgba[i + 2] = 0;
       rgba[i + 3] = 255;
     }
-    const internals: unknown = Reflect.get(globalThis, Symbol.for("kitesurf.internals"));
+    const internals: unknown = Reflect.get(globalThis, Symbol.for("parawing.internals"));
     const dom: unknown =
       typeof internals === "object" && internals !== null
         ? Reflect.get(internals, "domDebug")

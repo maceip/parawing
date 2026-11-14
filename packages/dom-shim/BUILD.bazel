@@ -21,7 +21,7 @@ js_library(
         ":editing_implementation",
     ] + glob(["src/**"], exclude = ["src/editing/implementation.js"]),
     deps = [
-        ":node_modules/@kitesurf/jsrpc-types",
+        ":node_modules/@parawing/jsrpc-types",
         ":node_modules/@opentelemetry/api",
         ":node_modules/webmcp-types",
     ],
@@ -56,7 +56,7 @@ js_run_binary(
     srcs = [":srcs"],
     out_dirs = ["dist"],
     chdir = package_name(),
-    env = {"KITESURF_WPT_EDITING_IMPLEMENTATION": "src/editing/implementation.js"},
+    env = {"PARAWING_WPT_EDITING_IMPLEMENTATION": "src/editing/implementation.js"},
     mnemonic = "DomShimBuild",
     progress_message = "Bundling dom-shim",
     tool = ":build_tool",

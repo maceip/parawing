@@ -4,7 +4,7 @@
 
 // Moves detached-tree wrappers to weak storage and reclaims wasm nodes after collection.
 
-import type { DomHandle } from "../../core/pkg/kitesurf_core";
+import type { DomHandle } from "../../core/pkg/parawing_core";
 import { dropUnwrappedSubtrees } from "./node-base.js";
 import {
   adoptedWrapperIds,

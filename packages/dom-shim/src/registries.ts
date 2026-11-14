@@ -4,7 +4,7 @@
 
 // Holds the shared node, form, collection, and mutation registries used by the shim.
 
-import type { DomHandle } from "../../core/pkg/kitesurf_core";
+import type { DomHandle } from "../../core/pkg/parawing_core";
 import type { MutationHint } from "./mutations/seq.js";
 import type { MutationObserverImpl } from "./mutations/observer.js";
 import type { NodeBase } from "./node-base.js";

@@ -29,12 +29,10 @@ import { frameCookieSiteOrigin } from "../src/cdp/page.ts";
 import type { FrameState, TargetState } from "../src/cdp/types.ts";
 import { createCookieJar } from "../src/cookies.ts";
 import { frameDocumentCookieSite, prespawnFrameIsolate } from "../src/eval/oopif-render.ts";
-import { SANDBOX_ALLOW_ALL } from "@kitesurf/script-gate";
-import {
-  createSandboxOutboundOverride,
-  type SandboxOutboundEnv,
-  type SandboxOutboundExports,
-} from "../src/eval/outbound.ts";
+import { SANDBOX_ALLOW_ALL } from "@parawing/script-gate";
+import { createSandboxOutboundOverride } from "../src/eval/outbound.ts";
+import { createMemoryHostCapabilities } from "../src/host-capabilities.ts";
+import type { HostIsolateLoader } from "../src/isolate-loader.ts";
 
 const CONN = "frame-cookie-site";
 const FRAME = "https://frame.test";
@@ -56,34 +54,26 @@ async function frameDocumentCookies(cookieSiteOrigin: string) {
     jar.setFromHeader(`${FRAME}/login`, `${name}=1; Secure; Path=/${attrs}`);
   }
   registerCookieJar(CONN, jar);
-  const sandboxOutbound = createSandboxOutboundOverride(
-    {} as SandboxOutboundExports,
-    {} as SandboxOutboundEnv,
-    {
-      fetch: async (req: Request) => {
-        seen.push(req);
-        return new Response("<p>frame</p>", { headers: { "content-type": "text/html" } });
-      },
+  const sandboxOutbound = createSandboxOutboundOverride(createMemoryHostCapabilities(), {
+    fetch: async (req: Request) => {
+      seen.push(req);
+      return new Response("<p>frame</p>", { headers: { "content-type": "text/html" } });
     },
-  );
-  const r = await prespawnFrameIsolate(
-    { LOADER: {} as WorkerLoader },
-    // oxlint-disable-next-line kitesurf/no-chained-type-assertions -- prespawn only passes ctx on.
-    { waitUntil: () => {} } as unknown as ExecutionContext,
-    {
-      connectionId: CONN,
-      cookieKey: CONN,
-      sandboxOutbound,
-      targetId: "T",
-      frameId: "C",
-      frameLoaderId: "L",
-      frameUrl: `${FRAME}/page`,
-      sandbox: SANDBOX_ALLOW_ALL,
-      ancestorOrigins: [{ kind: "tuple", origin: "https://parent.test" }],
-      parentOrigin: "https://parent.test",
-      cookieSiteOrigin,
-    },
-  );
+  });
+  const isolateLoader = {} as HostIsolateLoader;
+  const r = await prespawnFrameIsolate(createMemoryHostCapabilities(), isolateLoader, {
+    connectionId: CONN,
+    cookieKey: CONN,
+    sandboxOutbound,
+    targetId: "T",
+    frameId: "C",
+    frameLoaderId: "L",
+    frameUrl: `${FRAME}/page`,
+    sandbox: SANDBOX_ALLOW_ALL,
+    ancestorOrigins: [{ kind: "tuple", origin: "https://parent.test" }],
+    parentOrigin: "https://parent.test",
+    cookieSiteOrigin,
+  });
   expect(r.ok).toBe(true);
   const names = (seen[0]?.headers.get("cookie") ?? "")
     .split(";")
@@ -127,23 +117,19 @@ describe("an out-of-process frame's SameSite context", () => {
     }
     registerCookieJar(CONN, jar);
     const seen: Request[] = [];
-    const frameOutbound = createSandboxOutboundOverride(
-      {} as SandboxOutboundExports,
-      {} as SandboxOutboundEnv,
-      {
-        fetch: async (req: Request) => {
-          seen.push(req);
-          return new Response("");
-        },
+    const frameOutbound = createSandboxOutboundOverride(createMemoryHostCapabilities(), {
+      fetch: async (req: Request) => {
+        seen.push(req);
+        return new Response("");
       },
-    ).parent({
+    }).parent({
       pageOrigin: FRAME,
       cookieSiteOrigin: String(spawned[0]?.cookieSiteOrigin),
       cookieKey: CONN,
     });
     await frameOutbound.fetch(
       new Request("https://top.test/api", {
-        headers: { "x-kitesurf-allow-cross-origin": "1", "x-kitesurf-resource-type": "Image" },
+        headers: { "x-parawing-allow-cross-origin": "1", "x-parawing-resource-type": "Image" },
       }),
     );
     expect(seen[0]?.headers.get("cookie")).toBe("none=1");

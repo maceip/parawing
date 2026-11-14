@@ -1388,7 +1388,7 @@ for (const [k, v] of Object.entries(RULE_CONSTANTS)) {
 // The indexes are own properties kept in step with the list. Only the
 // public mutators call onMutate: the construction-time parse must never
 // remirror a sheet that is mid-reparse.
-const MEDIA_LIST_TOKEN = Symbol("kitesurfMediaList");
+const MEDIA_LIST_TOKEN = Symbol("parawingMediaList");
 class MediaListCls implements Idl.MediaList {
   readonly [index: number]: string;
   #media: string[] = [];
@@ -3142,7 +3142,7 @@ function detachSheetMirror(sheet: object, styleEl: Element): void {
 }
 
 // StyleSheet has no constructor; CSSStyleSheet passes this.
-const STYLE_SHEET_TOKEN = Symbol("kitesurfStyleSheet");
+const STYLE_SHEET_TOKEN = Symbol("parawingStyleSheet");
 
 class StyleSheetCls implements Idl.StyleSheet {
   constructor(token?: symbol) {
@@ -3836,7 +3836,7 @@ function scopedQuerySelectorAll(rootId: number, selectorArg: unknown): NodeListC
   return makeStaticNodeList(matches);
 }
 
-const nodeListLenSym = Symbol.for("kitesurf.nodeListLength");
+const nodeListLenSym = Symbol.for("parawing.nodeListLength");
 Object.defineProperty(NodeListCls.prototype, "length", {
   configurable: true,
   enumerable: false,

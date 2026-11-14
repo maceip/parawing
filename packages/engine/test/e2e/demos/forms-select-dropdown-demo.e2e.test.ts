@@ -25,7 +25,7 @@ test("forms-select-dropdown-demo", async ({ page }) => {
 
   await page.click("#s");
   const open = await page.evaluate(() => {
-    const overlay = document.querySelector('[data-kitesurf-ua="select-dropdown"]');
+    const overlay = document.querySelector('[data-parawing-ua="select-dropdown"]');
     return {
       present: !!overlay,
       rows: overlay ? overlay.children.length : 0,
@@ -37,7 +37,7 @@ test("forms-select-dropdown-demo", async ({ page }) => {
   expect(open.firstRowText).toBe("Alpha");
 
   const rowBox = await page.evaluate(() => {
-    const overlay = document.querySelector('[data-kitesurf-ua="select-dropdown"]')!;
+    const overlay = document.querySelector('[data-parawing-ua="select-dropdown"]')!;
     const row = overlay.children[1] as any;
     const r = row.getBoundingClientRect();
     return { x: r.left + r.width / 2, y: r.top + r.height / 2 };
@@ -47,7 +47,7 @@ test("forms-select-dropdown-demo", async ({ page }) => {
   const after = await page.evaluate(() => ({
     value: (document.getElementById("s") as any).value,
     events: (window as any).events as string[],
-    overlayGone: !document.querySelector('[data-kitesurf-ua="select-dropdown"]'),
+    overlayGone: !document.querySelector('[data-parawing-ua="select-dropdown"]'),
   }));
   expect(after.value).toBe("b");
   expect(after.events).toEqual(["input:b", "change:b"]);
@@ -55,12 +55,12 @@ test("forms-select-dropdown-demo", async ({ page }) => {
 
   await page.click("#s");
   const reopened = await page.evaluate(
-    () => !!document.querySelector('[data-kitesurf-ua="select-dropdown"]'),
+    () => !!document.querySelector('[data-parawing-ua="select-dropdown"]'),
   );
   expect(reopened).toBe(true);
   await page.mouse.click(300, 350);
   const closed = await page.evaluate(() => ({
-    overlayGone: !document.querySelector('[data-kitesurf-ua="select-dropdown"]'),
+    overlayGone: !document.querySelector('[data-parawing-ua="select-dropdown"]'),
     events: (window as any).events as string[],
   }));
   expect(closed.overlayGone).toBe(true);

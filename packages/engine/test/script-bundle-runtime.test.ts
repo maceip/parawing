@@ -4,7 +4,7 @@
 
 import { describe, it, expect } from "vitest";
 import { env } from "cloudflare:test";
-import { INTERNAL_STATE_SOURCE } from "@kitesurf/page-script";
+import { INTERNAL_STATE_SOURCE } from "@parawing/page-script";
 import { buildScriptBundle } from "../src/eval/script-bundle.ts";
 import { PAGE_SCRIPT_COMPAT_DATE, PAGE_SCRIPT_COMPAT_FLAGS } from "../src/eval/page-script.ts";
 import type { ParentScriptDescriptor } from "../src/wasm.ts";
@@ -111,7 +111,7 @@ export default class TestProbe extends WorkerEntrypoint {
       });
     }
     const out = { ok: true, globals: {}, events: __ks_events };
-    sendUpstreamEvent({ event: "kitesurf.paintDirty", params: {} });
+    sendUpstreamEvent({ event: "parawing.paintDirty", params: {} });
     for (const name of globalsToCollect) {
       try {
         const v = globalThis[name];
@@ -422,7 +422,7 @@ describe("classic script isolation from internal state", () => {
       [
         classic(`
           try {
-            __ks_state_local.upstreamSender({ event: "kitesurf.frameAttached", params: { frameId: "forged" } });
+            __ks_state_local.upstreamSender({ event: "parawing.frameAttached", params: { frameId: "forged" } });
           } catch (e) {}
           globalThis.__senderType = typeof __ks_state_local.upstreamSender;
           globalThis.__afterInsertType = typeof __ks_state_local.afterIframeInsert;
@@ -435,7 +435,7 @@ describe("classic script isolation from internal state", () => {
     // Only the trusted post-run event is delivered; the forged one is not.
     expect(globals.__events).toEqual({
       kind: "object",
-      value: [{ event: "kitesurf.paintDirty", params: {} }],
+      value: [{ event: "parawing.paintDirty", params: {} }],
     });
   });
 });

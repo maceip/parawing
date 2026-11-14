@@ -833,7 +833,7 @@ export class KsAnimation implements Idl.Animation {
         }
       } catch (err) {
         try {
-          console.error("[kitesurf] animation listener threw:", err);
+          console.error("[parawing] animation listener threw:", err);
         } catch {
           /* console clobbered */
         }

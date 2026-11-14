@@ -26,7 +26,7 @@ class RecordingTail extends PageScriptTail {
 
 function newTail(): RecordingTail {
   const props: PageScriptTailProps = { scriptName: SCRIPT, ksErrToken: TOKEN };
-  // oxlint-disable-next-line kitesurf/no-chained-type-assertions -- props-only ExecutionContext fixture.
+  // oxlint-disable-next-line parawing/no-chained-type-assertions -- props-only ExecutionContext fixture.
   const ctx = { props } as unknown as ExecutionContext;
   return new RecordingTail(ctx, {});
 }
@@ -69,7 +69,7 @@ function invocation(lines: string[], thrown: string): TailExceptionReport[] {
 
 describe("PageScriptTail isolate kills", () => {
   it("does not report the hung cancellation of an authenticated kill", () => {
-    expect(invocation([`[ks-kill] ${TOKEN} engine WS closed`], HUNG)).toEqual([]);
+    expect(invocation([`[pw-kill] ${TOKEN} engine WS closed`], HUNG)).toEqual([]);
   });
 
   it("reports a hung invocation without a kill line", () => {
@@ -77,11 +77,11 @@ describe("PageScriptTail isolate kills", () => {
   });
 
   it("reports a hung invocation whose kill line has the wrong token", () => {
-    expect(invocation(["[ks-kill] forged engine WS closed"], HUNG)).toHaveLength(1);
+    expect(invocation(["[pw-kill] forged engine WS closed"], HUNG)).toHaveLength(1);
   });
 
   it("reports other exceptions after a kill line", () => {
-    expect(invocation([`[ks-kill] ${TOKEN} engine WS closed`], "boom")).toHaveLength(1);
+    expect(invocation([`[pw-kill] ${TOKEN} engine WS closed`], "boom")).toHaveLength(1);
   });
 });
 
@@ -103,7 +103,7 @@ describe("PageScriptTail event order", () => {
   it("keeps kill state separate for each invocation in a batch", () => {
     const tail = newTail();
     tail.tail([
-      traceItem([log(`[ks-kill] ${TOKEN} engine WS closed`)], [exception(HUNG)], "exception"),
+      traceItem([log(`[pw-kill] ${TOKEN} engine WS closed`)], [exception(HUNG)], "exception"),
       traceItem([], [exception(HUNG)], "exception"),
     ]);
     expect(tail.reports).toHaveLength(1);

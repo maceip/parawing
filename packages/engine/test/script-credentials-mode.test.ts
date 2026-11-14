@@ -9,11 +9,8 @@
 import { afterEach, beforeAll, describe, expect, it, vi } from "vitest";
 import { registerCookieJar, unregisterCookieJar } from "../src/cdp/cookie-jar-registry.ts";
 import { createCookieJar } from "../src/cookies.ts";
-import {
-  createSandboxOutboundOverride,
-  type SandboxOutboundEnv,
-  type SandboxOutboundExports,
-} from "../src/eval/outbound.ts";
+import { createSandboxOutboundOverride } from "../src/eval/outbound.ts";
+import { createMemoryHostCapabilities } from "../src/host-capabilities.ts";
 import { prefetchExternalScripts } from "../src/eval/prefetch-scripts.ts";
 import { walkModuleGraph } from "../src/eval/walk-module-graph.ts";
 
@@ -77,23 +74,19 @@ async function fetchThrough(
   jar.setFromHeader("https://victim.example/", "sid=SECRET; Secure; Path=/; SameSite=None");
   registerCookieJar(KEY, jar);
   const seen: Array<string | null> = [];
-  const sandboxOutbound = createSandboxOutboundOverride(
-    {} as SandboxOutboundExports,
-    {} as SandboxOutboundEnv,
-    {
-      fetch: async (req) => {
-        seen.push(req.headers.get("cookie"));
-        const headers: Record<string, string> = {
-          "content-type": "text/javascript",
-          "access-control-allow-origin": acac ? ORIGIN : "*",
-        };
-        if (acac) headers["access-control-allow-credentials"] = "true";
-        return new Response(req.url === TARGET && served ? served : "export default 1;", {
-          headers,
-        });
-      },
+  const sandboxOutbound = createSandboxOutboundOverride(createMemoryHostCapabilities(), {
+    fetch: async (req) => {
+      seen.push(req.headers.get("cookie"));
+      const headers: Record<string, string> = {
+        "content-type": "text/javascript",
+        "access-control-allow-origin": acac ? ORIGIN : "*",
+      };
+      if (acac) headers["access-control-allow-credentials"] = "true";
+      return new Response(req.url === TARGET && served ? served : "export default 1;", {
+        headers,
+      });
     },
-  );
+  });
   const args = {
     descriptors: [{ src: TARGET, kind, defer: false, async: false, body: "", crossOrigin }],
     pageUrl: PAGE,
@@ -132,25 +125,21 @@ async function fetchInserted(crossOrigin: string | null, acac = true) {
   const seen: Array<string | null> = [];
   const leaked: string[] = [];
   let requests = 0;
-  const sandboxOutbound = createSandboxOutboundOverride(
-    {} as SandboxOutboundExports,
-    {} as SandboxOutboundEnv,
-    {
-      fetch: async (req) => {
-        requests++;
-        seen.push(req.headers.get("cookie"));
-        for (const name of req.headers.keys()) {
-          if (name.startsWith("x-kitesurf-")) leaked.push(name);
-        }
-        const headers: Record<string, string> = {
-          "content-type": "text/javascript",
-          "access-control-allow-origin": acac ? ORIGIN : "*",
-        };
-        if (acac) headers["access-control-allow-credentials"] = "true";
-        return new Response("export default 1;", { headers });
-      },
+  const sandboxOutbound = createSandboxOutboundOverride(createMemoryHostCapabilities(), {
+    fetch: async (req) => {
+      requests++;
+      seen.push(req.headers.get("cookie"));
+      for (const name of req.headers.keys()) {
+        if (name.startsWith("x-parawing-")) leaked.push(name);
+      }
+      const headers: Record<string, string> = {
+        "content-type": "text/javascript",
+        "access-control-allow-origin": acac ? ORIGIN : "*",
+      };
+      if (acac) headers["access-control-allow-credentials"] = "true";
+      return new Response("export default 1;", { headers });
     },
-  );
+  });
   // The page isolate's own outbound, and its shim installed before the trusted capture
   // (index.ts:2138-2142), so the carriers the page path sends are the ones the gateway sees.
   const fetcher = sandboxOutbound.parent({

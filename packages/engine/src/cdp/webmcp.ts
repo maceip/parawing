@@ -237,7 +237,7 @@ function stopWatchingTools(target: TargetState): void {
   void stubQueryDom(pageScript, "webmcpStopWatchingTools", { watchRevision }).catch((err) => {
     if (target.pageScript === pageScript) {
       console.warn(
-        "kitesurf: failed to stop WebMCP declarative watcher:",
+        "parawing: failed to stop WebMCP declarative watcher:",
         err instanceof Error ? err.message : String(err),
       );
     }
@@ -252,13 +252,13 @@ export function detachWebMcpSession(target: TargetState, sessionId: string): voi
 }
 
 function afterReply(ctx: DispatchCtx, work: () => Promise<void>): void {
-  ctx.ctx.waitUntil(
+  ctx.host.tasks.run(
     new Promise<void>((resolve) => {
       setTimeout(() => {
         work()
           .catch((err) => {
             console.warn(
-              "kitesurf: WebMCP deferred work failed:",
+              "parawing: WebMCP deferred work failed:",
               err instanceof Error ? err.message : String(err),
             );
           })

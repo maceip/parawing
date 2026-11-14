@@ -4,12 +4,12 @@
 
 // Loads page-created dedicated workers and bridges their RPC and upstream events.
 
-import { WORKER_SCRIPT_SOURCE } from "@kitesurf/worker-script";
+import { WORKER_SCRIPT_SOURCE } from "@parawing/worker-script";
 import {
   extractTopLevelDecls,
   hasUseStrictDirective,
   predeclareVarsHead,
-} from "@kitesurf/script-gate";
+} from "@parawing/script-gate";
 import type {
   DedicatedWorkerEntrypointStub,
   OpenWorkerSessionInit,
@@ -17,13 +17,15 @@ import type {
   WorkerStartReply,
   WorkerUpstreamEventName,
   WorkerUpstreamMessage,
-} from "@kitesurf/jsrpc-types/dedicated-worker";
+} from "@parawing/jsrpc-types/dedicated-worker";
 import type { SandboxOutboundOverride } from "./outbound.ts";
 import {
   PAGE_SCRIPT_COMPAT_DATE,
   PAGE_SCRIPT_COMPAT_FLAGS,
   PAGE_SCRIPT_SUBREQUEST_CAP,
 } from "./page-script.ts";
+import type { HostCapabilities } from "../host-capabilities.ts";
+import type { HostIsolateLoader } from "../isolate-loader.ts";
 import { localTraceParentProps } from "../tracing-local.ts";
 import { isIsolateGoneError } from "./limit-registry.ts";
 
@@ -127,8 +129,8 @@ function disposeStub(stub: unknown): void {
 }
 
 export function spawnDedicatedWorker(
-  env: { LOADER: WorkerLoader },
-  ctx: ExecutionContext,
+  host: HostCapabilities,
+  isolateLoader: HostIsolateLoader,
   opts: SpawnDedicatedWorkerOptions,
 ): DedicatedWorkerHandle {
   const outboundProps = {
@@ -142,32 +144,37 @@ export function spawnDedicatedWorker(
     cookieKey: opts.cookieKey,
   };
   const tailToken = crypto.randomUUID();
-  const stub = env.LOADER.load({
-    compatibilityDate: PAGE_SCRIPT_COMPAT_DATE,
-    compatibilityFlags: [...PAGE_SCRIPT_COMPAT_FLAGS],
+  const compat = host.config.workerCompat;
+  const loaded = isolateLoader.load<DedicatedWorkerEntrypointStub>({
+    kind: "dedicated-worker",
+    entrypoint: "DedicatedWorker",
+    entrypointProps: { KS_TAIL_TOKEN: tailToken },
+    compatibilityDate: compat?.compatibilityDate ?? PAGE_SCRIPT_COMPAT_DATE,
+    compatibilityFlags: compat?.compatibilityFlags ?? PAGE_SCRIPT_COMPAT_FLAGS,
     mainModule: "worker.js",
     modules: {
       "worker.js": WORKER_SCRIPT_SOURCE,
       "__ks_worker_script.js": { cjs: buildWorkerScriptModule(opts.source) },
     },
-    globalOutbound: opts.sandboxOutbound.loaded(outboundProps),
-    tails: [
-      ctx.exports.PageScriptTail({
-        props: { scriptName: opts.label, ksErrToken: tailToken, sessionId: opts.connectionId },
-      }),
-    ],
+    outbound: {
+      mode: "sandbox",
+      props: opts.sandboxOutbound.loadedProps(outboundProps),
+    },
+    tail: {
+      scriptName: opts.label,
+      ksErrToken: tailToken,
+      sessionId: opts.connectionId,
+    },
     limits: { cpuMs: opts.cpuMs, subRequests: PAGE_SCRIPT_SUBREQUEST_CAP },
   });
   // The worker script can import its env, so the tail token travels in props.
-  const entrypoint = stub.getEntrypoint<DedicatedWorkerEntrypointStub>("DedicatedWorker", {
-    props: { KS_TAIL_TOKEN: tailToken },
-  });
+  const entrypoint = loaded.entrypoint;
   const init: OpenWorkerSessionInit = {
     outbound: opts.sandboxOutbound.session(outboundProps),
     upstream: (message: unknown) => {
       if (!isWorkerUpstreamMessage(message)) {
         console.warn(
-          `[kitesurf-worker] ${opts.label} (connection ${opts.connectionId}): dropped a malformed upstream message`,
+          `[parawing-worker] ${opts.label} (connection ${opts.connectionId}): dropped a malformed upstream message`,
         );
         return;
       }
@@ -175,7 +182,7 @@ export function spawnDedicatedWorker(
         opts.onUpstream(message);
       } catch (err) {
         console.warn(
-          `[kitesurf-worker] ${opts.label} (connection ${opts.connectionId}): upstream handler threw for ${message.event}:`,
+          `[parawing-worker] ${opts.label} (connection ${opts.connectionId}): upstream handler threw for ${message.event}:`,
           err instanceof Error ? (err.stack ?? err.message) : String(err),
         );
       }
@@ -207,8 +214,8 @@ export function spawnDedicatedWorker(
         throw err;
       });
     },
-    terminate(reason, opts = {}) {
-      if (opts.gone) gone = true;
+    terminate(reason, terminateOpts = {}) {
+      if (terminateOpts.gone) gone = true;
       if (terminated) return terminated;
       terminated = (async () => {
         await settleWithin(
@@ -224,12 +231,9 @@ export function spawnDedicatedWorker(
           TEARDOWN_GRACE_MS,
         );
         if (!gone) {
-          await settleWithin(
-            Promise.resolve().then(() => entrypoint.killIsolate(reason)),
-            TEARDOWN_GRACE_MS,
-          );
+          await settleWithin(loaded.terminate(reason), TEARDOWN_GRACE_MS);
         }
-        disposeStub(entrypoint);
+        loaded[Symbol.dispose]();
       })();
       return terminated;
     },

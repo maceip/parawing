@@ -4,7 +4,8 @@
 
 // Routes page and dedicated-worker fetches through the session-owned engine stub.
 
-import type { SessionOutbound, SessionOutboundRequest } from "@kitesurf/jsrpc-types/page-script";
+import type { SessionOutbound, SessionOutboundRequest } from "@parawing/jsrpc-types/page-script";
+import type { RpcStub } from "@parawing/jsrpc-types/rpc";
 import {
   cancelResponseBody,
   defineOwn,
@@ -27,7 +28,7 @@ import {
   responseUrl,
 } from "./native-http.ts";
 
-export type OutboundStub = Rpc.Stub<SessionOutbound>;
+export type OutboundStub = RpcStub<SessionOutbound>;
 
 let outbound: OutboundStub | null = null;
 
@@ -64,7 +65,7 @@ function applyCacheMode(headers: Headers, cache: string): void {
   } else if (cache === "no-cache") {
     add("cache-control", "max-age=0");
   }
-  if (added.length > 0) hdrSet(headers, "x-kitesurf-cache-mode", added.join(","));
+  if (added.length > 0) hdrSet(headers, "x-parawing-cache-mode", added.join(","));
 }
 
 function withRequestUrl(response: Response, url: string): void {
@@ -86,7 +87,7 @@ const IMMUTABLE_HEADER_METHODS = ["append", "set", "delete"];
 
 function freezeHeaders(response: Response): void {
   const headers = responseHeaders(response);
-  if (!headers) throw new TypeError("kitesurf: response headers are unavailable");
+  if (!headers) throw new TypeError("parawing: response headers are unavailable");
   for (let i = 0; i < IMMUTABLE_HEADER_METHODS.length; i++) {
     defineOwn(headers, IMMUTABLE_HEADER_METHODS[i], {
       value: immutableHeadersError,

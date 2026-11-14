@@ -20,7 +20,7 @@ export function installWasmTerminatedHandler(): void {
     noteWasmTerminated();
     const message = err instanceof Error ? err.message : String(err);
     sendUpstreamEvent({
-      event: "kitesurf.wasmTerminated",
+      event: "parawing.wasmTerminated",
       params: { message: message.slice(0, MAX_TRAP_MESSAGE_CHARS) },
     });
   });

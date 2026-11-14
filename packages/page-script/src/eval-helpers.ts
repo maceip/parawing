@@ -4,22 +4,18 @@
 
 // Runs CDP expressions through the native probe or Boa fallback and packs the result.
 
-import { packException, packResult } from "./pack.ts";
-import { ks_eval_cdp } from "./wasm-glue.js";
-import type { EvalResult } from "@kitesurf/jsrpc-types/page-script";
-import { drainEvalResult, type EvalResultBody } from "./eval-results.ts";
+import type { EvalResult } from "@parawing/jsrpc-types/page-script";
+import {
+  AsyncFunction,
+  boaEvalFallback,
+  getExecutionBackend,
+  packBoaResult,
+  type RunExpressionOpts,
+  SyncFunction,
+} from "./exec-backend.ts";
 import type { DomRect, ShimElement } from "./types.ts";
 
-// Native eval is only a probe; workerd's code-generation EvalError falls back to Boa.
-const NATIVE_INDIRECT_EVAL: (source: string) => unknown = globalThis.eval;
-
-export const AsyncFunction = (async () => {}).constructor as new (
-  ...args: string[]
-) => (...args: unknown[]) => Promise<unknown>;
-
-export const SyncFunction = function () {}.constructor as new (
-  ...args: string[]
-) => (...args: unknown[]) => unknown;
+export { AsyncFunction, boaEvalFallback, packBoaResult, SyncFunction, type RunExpressionOpts };
 
 const INPUT_ANCESTOR_DEPTH = 32;
 const ANCHOR_SEARCH_DEPTH = 8;
@@ -178,123 +174,11 @@ function hasInteractiveNonAnchorAncestor(el: ShimElement | null): boolean {
   return false;
 }
 
-export interface RunExpressionOpts {
-  returnByValue?: boolean;
-  awaitPromise?: boolean;
-}
-
 export type RunExpressionResult = EvalResult;
-
-export function packBoaResult(raw: unknown, returnByValue: boolean): EvalResultBody {
-  if (!returnByValue) return packResult(raw, false);
-  let envelope: {
-    k: string;
-    j?: string;
-    v?: string;
-    d?: string;
-    message?: string;
-    name?: string;
-  };
-  try {
-    envelope = JSON.parse(String(raw));
-  } catch {
-    return packResult(raw, true);
-  }
-  switch (envelope.k) {
-    case "throw": {
-      const error = new Error(envelope.message || "boa error");
-      if (envelope.name) error.name = envelope.name;
-      return packException(error);
-    }
-    case "undef":
-      return packResult(undefined, true);
-    case "big":
-      try {
-        return packResult(BigInt(envelope.v as string), true);
-      } catch {
-        return packResult(envelope.v, true);
-      }
-    case "sym":
-      return packResult(Symbol(envelope.d || ""), true);
-    case "fn": {
-      const syntheticFunction = function boaFunction(): void {};
-      try {
-        syntheticFunction.toString = () => envelope.d || "function () { [boa] }";
-      } catch {}
-      return packResult(syntheticFunction, true);
-    }
-    default: {
-      let value: unknown = null;
-      try {
-        value = JSON.parse(envelope.j as string);
-      } catch {
-        value = null;
-      }
-      return packResult(value, true);
-    }
-  }
-}
-
-export async function boaEvalFallback(
-  expression: string,
-  awaitPromise: boolean | undefined,
-  returnByValue: boolean,
-): Promise<EvalResultBody> {
-  try {
-    const boaResult = await ks_eval_cdp(expression, awaitPromise !== false, returnByValue);
-    return packBoaResult(boaResult, returnByValue);
-  } catch (error) {
-    return packException(error instanceof Error ? error : new Error(String(error)));
-  }
-}
 
 export async function runExpression(
   expression: string,
   options: RunExpressionOpts,
 ): Promise<RunExpressionResult> {
-  const returnByValue = !!options?.returnByValue;
-  const awaitPromise = options === undefined ? true : options.awaitPromise !== false;
-  let result: EvalResultBody;
-  try {
-    const expr = typeof expression === "string" ? expression : "undefined";
-    const hasTopLevelAwait = /\bawait\b/.test(expr);
-    let value: unknown;
-    if (!hasTopLevelAwait) {
-      value = NATIVE_INDIRECT_EVAL(expr);
-      if (
-        awaitPromise &&
-        value !== null &&
-        typeof (value as { then?: unknown })?.then === "function"
-      ) {
-        value = await (value as Promise<unknown>);
-      }
-    } else {
-      const asyncFunction = new AsyncFunction("return (" + expr + ");");
-      value = await asyncFunction();
-      if (
-        awaitPromise &&
-        value !== null &&
-        typeof (value as { then?: unknown })?.then === "function"
-      ) {
-        value = await (value as Promise<unknown>);
-      }
-    }
-    result = packResult(value, returnByValue);
-  } catch (error) {
-    if (
-      error instanceof Error &&
-      error.name === "EvalError" &&
-      typeof error.message === "string" &&
-      error.message.includes("Code generation from strings disallowed")
-    ) {
-      result = await boaEvalFallback(
-        typeof expression === "string" ? expression : "undefined",
-        awaitPromise,
-        returnByValue,
-      );
-    } else {
-      result = packException(error);
-    }
-  }
-  return drainEvalResult(result);
+  return await getExecutionBackend().evalExpression(expression, options);
 }

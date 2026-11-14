@@ -5,7 +5,7 @@
 import { expect, test } from "../harness";
 
 test("tla-import-iife-fix-probe", async ({ page }) => {
-  const BASE = process.env.KITESURF_BASE ?? "http://127.0.0.1:8787";
+  const BASE = process.env.PARAWING_BASE ?? "http://127.0.0.1:8787";
 
   async function runFixture(page, path, prefix, tag) {
     const pageErrors = [];
@@ -90,11 +90,11 @@ test("tla-import-iife-fix-probe", async ({ page }) => {
       c.label + ": DOM mutation post-await landed",
     ).toBeTruthy();
     const sawTla = /Top-level await in module is unsettled/i.test(r.pageErrors.join("\n"));
-    const sawWrapped = /\[kitesurf\] user module .* threw/i.test(r.consoleErrors.join("\n"));
+    const sawWrapped = /\[parawing\] user module .* threw/i.test(r.consoleErrors.join("\n"));
     expect(!sawTla, c.label + ": NO 'Top-level await unsettled' page error").toBeTruthy();
     expect(
       !sawWrapped,
-      c.label + ": NO '[kitesurf] user module N threw' console.error",
+      c.label + ": NO '[parawing] user module N threw' console.error",
     ).toBeTruthy();
   }
 });

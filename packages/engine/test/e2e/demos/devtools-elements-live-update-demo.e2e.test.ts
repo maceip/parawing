@@ -9,7 +9,7 @@ import { expect, test } from "../harness";
 
 async function connectPageMode() {
   const engine = env.ENGINE;
-  const resp = await engine.fetch("https://ks.invalid/devtools/page/kitesurf", {
+  const resp = await engine.fetch("https://ks.invalid/devtools/page/parawing", {
     headers: { Upgrade: "websocket" },
   });
   const ws = upgradedSocket(resp);

@@ -76,16 +76,16 @@ js_library(
     srcs = glob(["src/**"]),
     deps = [
         ":config",
-        ":node_modules/@kitesurf/dom-shim",
-        ":node_modules/@kitesurf/jsrpc-types",
-        ":node_modules/@kitesurf/page-renderer",
-        ":node_modules/@kitesurf/page-script",
-        ":node_modules/@kitesurf/script-gate",
-        ":node_modules/@kitesurf/worker-script",
+        ":node_modules/@parawing/dom-shim",
+        ":node_modules/@parawing/jsrpc-types",
+        ":node_modules/@parawing/page-renderer",
+        ":node_modules/@parawing/page-script",
+        ":node_modules/@parawing/script-gate",
+        ":node_modules/@parawing/worker-script",
         ":node_modules/devtools-protocol",
         ":node_modules/es-module-lexer",
         ":node_modules/hono",
-        ":node_modules/kitesurf-core",
+        ":node_modules/parawing-core",
         ":node_modules/nanoid",
         ":node_modules/web-bot-auth",
         ":node_modules/zod",
@@ -109,14 +109,14 @@ copy_file(
     name = "rbi_json",
     src = "//packages/scene-host-wasm:rbi/scene_host.json",
     out = "public/rbi/scene_host.json",
-    visibility = ["//packages/kitesurf-cli:__pkg__"],
+    visibility = ["//packages/parawing-cli:__pkg__"],
 )
 
 copy_file(
     name = "rbi_wasm",
     src = "//packages/scene-host-wasm:rbi/scene_host.wasm",
     out = "public/rbi/scene_host.wasm",
-    visibility = ["//packages/kitesurf-cli:__pkg__"],
+    visibility = ["//packages/parawing-cli:__pkg__"],
 )
 
 filegroup(
@@ -126,7 +126,7 @@ filegroup(
 )
 
 # `--config=devtools` (.bazelrc) sets this: the engine assets then serve the prebuilt Chrome
-# DevTools frontend at /inspector/, for KITESURF_INSPECTOR_BASE_URL=/inspector/inspector.html.
+# DevTools frontend at /inspector/, for PARAWING_INSPECTOR_BASE_URL=/inspector/inspector.html.
 # Off, @devtools_frontend is never fetched.
 bool_flag(
     name = "bundle_devtools",
@@ -240,6 +240,7 @@ wrangler.wrangler(
     args = ["types", "--include-runtime", "--no-strict-vars"],
     chdir = package_name(),
     mnemonic = "WranglerTypes",
+    visibility = ["//visibility:public"],
 )
 
 wrangler.wrangler(

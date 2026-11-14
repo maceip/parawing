@@ -26,7 +26,7 @@ import type {
   RenderPort,
   RenderStage,
   RendererMemoryStats,
-} from "@kitesurf/jsrpc-types/page-renderer";
+} from "@parawing/jsrpc-types/page-renderer";
 
 interface RendererEnv {
   KS_INITIAL_RES?: unknown;
@@ -48,9 +48,9 @@ function armRendererTracing(env: RendererEnv, traced: boolean, tp?: string): voi
 }
 import wasmModule from "./core_bg.wasm";
 
-import type { IsolateKillMarker } from "@kitesurf/jsrpc-types/shared";
+import type { IsolateKillMarker } from "@parawing/jsrpc-types/shared";
 
-const ISOLATE_KILL_MARKER: IsolateKillMarker = "[ks-kill]";
+const ISOLATE_KILL_MARKER: IsolateKillMarker = "[pw-kill]";
 
 const coreWasmMemory: { current: WebAssembly.Memory | null } = { current: null };
 let coreWasmInitialBytes = 0;
@@ -131,6 +131,14 @@ function asU8(value: unknown): Uint8Array | null {
 
 function errMsg(error: unknown): string {
   return error instanceof Error ? error.message : String(error);
+}
+
+function disposeRpcStub(stub: unknown): void {
+  const dispose = (stub as { [Symbol.dispose]?: unknown } | null)?.[Symbol.dispose];
+  if (typeof dispose !== "function") return;
+  try {
+    dispose.call(stub);
+  } catch {}
 }
 
 function pendingImageKeys(): string[] {
@@ -278,7 +286,7 @@ async function fetchFontAsset(
         bytes = null;
       }
       console.warn(
-        `[ks-rvr] font key ${path} dry in engine store; page fallback ${bytes && bytes.length > 0 ? "ok" : "failed"}`,
+        `[pw-rvr] font key ${path} dry in engine store; page fallback ${bytes && bytes.length > 0 ? "ok" : "failed"}`,
       );
     }
     return bytes;
@@ -309,7 +317,7 @@ async function resolveResources(
     if (count === 0) return null;
     if (round === MAX_RESOURCE_PULL_ROUNDS) {
       console.warn(
-        `[ks-rvr] unresolvable after ${MAX_RESOURCE_PULL_ROUNDS} rounds: images=[${imageHashes.join(",")}] fonts=[${fontDataHashes.join(",")}]`,
+        `[pw-rvr] unresolvable after ${MAX_RESOURCE_PULL_ROUNDS} rounds: images=[${imageHashes.join(",")}] fonts=[${fontDataHashes.join(",")}]`,
       );
       return {
         error: `unresolvable missing resources after ${MAX_RESOURCE_PULL_ROUNDS} rounds`,
@@ -459,6 +467,10 @@ export class PageRenderer extends WorkerEntrypoint<RendererEnv> implements PageR
       const reply = await this.renderFrameImpl(port, opts, fetchAsset, fetchImage, fetchFont);
       return { ...reply, memory: this.memoryStats() };
     } finally {
+      disposeRpcStub(port);
+      disposeRpcStub(fetchAsset);
+      disposeRpcStub(fetchImage);
+      disposeRpcStub(fetchFont);
       await flushSpanBatch();
     }
   }
@@ -643,6 +655,10 @@ export class PageRenderer extends WorkerEntrypoint<RendererEnv> implements PageR
       const reply = await this.renderPdfImpl(port, opts, fetchAsset, fetchImage, fetchFont);
       return { ...reply, memory: this.memoryStats() };
     } finally {
+      disposeRpcStub(port);
+      disposeRpcStub(fetchAsset);
+      disposeRpcStub(fetchImage);
+      disposeRpcStub(fetchFont);
       await flushSpanBatch();
     }
   }
@@ -738,7 +754,12 @@ export class PageRenderer extends WorkerEntrypoint<RendererEnv> implements PageR
     if (typeof token === "string" && token) {
       console.log(`${ISOLATE_KILL_MARKER} ${token} ${reason || "renderer retired"}`);
     }
-    abortIsolate(new Error("PageRenderer.killIsolate"));
+    // Defer isolate abort so this JSRPC reply returns before workerd cancels the request.
+    setTimeout(() => {
+      try {
+        abortIsolate(new Error("PageRenderer.killIsolate"));
+      } catch {}
+    }, 0);
   }
 }
 

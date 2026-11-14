@@ -82,7 +82,7 @@ async function loadSprite(url: string): Promise<void> {
     if (!response || !response.ok) {
       try {
         console.warn(
-          `[ks-sprites] sprite fetch ${url}: HTTP ${response ? response.status : "null"}`,
+          `[pw-sprites] sprite fetch ${url}: HTTP ${response ? response.status : "null"}`,
         );
       } catch {}
       failedSprites.add(url);
@@ -92,7 +92,7 @@ async function loadSprite(url: string): Promise<void> {
     if (!text || text.length > MAX_SPRITE_BYTES) {
       try {
         console.warn(
-          `[ks-sprites] sprite rejected ${url}: ${text ? text.length : 0} bytes (cap ${MAX_SPRITE_BYTES})`,
+          `[pw-sprites] sprite rejected ${url}: ${text ? text.length : 0} bytes (cap ${MAX_SPRITE_BYTES})`,
         );
       } catch {}
       failedSprites.add(url);
@@ -116,7 +116,7 @@ async function loadSprite(url: string): Promise<void> {
     const MAX_SPRITE_ERROR_MESSAGE_CHARS = 160;
     try {
       console.warn(
-        `[ks-sprites] sprite load failed ${url}: ${String((e as any)?.message || e).slice(0, MAX_SPRITE_ERROR_MESSAGE_CHARS)}`,
+        `[pw-sprites] sprite load failed ${url}: ${String((e as any)?.message || e).slice(0, MAX_SPRITE_ERROR_MESSAGE_CHARS)}`,
       );
     } catch {}
     failedSprites.add(url);
@@ -139,7 +139,7 @@ export function resolveExternalSvgSprites(): Promise<void> {
     return Promise.resolve();
   }
   try {
-    console.warn(`[ks-sprites] fetching ${wanted.length} sprite(s): ${wanted.join(", ")}`);
+    console.warn(`[pw-sprites] fetching ${wanted.length} sprite(s): ${wanted.join(", ")}`);
   } catch {}
   for (const url of wanted) resourceInflight.add("sprite:" + url);
   return (async () => {
@@ -162,10 +162,13 @@ const LATE_SPRITE_SWEEP_INTERVAL_MS = 1_000;
 export function startLateSpriteSweep(
   passes = LATE_SPRITE_SWEEP_PASSES,
   intervalMs = LATE_SPRITE_SWEEP_INTERVAL_MS,
+  shouldStop?: () => boolean,
 ): void {
   void (async () => {
     for (let i = 0; i < passes; i++) {
+      if (shouldStop?.()) return;
       await nativeSleep(intervalMs);
+      if (shouldStop?.()) return;
       try {
         await resolveExternalSvgSprites();
       } catch {}

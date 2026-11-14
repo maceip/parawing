@@ -22,7 +22,7 @@ test("font-heavy-eagerness", async ({ page, cdpSession }) => {
   await new Promise((r) => setTimeout(r, 1500));
   await page.screenshot({ type: "png" });
 
-  const mem = await cdpSession.send("Kitesurf.getMemoryStats", {});
+  const mem = await cdpSession.send("Parawing.getMemoryStats", {});
   const m = Object.values(mem.byTarget ?? {}).find((t) => (t?.wasmBytes ?? 0) > 0);
   console.log(
     `[font-heavy] declared=${DECLARED} used=${USED} fontFetches=${fontRequests.size}`,
@@ -44,7 +44,7 @@ test("document.fonts.ready delegates to the lazy-font hook", async ({ page }) =>
     timeout: 20_000,
   });
   const observed = await page.evaluate(async () => {
-    const g: unknown = Reflect.get(globalThis, Symbol.for("kitesurf.internals"));
+    const g: unknown = Reflect.get(globalThis, Symbol.for("parawing.internals"));
     if (typeof g !== "object" || g === null) throw new Error("no internals record");
     const hooksPresent =
       typeof Reflect.get(g, "fontsReady") === "function" &&

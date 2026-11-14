@@ -7,7 +7,7 @@ import { targetIdForSession } from "../connect";
 
 test("script-execution-probe", async ({ page }) => {
   const FIXTURE_URL =
-    process.env.KITESURF_FIXTURE ?? "http://127.0.0.1:8787/__fixtures/lifecycle.html";
+    process.env.PARAWING_FIXTURE ?? "http://127.0.0.1:8787/__fixtures/lifecycle.html";
 
   const consoleEntries = [];
   page.on("console", (msg) => {

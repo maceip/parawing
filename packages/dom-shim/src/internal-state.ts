@@ -7,8 +7,8 @@
 export type {
   BundleDiag,
   IframePost,
-  KitesurfInternals,
-  KitesurfInternalState,
+  ParawingInternals,
+  ParawingInternalState,
 } from "../../page-script/src/internal-state";
 export {
   createInternalState,

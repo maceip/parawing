@@ -17,11 +17,12 @@ import type {
   RetainedPageScriptSessionStub,
   SessionOutbound,
   WireMeta,
-} from "@kitesurf/jsrpc-types/page-script";
-import type { QueryDomArgs, QueryDomMethod, QueryDomResult } from "@kitesurf/jsrpc-types/query-dom";
-import type { RenderPortStub } from "@kitesurf/jsrpc-types/page-renderer";
+} from "@parawing/jsrpc-types/page-script";
+import type { QueryDomArgs, QueryDomMethod, QueryDomResult } from "@parawing/jsrpc-types/query-dom";
+import type { RenderPortStub } from "@parawing/jsrpc-types/page-renderer";
 import type { PageScriptStub, UpstreamEventHandler } from "./page-script.ts";
 import { isIsolateGoneError, notifyIsolateLimit } from "./limit-registry.ts";
+import type { LoadedIsolate } from "../isolate-loader.ts";
 
 export type RpcSessionCallable = Pick<RetainedPageScriptSessionStub, "close"> &
   Pick<RetainedPageScriptSession, "call"> & {
@@ -42,6 +43,7 @@ export interface PageScriptRpcSessionOptions {
   now?: () => number;
   wallCapMs?: number;
   scriptName?: string;
+  isolate?: LoadedIsolate<unknown>;
 }
 
 // A delayed loaded-worker wake must not pin teardown indefinitely.
@@ -95,9 +97,11 @@ export class PageScriptRpcSession implements PageScriptStub {
   private now: () => number;
   private getTraceParent?: () => string | null;
   private upstreamHandler: UpstreamEventHandler | null = null;
+  private isolate?: LoadedIsolate<unknown>;
 
   constructor(entrypoint: RpcSessionEntrypoint, opts: PageScriptRpcSessionOptions = {}) {
     this.entrypoint = entrypoint;
+    this.isolate = opts.isolate;
     this.defaultTimeoutMs = opts.defaultTimeoutMs ?? 60_000;
     this.getTraceParent = opts.getTraceParent;
     this.now = opts.now ?? (() => Date.now());
@@ -114,7 +118,7 @@ export class PageScriptRpcSession implements PageScriptStub {
           if (!e || typeof e.event !== "string") return;
           const params: ReceivedUpstreamParams =
             e.params && typeof e.params === "object" ? e.params : {};
-          if (e.event === "kitesurf.wasmTerminated") {
+          if (e.event === "parawing.wasmTerminated") {
             this.fireWasmTerminated(params);
             return;
           }
@@ -124,7 +128,7 @@ export class PageScriptRpcSession implements PageScriptStub {
             h(e.event, params);
           } catch (err) {
             console.warn(
-              `[kitesurf-iframe] upstream handler threw for ${e.event}:`,
+              `[parawing-iframe] upstream handler threw for ${e.event}:`,
               err instanceof Error ? err.message : String(err),
             );
           }
@@ -154,7 +158,7 @@ export class PageScriptRpcSession implements PageScriptStub {
     if (this.dead) return;
     const announce = !this.retiring;
     if (announce) {
-      console.warn(`[kitesurf] page isolate unreachable, ending session: ${raw}`);
+      console.warn(`[parawing] page isolate unreachable, ending session: ${raw}`);
     }
     this.markDead(`page isolate no longer reachable: ${raw}`);
     if (announce && this.scriptName) {
@@ -318,17 +322,23 @@ export class PageScriptRpcSession implements PageScriptStub {
   killIsolate(reason = "generation retired", opts: { atOnce?: boolean } = {}): Promise<void> {
     if (this.killing) return this.killing;
     const ep = this.entrypoint;
-    if (typeof ep.killIsolate !== "function") return Promise.resolve();
+    const isolate = this.isolate;
+    if (!isolate && typeof ep.killIsolate !== "function") return Promise.resolve();
     // Give the retained close one grace window before the entrypoint kill, unless nothing waits on
     // the close: until the kill lands, the isolate keeps holding a loaded-worker slot.
     const sessionClosed = opts.atOnce ? Promise.resolve() : (this.closeReady ?? Promise.resolve());
-    this.killing = settleTeardownWithin(sessionClosed).then(() => {
-      if (this.isolateGone) return;
-      this.isolateGone = true;
-      try {
-        return settleTeardownWithin(Promise.resolve(ep.killIsolate?.(reason)));
-      } catch {}
-    });
+    this.killing = settleTeardownWithin(sessionClosed)
+      .then(() => {
+        if (this.isolateGone) return;
+        this.isolateGone = true;
+        try {
+          if (isolate) return settleTeardownWithin(isolate.terminate(reason));
+          return settleTeardownWithin(Promise.resolve(ep.killIsolate?.(reason)));
+        } catch {}
+      })
+      .finally(() => {
+        isolate?.[Symbol.dispose]();
+      });
     return this.killing;
   }
 
@@ -458,6 +468,10 @@ export class PageScriptRpcSession implements PageScriptStub {
     return this.call("releaseObject", { objectId });
   }
 
+  releaseObjectGroup(objectGroup: string): Promise<{ ok: true }> {
+    return this.call("releaseObjectGroup", { objectGroup });
+  }
+
   getProperties(
     objectId: string,
     opts: Parameters<PageScriptStub["getProperties"]>[1],
@@ -500,6 +514,10 @@ export class PageScriptRpcSession implements PageScriptStub {
     init: KeyEventInit,
   ): ReturnType<PageScriptStub["dispatchKeyEvent"]> {
     return this.call("dispatchKeyEvent", { type, init });
+  }
+
+  getHandlerRegions(): ReturnType<PageScriptStub["getHandlerRegions"]> {
+    return this.call("getHandlerRegions", {});
   }
 }
 

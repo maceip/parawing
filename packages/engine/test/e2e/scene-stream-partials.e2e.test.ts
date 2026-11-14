@@ -29,7 +29,7 @@ test("scene patches composite through the CLI wasm and recover with full frames"
   };
   const frames: Uint8Array[] = [];
   const resources: Uint8Array[] = [];
-  cdpSession.on("Kitesurf.sceneFrame", (event) => {
+  cdpSession.on("Parawing.sceneFrame", (event) => {
     const bytes = Uint8Array.from(atob(event.data), (char) => char.charCodeAt(0));
     if (bytes[0] === 4) resources.push(bytes.subarray(11));
     if (bytes[0] === 3 || bytes[0] === 5) frames.push(bytes);
@@ -47,7 +47,7 @@ test("scene patches composite through the CLI wasm and recover with full frames"
       ? [seq, view.getUint32(27, true), view.getInt32(11, true), view.getInt32(15, true), 1]
       : [seq, 1];
     const raw = await call(partial ? 16 : 15, input(fields, frame.subarray(partial ? 31 : 11)));
-    await cdpSession.send("Kitesurf.sceneFrameAck", { seq, painted });
+    await cdpSession.send("Parawing.sceneFrameAck", { seq, painted });
     return { frame, seq, raw };
   };
   await page.setViewport({ width: 800, height: 600 });
@@ -63,7 +63,7 @@ test("scene patches composite through the CLI wasm and recover with full frames"
     <input id="check" type="checkbox" style="position:absolute;left:100px;top:100px;width:40px;height:40px;accent-color:red">
     ${boxes}`,
   );
-  await cdpSession.send("Kitesurf.startSceneStream", {
+  await cdpSession.send("Parawing.startSceneStream", {
     width: 800,
     height: 600,
     fps: 30,
@@ -117,7 +117,7 @@ test("scene patches composite through the CLI wasm and recover with full frames"
       deviceScaleFactor: 1,
       mobile: false,
     });
-    await cdpSession.send("Kitesurf.startSceneStream", {
+    await cdpSession.send("Parawing.startSceneStream", {
       width: 640,
       height: 480,
       fps: 30,
@@ -134,6 +134,6 @@ test("scene patches composite through the CLI wasm and recover with full frames"
     expect(navigated.frame[0]).toBe(3);
     expect(navigated.seq).toBeGreaterThan(resized.seq);
   } finally {
-    await cdpSession.send("Kitesurf.stopSceneStream");
+    await cdpSession.send("Parawing.stopSceneStream");
   }
 });

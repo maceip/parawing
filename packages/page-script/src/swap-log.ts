@@ -55,7 +55,7 @@ export function openSwapLog(
     const top = s.sql.exec(`SELECT coalesce(max(id) + 1, 0) AS rows FROM ${table}`).toArray()[0];
     end = Number(top?.rows ?? 0) * ROW_BYTES; // a reopened log starts on a fresh row
   } catch (err) {
-    console.warn(`[ks-boa-swap] no store: ${String(err)}`);
+    console.warn(`[pw-boa-swap] no store: ${String(err)}`);
     return null;
   }
   // The row being filled, in V8's heap until it is full or a round ends: a put is a copy,
@@ -73,7 +73,7 @@ export function openSwapLog(
   let broken = false;
   const fail = (what: string, err: unknown) => {
     if (!broken)
-      console.warn(`[ks-boa-swap] ${what} failed, keeping code resident: ${String(err)}`);
+      console.warn(`[pw-boa-swap] ${what} failed, keeping code resident: ${String(err)}`);
     broken = true;
   };
   const writeRow = (row: number, bytes: Uint8Array) => {

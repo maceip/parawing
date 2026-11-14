@@ -7,7 +7,7 @@ import { expect, test } from "../harness";
 test("document.fonts.ready delegates to the lazy-font hook", async ({ page }) => {
   await page.goto("about:blank", { timeout: 20_000 });
   const observed = await page.evaluate(async () => {
-    const g: unknown = Reflect.get(globalThis, Symbol.for("kitesurf.internals"));
+    const g: unknown = Reflect.get(globalThis, Symbol.for("parawing.internals"));
     if (typeof g !== "object" || g === null) throw new Error("no internals record");
     const hooksPresent =
       typeof Reflect.get(g, "fontsReady") === "function" &&

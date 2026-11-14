@@ -2,7 +2,7 @@
 // Licensed under the Apache 2.0 license found in the LICENSE file or at:
 // https://opensource.org/licenses/Apache-2.0
 
-// Report handled engine failures to the parent's [ks-err] tail consumer so
+// Report handled engine failures to the parent's [pw-err] tail consumer so
 // an embedder's error reporter still receives wasm panics and shim invariant
 // failures. Page-author exceptions use exception-buffer and CDP
 // Runtime.exceptionThrown instead.

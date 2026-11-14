@@ -66,13 +66,13 @@ export function installInitShims(): void {
           return ksGlobal.eval(src);
         } catch (e) {
           try {
-            console.error("[kitesurf] deferred setTimeout string-task threw:", e);
+            console.error("[parawing] deferred setTimeout string-task threw:", e);
           } catch {}
         }
       };
     }
     throw new TypeError(
-      "[kitesurf init-shim] setTimeout(fn) requires a function or string during module-init; got " +
+      "[parawing init-shim] setTimeout(fn) requires a function or string during module-init; got " +
         typeof fn,
     );
   };
@@ -190,7 +190,7 @@ export function drainInitShims(): void {
       try {
         t.fn.call(globalThis, ...t.args);
       } catch (e) {
-        console.warn("[kitesurf init-shim] deferred timer threw:", e);
+        console.warn("[parawing init-shim] deferred timer threw:", e);
       }
       fakeToReal.delete(t.fakeId);
     }, t.delay);
@@ -207,7 +207,7 @@ export function drainInitShims(): void {
       try {
         iv.fn.call(globalThis, ...iv.args);
       } catch (e) {
-        console.warn("[kitesurf init-shim] deferred interval threw:", e);
+        console.warn("[parawing init-shim] deferred interval threw:", e);
       }
     }, iv.delay);
     fakeIntervalToReal.set(iv.fakeId, realId);

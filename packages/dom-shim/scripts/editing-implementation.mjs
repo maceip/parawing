@@ -82,7 +82,7 @@ async function applySeries(upstream) {
 export async function materializeEditingImplementation() {
   // Bazel actions have no network or git, so editing_repo.bzl fetches and patches the file from
   // this script's pin and series and the build passes the result in this variable.
-  const patched = process.env.KITESURF_WPT_EDITING_IMPLEMENTATION;
+  const patched = process.env.PARAWING_WPT_EDITING_IMPLEMENTATION;
   const out = patched
     ? await readFile(patched, "utf8")
     : await applySeries((await readCached()) ?? (await download()));

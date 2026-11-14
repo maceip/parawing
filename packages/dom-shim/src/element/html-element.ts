@@ -182,7 +182,7 @@ defineReflectedBoolean(HTMLElementProto, "inert", "inert");
 defineReflectedBoolean(HTMLElementProto, "autofocus", "autofocus");
 defineReflectedLong(HTMLElementProto, "tabIndex", "tabindex", -1);
 
-const InternalElementCtorToken = Symbol("kitesurfInternalElementCtor");
+const InternalElementCtorToken = Symbol("parawingInternalElementCtor");
 
 // HTML element interface constructors are not user-constructable: only nodeFor
 // holds the token. A hand-written subclass calls this after super().

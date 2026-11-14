@@ -4,9 +4,9 @@
 
 // Batch two: same identifier names as batch one, parsed AFTER the
 // interner reclaimed batch one's entries — resolution must not cross.
-const kitesurfInternerProbeLocal = 20;
+const parawingInternerProbeLocal = 20;
 const anotherSharedIdentifierName = 4;
-export const value = kitesurfInternerProbeLocal + anotherSharedIdentifierName;
+export const value = parawingInternerProbeLocal + anotherSharedIdentifierName;
 export const tag = "batch-two";
 export function probe() {
   return "two-alive";

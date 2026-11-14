@@ -361,8 +361,8 @@ interface Element extends InstalledElementMembers {}
 // Per-interface steps that Element's own algorithms call, so an interface module overrides them
 // instead of element.ts testing for its class (MODULES.md "Initialization dependencies"). Symbol
 // keys keep them off the page-visible names a page's own subclass might use.
-export const attributeChangeSteps = Symbol("kitesurf.attributeChangeSteps");
-export const activationBehavior = Symbol("kitesurf.activationBehavior");
+export const attributeChangeSteps = Symbol("parawing.attributeChangeSteps");
+export const activationBehavior = Symbol("parawing.activationBehavior");
 
 // The forwarded click runs this same algorithm directly, not a page-replaceable control.click().
 // Forwarding data stays on the call stack so reentrant or later scripted clicks cannot inherit it.

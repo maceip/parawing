@@ -2,8 +2,8 @@
 // Licensed under the Apache 2.0 license found in the LICENSE file or at:
 // https://opensource.org/licenses/Apache-2.0
 
-import { __setBridgeFetchResource, DomHandle, initSync } from "../../../core/pkg/kitesurf_core.js";
-import coreWasm from "../../../core/pkg/kitesurf_core_bg.wasm";
+import { __setBridgeFetchResource, DomHandle, initSync } from "../../../core/pkg/parawing_core.js";
+import coreWasm from "../../../core/pkg/parawing_core_bg.wasm";
 
 __setBridgeFetchResource(() => {});
 initSync({ module: coreWasm });

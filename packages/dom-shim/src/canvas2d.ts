@@ -271,7 +271,7 @@ const patternGet = patternSpecs.get.bind(patternSpecs);
 const patternSet = patternSpecs.set.bind(patternSpecs);
 
 // Neither interface has a constructor; the context passes this.
-const CANVAS_STYLE_TOKEN = Symbol("kitesurfCanvasStyle");
+const CANVAS_STYLE_TOKEN = Symbol("parawingCanvasStyle");
 
 export class CanvasGradientShim implements Idl.CanvasGradient {
   constructor(token: symbol, spec: CanvasGradientSpec) {
@@ -564,7 +564,7 @@ for (const name of Object.keys(pathMethodNames)) {
   });
 }
 
-const CONTEXT_IMPL = Symbol("kitesurfCanvasContextImpl");
+const CONTEXT_IMPL = Symbol("parawingCanvasContextImpl");
 
 type CanvasHost = {
   _id: number;

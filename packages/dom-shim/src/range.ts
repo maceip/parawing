@@ -462,7 +462,7 @@ function rangeBounds(range: object): RangeBounds {
   return bounds;
 }
 
-const ABSTRACT_RANGE_TOKEN = Symbol("kitesurfAbstractRange");
+const ABSTRACT_RANGE_TOKEN = Symbol("parawingAbstractRange");
 
 class AbstractRangeImpl implements Idl.AbstractRange {
   readonly #bounds: RangeBounds;

@@ -75,7 +75,7 @@ test("forms-realworld-demo", async ({ page }) => {
   await page.evaluate(() => {
     document.querySelector<HTMLSelectElement>('select[name="color"]').value = "green";
     document.querySelector<HTMLTextAreaElement>('textarea[name="bio"]').value =
-      "Hello from kitesurf!";
+      "Hello from parawing!";
   });
 
   await page.click("#submit-btn");

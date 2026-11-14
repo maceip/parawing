@@ -7,11 +7,10 @@
 import { resolveImportMap, resolveModuleRegistryUrl } from "./__ks_import_map.js";
 import { bakedJsonModuleName } from "./baked-module.ts";
 import type { BuildDocumentResult, ShimDocument, ShimNavigator, ShimWindow } from "./types.ts";
+import { getExecutionBackend } from "./exec-backend.ts";
 import {
   ks_bridge_buffer_bytes,
   ks_bridge_ever_minted,
-  ks_eval_page,
-  ks_import,
   ks_is_bridged,
   ks_parse_inline_style,
   ks_set_boa_strict,
@@ -417,7 +416,9 @@ export function installGlobals(
         ) {
           const body = args.length ? String(args[args.length - 1]) : "";
           const params = args.slice(0, -1).map(String).join(",");
-          const generatedFunction = ks_eval_page("(function(" + params + "){" + body + "})");
+          const generatedFunction = getExecutionBackend().evaluateClassic(
+            "(function(" + params + "){" + body + "})",
+          );
           if (typeof generatedFunction === "function") return generatedFunction;
         }
         throw e;
@@ -464,7 +465,11 @@ export function installGlobals(
         // import() rejects on bad options; it never throws out of the call.
         return Promise.reject(err);
       }
-      return ks_import(String(spec), referrerUrl || ksGlobal.location?.href || "about:blank", type);
+      return getExecutionBackend().evaluateModule(
+        String(spec),
+        referrerUrl || ksGlobal.location?.href || "about:blank",
+        type,
+      );
     };
   }
   if (!ksInternals.nativeImport) {
@@ -502,7 +507,7 @@ export function installGlobals(
           typeof e.message === "string" &&
           e.message.includes("Code generation from strings disallowed")
         ) {
-          return ks_eval_page(src);
+          return getExecutionBackend().evaluateClassic(src);
         }
         throw e;
       }
@@ -517,7 +522,7 @@ export function installGlobals(
       const queryString = String((win.location && win.location.search) || "");
       if (/[?&]ks_boa_lenient=1(&|$)/.test(queryString)) {
         ks_set_boa_strict(false);
-        console.log("[kitesurf] boa lenient mode ON (boa exceptions swallowed)");
+        console.log("[parawing] boa lenient mode ON (boa exceptions swallowed)");
       } else if (/[?&]ks_boa_strict=1(&|$)/.test(queryString)) {
         ks_set_boa_strict(true);
       }
@@ -926,7 +931,7 @@ export function installGlobals(
             return ksGlobal.eval(source);
           } catch (error) {
             try {
-              console.error("[kitesurf] setTimeout/setInterval string-task threw:", error);
+              console.error("[parawing] setTimeout/setInterval string-task threw:", error);
             } catch {}
           }
         };
@@ -1406,10 +1411,10 @@ export function installGlobals(
           configurable: true,
         });
       } catch (error) {
-        console.warn("[kitesurf] SVGSVGElement hasInstance override failed:", error);
+        console.warn("[parawing] SVGSVGElement hasInstance override failed:", error);
       }
     } catch (error) {
-      console.warn("[kitesurf] SVG constructor install failed:", error);
+      console.warn("[parawing] SVG constructor install failed:", error);
     }
     if (built.EventTarget) {
       const shimProto = built.EventTarget.prototype;
@@ -1534,12 +1539,13 @@ export function installGlobals(
     ] as const satisfies readonly (keyof BuildDocumentResult)[]) {
       if (built[constructorName]) ksGlobalByKey[constructorName] = built[constructorName];
     }
-    ks_eval_page(`
+    getExecutionBackend().evaluateClassic(`
       for (const valueConstructor of [
-        CSSUnparsedValue,
-        CSSNumericArray,
-        CSSTransformValue,
+        typeof CSSUnparsedValue === "function" ? CSSUnparsedValue : null,
+        typeof CSSNumericArray === "function" ? CSSNumericArray : null,
+        typeof CSSTransformValue === "function" ? CSSTransformValue : null,
       ]) {
+        if (!valueConstructor) continue;
         for (const name of ["entries", "keys", "values", "forEach"]) {
           Object.defineProperty(valueConstructor.prototype, name, {
             value: Array.prototype[name], writable: true, enumerable: true, configurable: true
@@ -2051,7 +2057,7 @@ export function installGlobals(
             // A panicked resolve has already recovered; the CSSOM read below
             // measures what it left. Warn once so a broken poll is not silent.
             if (!resizeObserverResolveWarned)
-              console.warn("[kitesurf] ResizeObserver poll: layout failed", error);
+              console.warn("[parawing] ResizeObserver poll: layout failed", error);
             resizeObserverResolveWarned = true;
             invalidatePaintDom();
           }
@@ -2871,7 +2877,7 @@ export function installGlobals(
             } catch (error) {
               constructed = false;
               console.warn(
-                "[kitesurf] custom-element constructor for " + tagName + " threw",
+                "[parawing] custom-element constructor for " + tagName + " threw",
                 error,
               );
             } finally {
@@ -2903,7 +2909,7 @@ export function installGlobals(
                 attributeChanged.call(element, attr.name, null, attr.value, attr.namespace);
               } catch (error) {
                 console.warn(
-                  "[kitesurf] attributeChangedCallback for " + tagName + " threw",
+                  "[parawing] attributeChangedCallback for " + tagName + " threw",
                   error,
                 );
               }
@@ -2913,7 +2919,7 @@ export function installGlobals(
                 attributeChanged.call(element, ...args);
               } catch (error) {
                 console.warn(
-                  "[kitesurf] attributeChangedCallback for " + tagName + " threw",
+                  "[parawing] attributeChangedCallback for " + tagName + " threw",
                   error,
                 );
               }
@@ -2924,11 +2930,11 @@ export function installGlobals(
             try {
               element.connectedCallback();
             } catch (error) {
-              console.warn("[kitesurf] connectedCallback for " + tagName + " threw", error);
+              console.warn("[parawing] connectedCallback for " + tagName + " threw", error);
             }
           }
         } catch (error) {
-          console.warn("[kitesurf] custom element upgrade failed for " + tagName, error);
+          console.warn("[parawing] custom element upgrade failed for " + tagName, error);
         }
       };
       ksInternals.upgradeCustomElement = (element: any, tagName: string): void => {
@@ -2969,7 +2975,7 @@ export function installGlobals(
         try {
           attributeChanged.call(element, name, oldValue, newValue, namespace);
         } catch (error) {
-          console.warn("[kitesurf] attributeChangedCallback for " + tagName + " threw", error);
+          console.warn("[parawing] attributeChangedCallback for " + tagName + " threw", error);
         }
       };
       ksInternals.customElementObservesAttribute = (element: any, name: string): boolean => {
@@ -3040,7 +3046,7 @@ export function installGlobals(
                 try {
                   element.connectedCallback();
                 } catch (error) {
-                  console.warn("[kitesurf] connectedCallback for " + tagName + " threw", error);
+                  console.warn("[parawing] connectedCallback for " + tagName + " threw", error);
                 }
               }
             }
@@ -3097,32 +3103,56 @@ export function installGlobals(
     installIdleCallbackGlobals();
     if (Object.getOwnPropertyDescriptor(globalThis, "localStorage") === undefined) {
       const makeStorage = () => {
-        const data = Object.create(null);
+        const data: Record<string, string> = Object.create(null);
         const api = {
-          getItem(key) {
-            return Object.prototype.hasOwnProperty.call(data, key) ? data[key] : null;
+          getItem(key: unknown) {
+            return Object.prototype.hasOwnProperty.call(data, String(key))
+              ? data[String(key)]!
+              : null;
           },
-          setItem(key, value) {
+          setItem(key: unknown, value: unknown) {
             data[String(key)] = String(value);
           },
-          removeItem(key) {
-            delete data[key];
+          removeItem(key: unknown) {
+            delete data[String(key)];
           },
           clear() {
             for (const key of Object.keys(data)) delete data[key];
           },
-          key(index) {
+          key(index: number) {
             const keys = Object.keys(data);
-            return index >= 0 && index < keys.length ? keys[index] : null;
+            return index >= 0 && index < keys.length ? keys[index]! : null;
           },
           get length() {
             return Object.keys(data).length;
           },
         };
-        return api;
+        return { api, data };
       };
       // An opaque sandboxed origin has no storage bucket; the accessor throws, as in Chrome.
-      const buckets = { localStorage: makeStorage(), sessionStorage: makeStorage() };
+      const local = makeStorage();
+      const session = makeStorage();
+      const buckets = { localStorage: local.api, sessionStorage: session.api };
+      const applyRecord = (target: Record<string, string>, entries?: Record<string, string>) => {
+        for (const key of Object.keys(target)) delete target[key];
+        if (!entries) return;
+        for (const [k, v] of Object.entries(entries)) {
+          target[k] = String(v);
+        }
+      };
+      const hydrate = (entries?: {
+        localStorage?: Record<string, string>;
+        sessionStorage?: Record<string, string>;
+      }) => {
+        applyRecord(local.data, entries?.localStorage);
+        applyRecord(session.data, entries?.sessionStorage);
+      };
+      ksInternals.hydrateWebStorage = hydrate;
+      ksInternals.snapshotWebStorage = () => ({
+        localStorage: { ...local.data },
+        sessionStorage: { ...session.data },
+      });
+      hydrate(ksInternals.initialWebStorage);
       const storageAccessor =
         (name: keyof typeof buckets): (() => unknown) =>
         () => {
@@ -3148,6 +3178,8 @@ export function installGlobals(
           ksGlobalByKey[name] = buckets[name];
         }
       }
+    } else if (doc !== null && ksInternals.hydrateWebStorage) {
+      ksInternals.hydrateWebStorage(ksInternals.initialWebStorage);
     }
 
     if (typeof globalThis.RTCPeerConnection !== "function") {
@@ -3629,13 +3661,13 @@ export function installGlobals(
         const mediaDevices = {
           async getUserMedia(_constraints) {
             throw new DOMException(
-              "Permission denied: kitesurf has no media devices",
+              "Permission denied: parawing has no media devices",
               "NotAllowedError",
             );
           },
           async getDisplayMedia(_constraints) {
             throw new DOMException(
-              "Permission denied: kitesurf has no display capture",
+              "Permission denied: parawing has no display capture",
               "NotAllowedError",
             );
           },
@@ -4173,7 +4205,7 @@ export function installGlobals(
           if (!this._async) {
             this._sent = true;
             try {
-              console.warn("[kitesurf] sync XHR is not supported; send() ignored");
+              console.warn("[parawing] sync XHR is not supported; send() ignored");
             } catch {}
             return;
           }
@@ -4244,7 +4276,7 @@ export function installGlobals(
               headers.append(n, v);
             } catch {}
           }
-          headers.set("x-kitesurf-credentials", this.withCredentials ? "include" : "same-origin");
+          headers.set("x-parawing-credentials", this.withCredentials ? "include" : "same-origin");
           const init = { method, headers };
           if (method !== "GET" && method !== "HEAD" && body != null) {
             (init as any).body = body;
@@ -5346,7 +5378,7 @@ function installBlobMimeTypeSerialization(): void {
         writable: true,
       });
     } catch (error) {
-      console.warn("[kitesurf-blob] failed to set prototype constructor", {
+      console.warn("[parawing-blob] failed to set prototype constructor", {
         interfaceName: name,
         error,
       });

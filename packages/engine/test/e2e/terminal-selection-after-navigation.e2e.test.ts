@@ -14,7 +14,7 @@ test("a drag selection is readable after link navigation", async ({ page, cdpSes
 
   const rect = await page.evaluate(() => {
     const r = document.querySelector("#target")!.getBoundingClientRect();
-    const internals: unknown = Reflect.get(globalThis, Symbol.for("kitesurf.internals"));
+    const internals: unknown = Reflect.get(globalThis, Symbol.for("parawing.internals"));
     return {
       cellW:
         typeof internals === "object" && internals !== null

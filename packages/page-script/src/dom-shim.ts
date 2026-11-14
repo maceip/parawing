@@ -20,10 +20,10 @@ export {
   detachedWrapperStats,
   armKsOtel,
   ksSpan,
-} from "@kitesurf/dom-shim/contract";
+} from "@parawing/dom-shim/contract";
 export type {
   BuildDocumentOpts,
   BuildDocumentResult,
   DomShimGlobals,
   ScrollIntoViewOptions,
-} from "@kitesurf/dom-shim/contract";
+} from "@parawing/dom-shim/contract";

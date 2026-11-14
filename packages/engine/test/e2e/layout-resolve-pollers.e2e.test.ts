@@ -5,7 +5,7 @@
 // An infinite CSS animation makes every resolve re-cascade the animated
 // element, so the engine's own pollers (the transition drain and the
 // ResizeObserver poll) must not resolve just because the clock moved.
-// Counted through Kitesurf.getMemoryStats' layout block.
+// Counted through Parawing.getMemoryStats' layout block.
 import type { Page } from "@cloudflare/puppeteer";
 import { expect, test } from "./harness";
 import { setContent } from "./set-content";
@@ -16,7 +16,7 @@ async function resolveCounts(page: Page): Promise<{ mutation: number; animation:
   const session = await page.createCDPSession();
   const targetId: unknown = Reflect.get(page.target(), "_targetId");
   if (typeof targetId !== "string") throw new Error("puppeteer target has no _targetId");
-  const stats = await session.send("Kitesurf.getMemoryStats", { targetId });
+  const stats = await session.send("Parawing.getMemoryStats", { targetId });
   await session.detach().catch(() => {});
   const layout = stats.layout;
   if (!layout) throw new Error(`no layout block in ${JSON.stringify(stats).slice(0, 200)}`);

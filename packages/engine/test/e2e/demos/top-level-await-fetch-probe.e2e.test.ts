@@ -91,13 +91,13 @@ test("top-level-await-fetch-probe", async ({ page }) => {
   ).toBeTruthy();
 
   const sawTlaPageError = /Top-level await in module is unsettled/i.test(pageErrors.join("\n"));
-  const sawWrapperConsoleError = /\[kitesurf\] user module .* threw/i.test(
+  const sawWrapperConsoleError = /\[parawing\] user module .* threw/i.test(
     consoleErrors.join("\n"),
   );
 
   expect(!sawTlaPageError, "[fixed] NO 'Top-level await unsettled' page error").toBeTruthy();
   expect(
     !sawWrapperConsoleError,
-    "[fixed] NO '[kitesurf] user module N threw' console.error",
+    "[fixed] NO '[parawing] user module N threw' console.error",
   ).toBeTruthy();
 });

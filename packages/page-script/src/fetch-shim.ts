@@ -312,7 +312,7 @@ function installRequestShim(): void {
 }
 
 // workerd's Request omits `referrer` and `referrerPolicy`, so the shim keeps them per instance and
-// sends a page-unforgeable `x-kitesurf-referrer` carrier with same-origin referrers only.
+// sends a page-unforgeable `x-parawing-referrer` carrier with same-origin referrers only.
 interface RequestReferrerState {
   // "client", "no-referrer", or a same-origin URL.
   referrer: string;
@@ -505,7 +505,7 @@ function patchFormDataRealmCrossing(prototype: any): void {
 type BlobPart = string | Blob;
 
 function formDataToMultipartBlob(formData: FormData): Blob {
-  const boundary = "----formdata-kitesurf-" + Math.random().toString(36).slice(2, 18);
+  const boundary = "----formdata-parawing-" + Math.random().toString(36).slice(2, 18);
   const parts: BlobPart[] = [];
   const dashes = "--";
   const crlf = "\r\n";
@@ -570,7 +570,7 @@ function requestUrlString(resolved: unknown, inputRequest: PageRequest | null): 
   return inputRequest ? inputRequest.url : "";
 }
 
-const CARRIED_STATUS_HEADER = "x-kitesurf-status";
+const CARRIED_STATUS_HEADER = "x-parawing-status";
 const STATUS_CARRIER = 599;
 
 function restoreCarriedStatus(response: Response): Response {
@@ -625,7 +625,7 @@ async function snapshotRequestBody(
       readResult = await reader.read();
     } catch (e) {
       try {
-        console.error("[kitesurf] request body stream errored:", e);
+        console.error("[parawing] request body stream errored:", e);
       } catch {}
       throw new TypeError("Failed to fetch");
     }
@@ -721,7 +721,7 @@ function opaqueRedirect(response: Response): Response {
 }
 
 async function throwIfBlocked(response: Response): Promise<void> {
-  const blockedReason = responseHeaderGet(response, "x-kitesurf-blocked");
+  const blockedReason = responseHeaderGet(response, "x-parawing-blocked");
   if (responseStatus(response) === 403 && blockedReason) {
     // A CORS block rejects before any body read, and its diagnostic names the blocked
     // target: never hand it to a page-visible console callback.
@@ -829,7 +829,7 @@ async function followRedirects(
       throw new TypeError("Failed to fetch");
     }
     const hopOrigin = opaqueOrigin ? "" : pageOrigin;
-    hdrSet(headers, "x-kitesurf-page-origin", opaqueOrigin ? "null" : hopOrigin);
+    hdrSet(headers, "x-parawing-page-origin", opaqueOrigin ? "null" : hopOrigin);
     hdrDelete(headers, "Origin");
     if (hopOrigin) {
       const isCrossOrigin = redirectTarget.origin !== hopOrigin;
@@ -856,7 +856,7 @@ export function installFetchShim(): void {
   const nativeFetch = globalThis.fetch;
   if (typeof nativeFetch !== "function") return;
   const realFetch = routeViaSession(nativeFetch);
-  const kitesurfFetchImpl = async function fetch(
+  const parawingFetchImpl = async function fetch(
     input: Parameters<typeof globalThis.fetch>[0],
     init?: Parameters<typeof globalThis.fetch>[1],
   ): Promise<Response> {
@@ -878,45 +878,45 @@ export function installFetchShim(): void {
     const requestHeaders = newHeaders(
       mergedInit.headers ?? (inputRequest ? inputRequest.headers : {}),
     );
-    hdrSet(requestHeaders, "x-kitesurf-page-origin", origin);
+    hdrSet(requestHeaders, "x-parawing-page-origin", origin);
     if (state.connectionId) {
-      hdrSet(requestHeaders, "x-kitesurf-connection-id", state.connectionId);
+      hdrSet(requestHeaders, "x-parawing-connection-id", state.connectionId);
     } else {
-      hdrDelete(requestHeaders, "x-kitesurf-connection-id");
+      hdrDelete(requestHeaders, "x-parawing-connection-id");
     }
     if (state.mainFrameId) {
-      hdrSet(requestHeaders, "x-kitesurf-frame-id", state.mainFrameId);
+      hdrSet(requestHeaders, "x-parawing-frame-id", state.mainFrameId);
     } else {
-      hdrDelete(requestHeaders, "x-kitesurf-frame-id");
+      hdrDelete(requestHeaders, "x-parawing-frame-id");
     }
     if (state.cookieKey) {
-      hdrSet(requestHeaders, "x-kitesurf-cookie-key", state.cookieKey);
+      hdrSet(requestHeaders, "x-parawing-cookie-key", state.cookieKey);
     } else {
-      hdrDelete(requestHeaders, "x-kitesurf-cookie-key");
+      hdrDelete(requestHeaders, "x-parawing-cookie-key");
     }
     // Only metadata in the private WeakMap may set engine-owned request attribution.
     const trustedMeta = takeTrustedRequestMeta(init);
-    hdrSet(requestHeaders, "x-kitesurf-initiator", trustedMeta?.initiator || "script");
-    hdrSet(requestHeaders, "x-kitesurf-resource-type", trustedMeta?.resourceType || "Fetch");
-    if (!hdrHas(requestHeaders, "x-kitesurf-credentials")) {
+    hdrSet(requestHeaders, "x-parawing-initiator", trustedMeta?.initiator || "script");
+    hdrSet(requestHeaders, "x-parawing-resource-type", trustedMeta?.resourceType || "Fetch");
+    if (!hdrHas(requestHeaders, "x-parawing-credentials")) {
       const requestCredentials = inputRequest ? inputRequest.credentials : undefined;
       const credentialsMode = String(
         initMaybeCoerced?.credentials ?? requestCredentials ?? "same-origin",
       );
       hdrSet(
         requestHeaders,
-        "x-kitesurf-credentials",
+        "x-parawing-credentials",
         credentialsMode === "omit" || credentialsMode === "include"
           ? credentialsMode
           : "same-origin",
       );
     }
     const requestMode = String(initMaybeCoerced?.mode ?? inputRequest?.mode ?? "cors");
-    hdrSet(requestHeaders, "x-kitesurf-mode", requestMode === "no-cors" ? "no-cors" : "cors");
+    hdrSet(requestHeaders, "x-parawing-mode", requestMode === "no-cors" ? "no-cors" : "cors");
     // Only applyCacheMode (session-outbound.ts) may mark the headers a cache mode adds.
-    hdrDelete(requestHeaders, "x-kitesurf-cache-mode");
+    hdrDelete(requestHeaders, "x-parawing-cache-mode");
     // SAFETY: Strip page-supplied referrer carriers before deriving the trusted page referrer.
-    hdrDelete(requestHeaders, "x-kitesurf-referrer");
+    hdrDelete(requestHeaders, "x-parawing-referrer");
     {
       const referrerInput =
         initMaybeCoerced?.referrer ?? (inputRequest ? inputRequest.referrer : undefined);
@@ -928,7 +928,7 @@ export function installFetchShim(): void {
             "",
         ).toLowerCase();
         if (referrerString === "" || requestReferrerPolicy === "no-referrer") {
-          hdrSet(requestHeaders, "x-kitesurf-referrer", "no-referrer");
+          hdrSet(requestHeaders, "x-parawing-referrer", "no-referrer");
         } else if (referrerString !== "about:client") {
           let referrerUrl: URL | null = null;
           try {
@@ -955,7 +955,7 @@ export function installFetchShim(): void {
                 targetCrossOrigin);
             hdrSet(
               requestHeaders,
-              "x-kitesurf-referrer",
+              "x-parawing-referrer",
               originOnly ? referrerUrl.origin + "/" : referrerUrl.href,
             );
           }
@@ -1047,7 +1047,7 @@ export function installFetchShim(): void {
       if (!isRetriableInternalError(error) || !methodOk || !bodiless || aborted) throw error;
       response = await realFetch(resolved, mergedInit);
     }
-    const blockedReason = responseHeaderGet(response, "x-kitesurf-blocked");
+    const blockedReason = responseHeaderGet(response, "x-parawing-blocked");
     if (responseStatus(response) === 403 && blockedReason) {
       // See followRedirects: CORS rejects before the body is read, and no page-visible
       // console callback receives the diagnostic.
@@ -1134,7 +1134,7 @@ export function installFetchShim(): void {
     init?: Parameters<typeof globalThis.fetch>[1],
   ): Promise<Response> {
     try {
-      return await kitesurfFetchImpl(input, init);
+      return await parawingFetchImpl(input, init);
     } catch (error) {
       if (error instanceof TypeError) throw error;
       const aborted =
@@ -1145,7 +1145,7 @@ export function installFetchShim(): void {
       if (aborted || (error as any)?.name === "AbortError") throw error;
       if (isDisallowedError(error)) throw error;
       try {
-        console.error("[kitesurf] fetch network error:", error);
+        console.error("[parawing] fetch network error:", error);
       } catch {}
       throw new TypeError("Failed to fetch");
     }

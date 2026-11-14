@@ -6,10 +6,10 @@
 // Work in `resourceInflight` holds back load settlement until the drain in `index.ts` sees quiet.
 
 import {
-  KITESURF_CORS_VERDICT_HEADER,
-  KITESURF_NOSNIFF_HEADER,
+  PARAWING_CORS_VERDICT_HEADER,
+  PARAWING_NOSNIFF_HEADER,
   responseIsOpaque,
-} from "@kitesurf/script-gate/gateway-headers";
+} from "@parawing/script-gate/gateway-headers";
 import { __setBridgeFetchResource, DomHandle } from "./wasm-glue.js";
 import {
   CLASS_IMAGE_VIEWPORT,
@@ -294,7 +294,7 @@ function cacheStylesheet(url: string, bytes: Uint8Array): void {
 
 function warnFontDelivery(id: number, ok: boolean, url: string): void {
   try {
-    console.warn(`[ks-fonts] deliver id=${id} ok=${ok}: ${url}`);
+    console.warn(`[pw-fonts] deliver id=${id} ok=${ok}: ${url}`);
   } catch {}
 }
 
@@ -551,11 +551,11 @@ type FetchResult =
 
 type OpaqueImage = { key: string; w: number; h: number };
 
-const RESOURCE_KEY_HEADER = "x-kitesurf-resource-key";
-const IMAGE_WIDTH_HEADER = "x-kitesurf-image-width";
-const IMAGE_HEIGHT_HEADER = "x-kitesurf-image-height";
+const RESOURCE_KEY_HEADER = "x-parawing-resource-key";
+const IMAGE_WIDTH_HEADER = "x-parawing-image-width";
+const IMAGE_HEIGHT_HEADER = "x-parawing-image-height";
 
-const FONT_KEY_HEADER = "x-kitesurf-font-key";
+const FONT_KEY_HEADER = "x-parawing-font-key";
 
 function readFontKey(response: Response): string {
   const key = responseHeaderGet(response, FONT_KEY_HEADER) ?? "";
@@ -591,19 +591,19 @@ async function doRealFetch(url: string, kind: string, corsMode: string = ""): Pr
   };
   try {
     const headers: Record<string, string> = {
-      "x-kitesurf-allow-cross-origin": "1",
+      "x-parawing-allow-cross-origin": "1",
     };
     if (kind === "Stylesheet" && corsMode) {
-      headers["x-kitesurf-stylesheet-cors"] = corsMode;
+      headers["x-parawing-stylesheet-cors"] = corsMode;
     }
     if (state.connectionId) {
-      headers["x-kitesurf-connection-id"] = state.connectionId;
+      headers["x-parawing-connection-id"] = state.connectionId;
     }
     if (state.mainFrameId) {
-      headers["x-kitesurf-frame-id"] = state.mainFrameId;
+      headers["x-parawing-frame-id"] = state.mainFrameId;
     }
     if (state.cookieKey) {
-      headers["x-kitesurf-cookie-key"] = state.cookieKey;
+      headers["x-parawing-cookie-key"] = state.cookieKey;
     }
     const response = await trustedFetch(
       url,
@@ -618,7 +618,7 @@ async function doRealFetch(url: string, kind: string, corsMode: string = ""): Pr
       return { ok: false };
     }
     const cors =
-      responseHeaderGet(response, "x-kitesurf-cors") === "clean"
+      responseHeaderGet(response, "x-parawing-cors") === "clean"
         ? ("clean" as const)
         : ("opaque" as const);
     const bytes = new NativeUint8Array(await responseArrayBuffer(response));
@@ -632,7 +632,7 @@ async function doRealFetch(url: string, kind: string, corsMode: string = ""): Pr
     if (fetchMs > fetchPhaseStats.maxFetchMs) fetchPhaseStats.maxFetchMs = fetchMs;
     if (fetchMs > SLOW_FETCH_WARNING_MS) {
       console.warn(
-        `[ks-fetch] slow fetch: ${fetchMs}ms (headers=${headersMs}ms slot=${slotMs}ms) kind=${kind} url=${url}`,
+        `[pw-fetch] slow fetch: ${fetchMs}ms (headers=${headersMs}ms slot=${slotMs}ms) kind=${kind} url=${url}`,
       );
     }
     return {
@@ -675,26 +675,26 @@ export async function fetchInsertedScript(
   try {
     const corsMode = crossOrigin == null ? "no-cors" : "cors";
     const headers: Record<string, string> = {
-      "x-kitesurf-allow-cross-origin": "1",
-      "x-kitesurf-script-cors": corsMode,
+      "x-parawing-allow-cross-origin": "1",
+      "x-parawing-script-cors": corsMode,
       accept: "*/*",
       // A classic script without crossorigin sends cookies, as every browser fetch does; the page
       // fetch shim would otherwise default the carrier to same-origin. A CORS script uses
       // same-origin unless its crossorigin attribute asks for use-credentials (case-insensitive).
       ...(crossOrigin == null
-        ? { "x-kitesurf-credentials": "include" }
+        ? { "x-parawing-credentials": "include" }
         : {
-            "x-kitesurf-credentials":
+            "x-parawing-credentials":
               crossOrigin.toLowerCase() === "use-credentials" ? "include" : "same-origin",
           }),
     };
     // The engine's opaque bypass requires this marker for no-cors scripts.
-    if (corsMode === "no-cors") headers["x-kitesurf-allow-cross-origin"] = "1";
+    if (corsMode === "no-cors") headers["x-parawing-allow-cross-origin"] = "1";
     if (state.connectionId) {
-      headers["x-kitesurf-connection-id"] = state.connectionId;
+      headers["x-parawing-connection-id"] = state.connectionId;
     }
-    if (state.mainFrameId) headers["x-kitesurf-frame-id"] = state.mainFrameId;
-    if (state.cookieKey) headers["x-kitesurf-cookie-key"] = state.cookieKey;
+    if (state.mainFrameId) headers["x-parawing-frame-id"] = state.mainFrameId;
+    if (state.cookieKey) headers["x-parawing-cookie-key"] = state.cookieKey;
     const response = await trustedFetch(
       url,
       { headers },
@@ -721,8 +721,8 @@ export async function fetchInsertedScript(
       source: new TextDecoder("utf-8").decode(bytes),
       bytes,
       contentType: response.headers.get("content-type"),
-      nosniff: response.headers.get(KITESURF_NOSNIFF_HEADER),
-      opaque: responseIsOpaque(response.headers.get(KITESURF_CORS_VERDICT_HEADER)),
+      nosniff: response.headers.get(PARAWING_NOSNIFF_HEADER),
+      opaque: responseIsOpaque(response.headers.get(PARAWING_CORS_VERDICT_HEADER)),
       finalUrl: response.url || url,
     };
   } catch {
@@ -747,7 +747,7 @@ function releaseParkedFontFetches(): void {
   const parked = parkedFonts.splice(0, parkedFonts.length);
   for (const parkedFont of parked) {
     try {
-      console.warn(`[ks-fonts] @font-face unparked: ${parkedFont.url}`);
+      console.warn(`[pw-fonts] @font-face unparked: ${parkedFont.url}`);
     } catch {}
     void fetchResource(parkedFont.id, parkedFont.url, "Font", parkedFont.corsMode);
   }
@@ -763,7 +763,7 @@ export async function fetchResource(
   if (kind === "Font" && fontDeferActive() && !fontDemandFired()) {
     parkedFonts.push({ id, url, corsMode });
     try {
-      console.warn(`[ks-fonts] @font-face parked: ${url}`);
+      console.warn(`[pw-fonts] @font-face parked: ${url}`);
     } catch {}
     return;
   }
@@ -785,7 +785,7 @@ export async function fetchResource(
   if (kind === "Font") {
     addFontInflight(url);
     try {
-      console.warn(`[ks-fonts] @font-face fetch: ${url}`);
+      console.warn(`[pw-fonts] @font-face fetch: ${url}`);
     } catch {}
   }
 
@@ -854,7 +854,7 @@ export async function fetchResource(
     if (!result.ok) {
       if (kind === "Font") {
         try {
-          console.warn(`[ks-fonts] @font-face fetch FAILED: ${url}`);
+          console.warn(`[pw-fonts] @font-face fetch FAILED: ${url}`);
         } catch {}
       }
       reportError();
@@ -863,7 +863,7 @@ export async function fetchResource(
     const bytes = result.bytes;
     if (kind === "Font") {
       try {
-        console.warn(`[ks-fonts] @font-face fetched ${bytes.length} bytes: ${url}`);
+        console.warn(`[pw-fonts] @font-face fetched ${bytes.length} bytes: ${url}`);
       } catch {}
     }
 

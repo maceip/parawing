@@ -4,9 +4,10 @@
 
 // Publishes and retires PageScript generations while releasing worker leases.
 
-import type { ConsoleEntry } from "@kitesurf/jsrpc-types/shared";
+import type { ConsoleEntry } from "@parawing/jsrpc-types/shared";
 import type { PageScriptStub } from "../eval/page-script.ts";
 import type { DynamicWorkerBudget, DynamicWorkerKind, WorkerLease } from "../eval/worker-budget.ts";
+import type { TaskCapability } from "../host-capabilities.ts";
 
 export interface StubHolder {
   pageScript: PageScriptStub | null;
@@ -24,11 +25,15 @@ export type RetireIntent =
 export interface UnloadHarvest {
   console: ConsoleEntry[];
   cookieWrites: string[];
+  webStorage?: {
+    localStorage: Record<string, string>;
+    sessionStorage: Record<string, string>;
+  };
 }
 
 export interface GenerationDeps {
   budget?: DynamicWorkerBudget;
-  waitUntil?: (promise: Promise<unknown>) => void;
+  tasks?: TaskCapability;
   awaitTeardown?: boolean;
 }
 
@@ -46,7 +51,7 @@ export async function disposeStub(
       stub.close?.(opts.reason);
     } catch (err) {
       console.warn(
-        `kitesurf: PageScript.close() failed (${opts.reason}):`,
+        `parawing: PageScript.close() failed (${opts.reason}):`,
         err instanceof Error ? err.message : String(err),
       );
     }
@@ -67,7 +72,7 @@ export async function disposeStub(
         }
       };
       const killing = kill();
-      if (killing) deps.waitUntil?.(killing);
+      if (killing) deps.tasks?.run(killing);
       return killing;
     }
     return null;
@@ -93,10 +98,11 @@ export async function disposeStub(
     harvest = {
       console: Array.isArray(result?.console) ? result.console : [],
       cookieWrites: Array.isArray(result?.cookieWrites) ? result.cookieWrites : [],
+      ...(result?.webStorage ? { webStorage: result.webStorage } : {}),
     };
   } catch (err) {
     console.warn(
-      `kitesurf: PageScript.unload() failed (${opts.reason}, continuing):`,
+      `parawing: PageScript.unload() failed (${opts.reason}, continuing):`,
       err instanceof Error ? err.message : String(err),
     );
   }
@@ -135,6 +141,9 @@ export async function retireStub(
     return null;
   }
 
+  holder.pageScript = null;
+  if (intent !== "navigate") holder.blankReady = null;
+  releaseLease(holder);
   let harvest: UnloadHarvest | null = null;
   if (stub) {
     harvest = await disposeStub(
@@ -147,9 +156,6 @@ export async function retireStub(
       deps,
     );
   }
-  holder.pageScript = null;
-  if (intent !== "navigate") holder.blankReady = null;
-  releaseLease(holder);
   return harvest;
 }
 

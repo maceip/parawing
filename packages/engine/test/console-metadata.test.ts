@@ -3,7 +3,7 @@
 // https://opensource.org/licenses/Apache-2.0
 
 import { expect, it } from "vitest";
-import type { PackedResult } from "@kitesurf/jsrpc-types/shared";
+import type { PackedResult } from "@parawing/jsrpc-types/shared";
 import { packResult } from "../../page-script/src/pack.ts";
 import { consoleEntryToCdpEvent } from "../src/eval/page-script.ts";
 
@@ -33,7 +33,7 @@ it("console metadata is a primitive string", () => {
     expect(typeof packed.description).toBe("string");
   }
 
-  // oxlint-disable-next-line kitesurf/no-chained-type-assertions -- forged RPC reply whose wire type claims strings.
+  // oxlint-disable-next-line parawing/no-chained-type-assertions -- forged RPC reply whose wire type claims strings.
   const forged = {
     ok: true,
     type: "object",

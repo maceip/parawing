@@ -2,7 +2,7 @@
 // Licensed under the Apache 2.0 license found in the LICENSE file or at:
 // https://opensource.org/licenses/Apache-2.0
 
-// Kitesurf.getPageState, setControlValue and the paint-damage pair, driven over CDP.
+// Parawing.getPageState, setControlValue and the paint-damage pair, driven over CDP.
 
 import type { CDPSession } from "@cloudflare/puppeteer";
 import { expect, test } from "./harness";
@@ -20,7 +20,7 @@ test("getPageState reports the URL, title and a mutation counter that moves", as
   await setContent(page, "<title>State</title><p id=p>a</p>");
   const session = await page.createCDPSession();
   const targetId = await targetIdForSession(session);
-  const before = await session.send("Kitesurf.getPageState", { targetId });
+  const before = await session.send("Parawing.getPageState", { targetId });
   expect(before.error).toBeUndefined();
   expect(before.title).toBe("State");
   expect(before.href).toMatch(/^data:text\/html/);
@@ -28,7 +28,7 @@ test("getPageState reports the URL, title and a mutation counter that moves", as
   await page.evaluate(() => {
     document.getElementById("p")?.append("b");
   });
-  const after = await session.send("Kitesurf.getPageState", { targetId });
+  const after = await session.send("Parawing.getPageState", { targetId });
   expect(typeof before.seq).toBe("number");
   expect(after.seq).toBeGreaterThan(before.seq ?? Infinity);
   await session.detach().catch(() => {});
@@ -54,7 +54,7 @@ test("setControlValue writes like a user and refuses controls a user can't set",
   const targetId = await targetIdForSession(session);
   const set = (selector: string, value: unknown) =>
     nodeIdOf(session, selector).then((nodeId) =>
-      session.send("Kitesurf.setControlValue", { targetId, nodeId, value }),
+      session.send("Parawing.setControlValue", { targetId, nodeId, value }),
     );
 
   expect(await set("#t", "hello")).toEqual({ changed: true, value: "hello" });
@@ -71,7 +71,7 @@ test("setControlValue writes like a user and refuses controls a user can't set",
   expect(await set("#s", "c")).toMatchObject({ changed: false, error: "no such option" });
   expect(await set("p, body", "x")).toMatchObject({ changed: false });
   expect(
-    await session.send("Kitesurf.setControlValue", { targetId, nodeId: -1, value: "x" }),
+    await session.send("Parawing.setControlValue", { targetId, nodeId: -1, value: "x" }),
   ).toEqual({ changed: false, error: "bad nodeId" });
   await session.detach().catch(() => {});
 });
@@ -85,21 +85,21 @@ test("getPaintDamageSince reports nodes repainted after markPaintDamage", async 
   const session = await page.createCDPSession();
   const targetId = await targetIdForSession(session);
   await page.screenshot();
-  expect(await session.send("Kitesurf.markPaintDamage", { targetId })).toEqual({});
+  expect(await session.send("Parawing.markPaintDamage", { targetId })).toEqual({});
   await page.evaluate(() => document.getElementById("box")?.classList.add("on"));
   await page.screenshot();
   const box = await nodeIdOf(session, "#box");
   const still = await nodeIdOf(session, "#still");
-  const damage = await session.send("Kitesurf.getPaintDamageSince", { targetId });
+  const damage = await session.send("Parawing.getPaintDamageSince", { targetId });
   expect(damage.error).toBeUndefined();
   expect(damage.nodeIds).toContain(box);
   expect(damage.nodeIds).not.toContain(still);
 
   // Excluding the node a client acted on drops it and its ancestors from the next report.
-  await session.send("Kitesurf.markPaintDamage", { targetId });
+  await session.send("Parawing.markPaintDamage", { targetId });
   await page.evaluate(() => document.getElementById("box")?.classList.remove("on"));
   await page.screenshot();
-  const excluded = await session.send("Kitesurf.getPaintDamageSince", {
+  const excluded = await session.send("Parawing.getPaintDamageSince", {
     targetId,
     excludeNodeId: box,
   });

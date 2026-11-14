@@ -4,8 +4,8 @@
 
 // Holds per-document shim state and forward declarations used to wire module dependencies.
 
-import type { DomHandle as WasmDomHandle } from "../../core/pkg/kitesurf_core";
-import type { RawCdpMutation } from "@kitesurf/jsrpc-types/shared";
+import type { DomHandle as WasmDomHandle } from "../../core/pkg/parawing_core";
+import type { RawCdpMutation } from "@parawing/jsrpc-types/shared";
 import type { DetachedDocument, DocumentImpl } from "./document.js";
 import type { ShimWindow } from "./window.js";
 import type {
@@ -152,6 +152,12 @@ export interface BuildDocumentOpts {
   setScrollOffset?: (x: number, y: number) => { x: number; y: number } | null;
   setWheelScrollOffset?: (x: number, y: number) => { x: number; y: number } | null;
   armTransitionDrain?: (animationListeners?: boolean) => void;
+  onListenerMutation?: (
+    targetNodeId: number,
+    type: string,
+    passive: boolean,
+    added: boolean,
+  ) => void;
   characterSet?: string;
   encodingName?: (label: string) => string | undefined;
   percentEncodeAfterEncoding?: (
@@ -196,6 +202,16 @@ export let getComputedStyleForAuthId:
     }> | null)
   | null = null;
 export let armTransitionDrain: ((animationListeners?: boolean) => void) | null = null;
+export type ListenerMutationHook = (
+  targetNodeId: number,
+  type: string,
+  passive: boolean,
+  added: boolean,
+) => void;
+export let onListenerMutation: ListenerMutationHook | null = null;
+export function setOnListenerMutation(fn: ListenerMutationHook | null): void {
+  onListenerMutation = fn;
+}
 export let getInlinePropertyValue: ((cssText: string, property: string) => string) | null = null;
 export let parseCounterStyleRule: ((css: string, field: string, value: string) => unknown) | null =
   null;
@@ -607,6 +623,8 @@ export function initState(d: DomHandle, url: string, cookies: string, o?: BuildD
       : null;
   armTransitionDrain =
     o && typeof o.armTransitionDrain === "function" ? o.armTransitionDrain : null;
+  onListenerMutation =
+    o && typeof o.onListenerMutation === "function" ? o.onListenerMutation : null;
   getInlinePropertyValue =
     o && typeof o.getInlinePropertyValue === "function" ? o.getInlinePropertyValue : null;
   parseCounterStyleRule =

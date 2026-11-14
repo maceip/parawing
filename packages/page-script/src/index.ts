@@ -18,7 +18,10 @@ import type {
   EvalResult,
   FrameBitmapParams,
   FrameBitmapReply,
+  HandlerRegionInfo,
   IframeContentParams,
+  JournalInputCapture,
+  JournalInputField,
   KeyDispatchReply,
   KeyEventInit,
   LoadCompletion,
@@ -37,7 +40,7 @@ import type {
   RunScriptReply,
   WireMeta,
   UnloadReply,
-} from "@kitesurf/jsrpc-types/page-script";
+} from "@parawing/jsrpc-types/page-script";
 import {
   SANDBOX_ALLOW_ALL,
   committedOriginOfUrl,
@@ -45,17 +48,18 @@ import {
   intersectSandbox,
   parseSandboxAttribute,
   type SandboxRestrictions,
-} from "@kitesurf/script-gate";
-import type { CommittedOrigin } from "@kitesurf/jsrpc-types/frame-origin";
-import type { RenderPort as RenderPortContract } from "@kitesurf/jsrpc-types/page-renderer";
-import type { WorkerEventParams } from "@kitesurf/jsrpc-types/dedicated-worker";
+} from "@parawing/script-gate";
+import type { CommittedOrigin } from "@parawing/jsrpc-types/frame-origin";
+import type { RenderPort as RenderPortContract } from "@parawing/jsrpc-types/page-renderer";
+import type { RpcTargetBranded } from "@parawing/jsrpc-types/rpc";
+import type { WorkerEventParams } from "@parawing/jsrpc-types/dedicated-worker";
 import { deliverWorkerEvent } from "./dedicated-worker.ts";
 import type {
   PendingImageDrain,
   QueryDomArgs,
   QueryDomMethod,
   QueryDomResult,
-} from "@kitesurf/jsrpc-types/query-dom";
+} from "@parawing/jsrpc-types/query-dom";
 
 import {
   importModule,
@@ -86,7 +90,7 @@ import {
   registerUpstreamSender,
   clearUpstreamSender,
 } from "./internal-state.js";
-import { determineReferrer, parseReferrerPolicy } from "@kitesurf/script-gate/referrer-policy";
+import { determineReferrer, parseReferrerPolicy } from "@parawing/script-gate/referrer-policy";
 import { invokeSessionMethod } from "./session-methods.ts";
 import { clearSessionOutbound, setSessionOutbound } from "./session-outbound.ts";
 import {
@@ -128,16 +132,13 @@ import {
 } from "./script-policy.ts";
 
 import {
-  SyncFunction,
   anchorHrefAttribute,
   findAnchorAncestor,
   findAnchorViaSingleChild,
   findFocusableAncestor,
-  packBoaResult,
-  runExpression,
 } from "./eval-helpers.ts";
+import { getExecutionBackend } from "./exec-backend.ts";
 import { installFetchShim, pageOriginFromUrl } from "./fetch-shim.ts";
-import { drainEvalResult, type EvalResultBody } from "./eval-results.ts";
 import {
   drainCdpMutations,
   drainConsole,
@@ -164,20 +165,14 @@ import {
 import { installLagWatchdog } from "./lag-monitor.ts";
 import {
   drainSettleMicrotasks,
+  nativeClearTimeout,
   NativePromise,
   nativeSetTimeout,
   nativeSleep,
   yieldToPageTasks,
 } from "./native-scheduling.ts";
 import { encodeSelectorBytes, splitSelectorList, trimSelector } from "./selectors.ts";
-import {
-  compileScriptEntry,
-  getCompiledScript,
-  lookupHandle,
-  mintHandle,
-  releaseHandle,
-  setIsolateStamp,
-} from "./handles.ts";
+import { lookupHandle, mintHandle, setIsolateStamp } from "./handles.ts";
 import { drainInitShims, installInitShims } from "./init-shims.ts";
 import { deferShimStats, drainDeferParked, installDeferShim } from "./defer-shim.ts";
 import { isNativeUint8Array, nativeApply, responseHeaderGet } from "./native-http.ts";
@@ -243,7 +238,7 @@ setAuthorFontUpgradeHook(async () => {
         return [url, await resolveFontUrlData(url)] as const;
       } catch (e) {
         console.warn(
-          `[kitesurf-fonts] author upgrade fetch ${url.slice(0, MAX_FONT_UPGRADE_ERROR_URL_CHARS)} failed:`,
+          `[parawing-fonts] author upgrade fetch ${url.slice(0, MAX_FONT_UPGRADE_ERROR_URL_CHARS)} failed:`,
           String(e),
         );
         return [url, null] as const;
@@ -256,7 +251,7 @@ setAuthorFontUpgradeHook(async () => {
       upgradeAuthorFontFace(url, bytes);
     } catch (e) {
       console.warn(
-        `[kitesurf-fonts] author upgrade swap ${url.slice(0, MAX_FONT_UPGRADE_ERROR_URL_CHARS)} failed:`,
+        `[parawing-fonts] author upgrade swap ${url.slice(0, MAX_FONT_UPGRADE_ERROR_URL_CHARS)} failed:`,
         String(e),
       );
     }
@@ -267,7 +262,6 @@ ksInternals.demandFontOutlines = (): Promise<void> | null => {
   if (fontLoaderMode() !== "lazy") return null;
   return upgradeToFullFonts();
 };
-import { packException, packResult } from "./pack.ts";
 import {
   dispatchLifecycle,
   extractScripts,
@@ -297,6 +291,11 @@ import { reportEngineError } from "./engine-error.ts";
 import { setTailToken, writeIsolateKillLine } from "./tail-channel.ts";
 import { installWasmTerminatedHandler } from "./wasm-crash.ts";
 import { armTransitionDrain, isAnimating } from "./transitions.ts";
+import {
+  recordListenerMutation,
+  resetHandlerRegions,
+  snapshotHandlerRegions,
+} from "./handler-regions.ts";
 import {
   hasPendingAnimationFrames,
   beginRafDriverTurn,
@@ -342,7 +341,6 @@ import {
   ks_set_emit_hook,
   ks_js_span_enter,
   ks_js_span_exit,
-  ks_call_cdp,
   ks_code_stats,
   ks_swap_alloc_stats,
 } from "./wasm-glue.js";
@@ -363,9 +361,9 @@ import {
 import type { BuildDocumentResult } from "./dom-shim.js";
 import { ksInternals } from "./internals.ts";
 
-import type { IsolateKillMarker } from "@kitesurf/jsrpc-types/shared";
+import type { IsolateKillMarker } from "@parawing/jsrpc-types/shared";
 
-const ISOLATE_KILL_MARKER: IsolateKillMarker = "[ks-kill]";
+const ISOLATE_KILL_MARKER: IsolateKillMarker = "[pw-kill]";
 const nativeSetIframeImage = DomHandle.prototype.setIframeImage;
 const nativeClearIframeImage = DomHandle.prototype.clearIframeImage;
 // Selector text can come from a sheet the page cannot read. Hold the prototype method so a page
@@ -417,7 +415,7 @@ function scrollToFragment(url: string): void {
     }
     if (frag === "top") setScrollOffset(state.scrollX, 0);
   } catch (e) {
-    console.error("[kitesurf] scrollToFragment failed:", e);
+    console.error("[parawing] scrollToFragment failed:", e);
   }
 }
 
@@ -638,7 +636,7 @@ function scrollForKey(key: string, init: KeyScrollInit | undefined): void {
     try {
       if (scrollByWheel(scrollTarget._id, scrollDeltaX, scrollDeltaY)) return;
     } catch (error) {
-      console.warn("[kitesurf-tty] scrollByWheel failed:", String(error));
+      console.warn("[parawing-tty] scrollByWheel failed:", String(error));
     }
   }
   scrollBy(scrollDeltaX, scrollDeltaY);
@@ -862,7 +860,7 @@ function __wireContentWindowPostMessage(contentWindow: any, iframeElement: any) 
       }
     }
     sendUpstreamEvent({
-      event: "kitesurf.postMessage",
+      event: "parawing.postMessage",
       params: {
         toFrameOwnerId: typeof iframeElement?._id === "number" ? iframeElement._id : -1,
         dataJson,
@@ -923,7 +921,7 @@ function locationInputString(value: unknown): string {
 
 function warnIframeFailure(error: unknown, context: Record<string, unknown>): void {
   try {
-    console.warn("[kitesurf-iframe] operation failed", {
+    console.warn("[parawing-iframe] operation failed", {
       ...context,
       error: error instanceof Error ? error.message : String(error),
     });
@@ -1352,7 +1350,7 @@ function handleDynamicIframeInsert(iframeEl: any) {
     id = String(iframeEl.getAttribute?.("id") ?? "");
   } catch {}
   sendUpstreamEvent({
-    event: "kitesurf.frameAttached",
+    event: "parawing.frameAttached",
     params: {
       frameId,
       ownerBackendNodeId,
@@ -1575,7 +1573,7 @@ function fetchDynamicIframeDocument(url: string, post: IframePost | undefined): 
 
 function warnDynamicIframeStatus(response: Response, url: string): void {
   try {
-    console.warn("[kitesurf-iframe] dynamic iframe fetch " + response.status + " for " + url);
+    console.warn("[parawing-iframe] dynamic iframe fetch " + response.status + " for " + url);
   } catch {}
 }
 
@@ -1606,7 +1604,7 @@ async function fetchDynamicIframeBody(
     } catch {}
     try {
       console.warn(
-        "[kitesurf-iframe] dynamic iframe refused by " +
+        "[parawing-iframe] dynamic iframe refused by " +
           (policy.directive ?? policy.reason) +
           " for " +
           finalUrl,
@@ -1674,7 +1672,7 @@ async function loadDynamicIframe(
   } catch (err) {
     try {
       console.warn(
-        "[kitesurf-iframe] dynamic iframe fetch failed for " + url + ":",
+        "[parawing-iframe] dynamic iframe fetch failed for " + url + ":",
         err instanceof Error ? err.message : String(err),
       );
     } catch {}
@@ -1694,7 +1692,7 @@ async function loadDynamicIframe(
     } catch (err) {
       try {
         console.warn(
-          "[kitesurf-iframe] dynamic iframe parse failed for " + url + ":",
+          "[parawing-iframe] dynamic iframe parse failed for " + url + ":",
           err instanceof Error ? err.message : String(err),
         );
       } catch {}
@@ -1732,7 +1730,7 @@ async function loadDynamicIframe(
           throw new TypeError("Failed to set iframe placeholder character set");
         }
       } catch (error) {
-        console.warn("[kitesurf-iframe] failed to set placeholder character set", {
+        console.warn("[parawing-iframe] failed to set placeholder character set", {
           frameId: iframeEl.__ks_iframeFrameId,
           error,
         });
@@ -1768,15 +1766,15 @@ async function loadDynamicIframe(
 function emitFrameLifecycle(frameId: unknown, url: string, sandbox?: string | null): void {
   if (typeof frameId !== "string") return;
   sendUpstreamEvent({
-    event: "kitesurf.frameNavigated",
+    event: "parawing.frameNavigated",
     params: { frameId, url, sandbox: sandbox ?? null },
   });
   sendUpstreamEvent({
-    event: "kitesurf.frameLifecycle",
+    event: "parawing.frameLifecycle",
     params: { frameId, name: "DOMContentLoaded" },
   });
-  sendUpstreamEvent({ event: "kitesurf.frameLifecycle", params: { frameId, name: "load" } });
-  sendUpstreamEvent({ event: "kitesurf.frameStoppedLoading", params: { frameId } });
+  sendUpstreamEvent({ event: "parawing.frameLifecycle", params: { frameId, name: "load" } });
+  sendUpstreamEvent({ event: "parawing.frameStoppedLoading", params: { frameId } });
 }
 
 function dispatchWindowUnload(): void {
@@ -1796,7 +1794,14 @@ function compileEventAttribute(element: any, handlerName: string): void {
     if (!inlineHandlerAllowed(handlerName)) return;
     let eventHandler: Function;
     try {
-      eventHandler = new Function("event", handlerSource);
+      const backend = getExecutionBackend();
+      if (backend.kind === "v8") {
+        eventHandler = backend.evaluateClassic(
+          "(function(event){" + handlerSource + "})",
+        ) as Function;
+      } else {
+        eventHandler = new Function("event", handlerSource);
+      }
     } catch {
       return;
     }
@@ -2700,7 +2705,7 @@ function activateAnchorNavigation(
     const resolved = parseUrlForNode(
       anchor,
       rawHref,
-      state.pageUrl || "https://kitesurf.local/",
+      state.pageUrl || "https://parawing.local/",
     ).toString();
     const isHashOnly =
       resolved.includes("#") && resolved.split("#")[0] === state.pageUrl.split("#")[0];
@@ -2799,7 +2804,7 @@ function submitFormOnEnter(focused: ShimElement): string | null {
     const navUrl = form.__ksRequestSubmit(findDefaultSubmitButton(form));
     return typeof navUrl === "string" && navUrl.length > 0 ? navUrl : null;
   } catch (err) {
-    console.error("[kitesurf] implicit submit failed", err);
+    console.error("[parawing] implicit submit failed", err);
     return null;
   }
 }
@@ -2838,9 +2843,11 @@ function collectFormControlState(
     return false;
   }
   if (!element) return false;
+  if (isSensitiveFormElement(element)) return true;
   const tagName = String(Reflect.get(element, "localName") || "").toLowerCase();
   if (tagName === "input") {
     const inputType = String(readFormControlAttribute(element, "type") || "text").toLowerCase();
+    if (inputType === "password") return true;
     if (inputType === "checkbox" || inputType === "radio") {
       try {
         checked.push([id, !!Reflect.get(element, "checked")]);
@@ -2897,7 +2904,7 @@ function drainPageCustomElementUpgrades(upgrades: (() => void) | null): void {
   try {
     upgrades();
   } catch (error) {
-    console.warn("[kitesurf] custom-element drain threw", error);
+    console.warn("[parawing] custom-element drain threw", error);
   }
 }
 
@@ -2941,7 +2948,7 @@ async function runClassicRegularBucket(
     const run = (mod && mod.default && mod.default.run) || mod.run;
     if (typeof run !== "function") {
       bundleExec.push("classic:no-run-export");
-      console.error("[kitesurf] classic regular bucket: no run() export", Object.keys(mod || {}));
+      console.error("[parawing] classic regular bucket: no run() export", Object.keys(mod || {}));
       return;
     }
     if (startupCdpDebug) {
@@ -2992,7 +2999,7 @@ async function runClassicRegularBucket(
       url: "/__ks_user_classic_regular.js",
       text: "Uncaught",
     });
-    console.error("[kitesurf] classic regular bucket threw: " + detail);
+    console.error("[parawing] classic regular bucket threw: " + detail);
   }
 }
 
@@ -3001,11 +3008,24 @@ async function runClassicRegularBucket(
 const CYCLE_COLLECT_INTERVAL_MS = 2000;
 const CYCLE_COLLECT_COST_FACTOR = 100;
 let cycleCollectorStarted = false;
+let cycleCollectorTimer: ReturnType<typeof setTimeout> | null = null;
+
+function stopCycleCollector(): void {
+  if (cycleCollectorTimer !== null) {
+    try {
+      nativeClearTimeout(cycleCollectorTimer);
+    } catch {}
+    cycleCollectorTimer = null;
+  }
+  cycleCollectorStarted = false;
+}
 
 function startCycleCollector(): void {
   if (cycleCollectorStarted) return;
   cycleCollectorStarted = true;
   const tick = (): void => {
+    cycleCollectorTimer = null;
+    if (sessionClosing) return;
     let costMs = 0;
     try {
       costMs = ks_cycle_collect(true);
@@ -3018,9 +3038,13 @@ function startCycleCollector(): void {
         cycleStats: cycleCollectStatsForLog(),
       });
     }
-    nativeSetTimeout(tick, Math.max(CYCLE_COLLECT_INTERVAL_MS, costMs * CYCLE_COLLECT_COST_FACTOR));
+    if (sessionClosing) return;
+    cycleCollectorTimer = nativeSetTimeout(
+      tick,
+      Math.max(CYCLE_COLLECT_INTERVAL_MS, costMs * CYCLE_COLLECT_COST_FACTOR),
+    );
   };
-  nativeSetTimeout(tick, CYCLE_COLLECT_INTERVAL_MS);
+  cycleCollectorTimer = nativeSetTimeout(tick, CYCLE_COLLECT_INTERVAL_MS);
 }
 
 function cycleCollectStatsForLog(): unknown {
@@ -3033,7 +3057,7 @@ function cycleCollectStatsForLog(): unknown {
 }
 
 export class PageScript extends WorkerEntrypoint implements PageScriptSession {
-  async fetch(_req: Request) {
+  async fetch(_req: Request): Promise<Response> {
     return new Response("PageScript", { status: 404 });
   }
 
@@ -3053,7 +3077,7 @@ export class PageScript extends WorkerEntrypoint implements PageScriptSession {
       const NAVIGATE_HTML_PREVIEW_CHARS = 200;
       try {
         console.log(
-          "[kitesurf-debug] PageScript.navigate() called",
+          "[parawing-debug] PageScript.navigate() called",
           JSON.stringify({
             url: safeUrl,
             htmlLength: safeHtml.length,
@@ -3104,7 +3128,7 @@ export class PageScript extends WorkerEntrypoint implements PageScriptSession {
       if (!isTraced) return;
       try {
         sendUpstreamEvent({
-          event: "kitesurf.diag",
+          event: "parawing.diag",
           params: {
             ev: event,
             op: operation,
@@ -3126,6 +3150,7 @@ export class PageScript extends WorkerEntrypoint implements PageScriptSession {
     emitNavigateDiagnostic("start", "teardown");
 
     dispatchWindowUnload();
+    resetHandlerRegions();
     setModulePreloadPins(navigateOptions?.modulePreloadPins ?? []);
 
     if (state.dom) {
@@ -3139,6 +3164,9 @@ export class PageScript extends WorkerEntrypoint implements PageScriptSession {
     // missing set on a main frame grants every capability.
     state.sandbox = navigateOptions?.sandbox ?? SANDBOX_ALLOW_ALL;
     state.documentOrigin = state.sandbox.sameOrigin ? pageOriginFromUrl(safeUrl) : "";
+    ksInternals.initialWebStorage = state.sandbox.sameOrigin
+      ? navigateOptions?.initialWebStorage
+      : undefined;
     state.ancestorOrigins = navigateOptions?.ancestorOrigins ?? [];
     state.opaqueOriginId = crypto.randomUUID();
     // Every navigation resets the gate's cache, including one to the same URL.
@@ -3205,15 +3233,15 @@ export class PageScript extends WorkerEntrypoint implements PageScriptSession {
           setTtyUaCss(navigateOptions.ttyCss.replace(/\{\{FONT_PX\}\}/g, String(fontPx)));
           setTtyCellGrid(cellWidth, cellHeight);
           console.log(
-            `[kitesurf-tty] sheet installed: cell=${cellWidth}x${cellHeight} ` +
+            `[parawing-tty] sheet installed: cell=${cellWidth}x${cellHeight} ` +
               `advance/em=${ratio.toFixed(4)} font-size=${fontPx.toFixed(3)}px`,
           );
         } else {
           setTtyCellGrid(0, 0);
-          console.warn("[kitesurf-tty] no mono face registered; sheet NOT installed");
+          console.warn("[parawing-tty] no mono face registered; sheet NOT installed");
         }
       } catch (e) {
-        console.warn("[kitesurf-tty] sheet install failed:", String(e));
+        console.warn("[parawing-tty] sheet install failed:", String(e));
       }
     } else if (
       navigateOptions &&
@@ -3226,7 +3254,7 @@ export class PageScript extends WorkerEntrypoint implements PageScriptSession {
 
     const sourceDoctype = sourceDoctypeOf(safeHtml);
     const marker = sourceDoctype
-      ? `__kitesurf_doctype_${Math.random().toString(36).slice(2)}__`
+      ? `__parawing_doctype_${Math.random().toString(36).slice(2)}__`
       : null;
     const parsedHtml =
       sourceDoctype && marker
@@ -3346,7 +3374,7 @@ export class PageScript extends WorkerEntrypoint implements PageScriptSession {
           if (startupCdpDebug) {
             try {
               console.log(
-                "[kitesurf-debug] setCurrentUrl",
+                "[parawing-debug] setCurrentUrl",
                 JSON.stringify({
                   kind,
                   previous,
@@ -3395,7 +3423,7 @@ export class PageScript extends WorkerEntrypoint implements PageScriptSession {
                     ? "historyApi"
                     : "other";
               sendUpstreamEvent({
-                event: "kitesurf.navigatedWithinDocument",
+                event: "parawing.navigatedWithinDocument",
                 params: {
                   url: newUrl,
                   navigationType,
@@ -3476,6 +3504,7 @@ export class PageScript extends WorkerEntrypoint implements PageScriptSession {
             Number(navigateOptions?.ttyCellH) || 0,
           ),
         armTransitionDrain,
+        onListenerMutation: recordListenerMutation,
       }),
     );
     state.document = built.document;
@@ -3506,7 +3535,7 @@ export class PageScript extends WorkerEntrypoint implements PageScriptSession {
       } catch (err) {
         try {
           console.warn(
-            "[kitesurf-iframe] dynamic-insert handler failed:",
+            "[parawing-iframe] dynamic-insert handler failed:",
             err instanceof Error ? err.message : String(err),
           );
         } catch {}
@@ -3516,7 +3545,7 @@ export class PageScript extends WorkerEntrypoint implements PageScriptSession {
       try {
         const frameId = (iframeEl as { __ks_iframeFrameId?: unknown } | null)?.__ks_iframeFrameId;
         if (typeof frameId !== "string" || frameId.length === 0) return;
-        sendUpstreamEvent({ event: "kitesurf.frameDetached", params: { frameId } });
+        sendUpstreamEvent({ event: "parawing.frameDetached", params: { frameId } });
       } catch {}
     };
     getInternalState().afterIframeSrcChange = (iframeEl: unknown) => {
@@ -3525,7 +3554,7 @@ export class PageScript extends WorkerEntrypoint implements PageScriptSession {
       } catch (err) {
         try {
           console.warn(
-            "[kitesurf-iframe] src-change handler failed:",
+            "[parawing-iframe] src-change handler failed:",
             err instanceof Error ? err.message : String(err),
           );
         } catch {}
@@ -3606,7 +3635,7 @@ export class PageScript extends WorkerEntrypoint implements PageScriptSession {
         } catch (err) {
           try {
             console.warn(
-              "[kitesurf] inserted-script eval failed:",
+              "[parawing] inserted-script eval failed:",
               err instanceof Error ? err.message : String(err),
             );
           } catch {}
@@ -3656,7 +3685,8 @@ export class PageScript extends WorkerEntrypoint implements PageScriptSession {
     resetExceptionBuffer();
 
     const useBundle =
-      startupHasClassicRegular || startupHasClassicAsync || startupModuleScriptCount > 0;
+      getExecutionBackend().kind === "boa" &&
+      (startupHasClassicRegular || startupHasClassicAsync || startupModuleScriptCount > 0);
 
     if (startupHasClassicRegular || startupModuleScriptCount > 0) {
       const CSS_CRITICAL_RESOURCE_WAIT_BUDGET_MS = 5000;
@@ -3741,7 +3771,7 @@ export class PageScript extends WorkerEntrypoint implements PageScriptSession {
                 text: "Uncaught",
               });
               console.error(
-                "[kitesurf] user module " + moduleIndex + " (" + moduleUrl + ") threw:",
+                "[parawing] user module " + moduleIndex + " (" + moduleUrl + ") threw:",
                 error,
               );
             },
@@ -3840,7 +3870,7 @@ export class PageScript extends WorkerEntrypoint implements PageScriptSession {
               await run();
             } else {
               console.error(
-                "[kitesurf] classic async bucket: no run() export",
+                "[parawing] classic async bucket: no run() export",
                 Object.keys(mod || {}),
               );
             }
@@ -3850,7 +3880,7 @@ export class PageScript extends WorkerEntrypoint implements PageScriptSession {
               url: "/__ks_user_classic_async.js",
               text: "Uncaught",
             });
-            console.error("[kitesurf] classic async bucket threw:", err);
+            console.error("[parawing] classic async bucket threw:", err);
           }
         }
       } else if (legacyPlan) {
@@ -3891,7 +3921,7 @@ export class PageScript extends WorkerEntrypoint implements PageScriptSession {
           if (iframeGateHeld && !iframeInstallGatePending && !iframeGateExpired) {
             iframeGateExpired = true;
             console.warn(
-              "[kitesurf-iframe] load gate expired after " +
+              "[parawing-iframe] load gate expired after " +
                 IFRAME_INSTALL_WAIT_MS +
                 "ms without an iframeInstallsSettled; `load` was held " +
                 "for the full backstop",
@@ -4012,7 +4042,7 @@ export class PageScript extends WorkerEntrypoint implements PageScriptSession {
         previousSettleState = afterUpgradeState;
       } catch {}
       try {
-        startLateSpriteSweep();
+        startLateSpriteSweep(undefined, undefined, () => sessionClosing);
       } catch {}
       markLoadPhase("postLoadDrainMs");
 
@@ -4064,7 +4094,7 @@ export class PageScript extends WorkerEntrypoint implements PageScriptSession {
       const summary = await loadCompletion;
       return { ...summary, sentAt: Date.now() };
     } catch (err) {
-      console.error("[kitesurf] awaitLoad: loadCompletion rejected:", err);
+      console.error("[parawing] awaitLoad: loadCompletion rejected:", err);
       return {
         console: drainConsole(),
         cookieWrites: state.drainCookieWrites(),
@@ -4078,10 +4108,17 @@ export class PageScript extends WorkerEntrypoint implements PageScriptSession {
   killIsolate(reason?: string): void {
     const why = reason || "generation retired";
     writeIsolateKillLine(ISOLATE_KILL_MARKER, why);
-    abortIsolate(`kitesurf: ${why}`);
+    sessionClosing = true;
+    stopCycleCollector();
+    resolveSessionClosing();
+    nativeSetTimeout(() => {
+      try {
+        abortIsolate(`parawing: ${why}`);
+      } catch {}
+    }, 0);
   }
 
-  makeRenderPort(): RenderPortContract & Rpc.RpcTargetBranded {
+  makeRenderPort(): RenderPortContract & RpcTargetBranded {
     const host = this;
     class RenderPort extends RpcTarget implements RenderPortContract {
       recordScene(args: QueryDomArgs<"recordScene">) {
@@ -4135,6 +4172,7 @@ export class PageScript extends WorkerEntrypoint implements PageScriptSession {
         } catch {}
       }
       sessionClosing = true;
+      stopCycleCollector();
       resolveSessionClosing();
     };
     if (upstream) {
@@ -4185,10 +4223,17 @@ export class PageScript extends WorkerEntrypoint implements PageScriptSession {
     state.getOpLog = () => [];
     state.setReadyState = () => {};
     const cookieWrites = state.drainCookieWrites();
+    const webStorage = ksInternals.snapshotWebStorage?.();
     state.drainCookieWrites = () => [];
     state.setCookieString = () => {};
+    ksInternals.initialWebStorage = undefined;
     installGlobals(null, null, {});
-    return { ok: true, console: drainConsole(), cookieWrites };
+    return {
+      ok: true,
+      console: drainConsole(),
+      cookieWrites,
+      ...(webStorage ? { webStorage } : {}),
+    };
   }
 
   async drainConsole(): Promise<DrainConsoleReply> {
@@ -4213,7 +4258,7 @@ export class PageScript extends WorkerEntrypoint implements PageScriptSession {
       if (!name) continue;
       const bindingCallback = function (payload) {
         if (typeof payload !== "string") return;
-        sendUpstreamEvent({ event: "kitesurf.bindingCalled", params: { name, payload } });
+        sendUpstreamEvent({ event: "parawing.bindingCalled", params: { name, payload } });
       };
       try {
         globalThis[name] = bindingCallback;
@@ -4404,7 +4449,7 @@ export class PageScript extends WorkerEntrypoint implements PageScriptSession {
     } catch (err) {
       try {
         console.warn(
-          "[kitesurf-iframe] parseFromString failed for " + url + ":",
+          "[parawing-iframe] parseFromString failed for " + url + ":",
           err instanceof Error ? err.message : String(err),
         );
       } catch {}
@@ -4458,10 +4503,11 @@ export class PageScript extends WorkerEntrypoint implements PageScriptSession {
   }
 
   async evaluate(expression: string, options: EvalOptions): Promise<EvalResult> {
-    const returnByValue = !!(options && options.returnByValue);
-    const awaitPromise = options === undefined ? true : options.awaitPromise !== false;
-    const expr = typeof expression === "string" ? expression : "undefined";
-    return await runExpression(expr, { returnByValue, awaitPromise });
+    return await getExecutionBackend().evalExpression(expression, {
+      returnByValue: !!(options && options.returnByValue),
+      awaitPromise: options === undefined ? true : options.awaitPromise !== false,
+      objectGroup: options?.objectGroup,
+    });
   }
 
   async compileScript(
@@ -4469,33 +4515,11 @@ export class PageScript extends WorkerEntrypoint implements PageScriptSession {
     sourceURL: string,
     persistScript: boolean,
   ): Promise<CompileScriptReply> {
-    const expr = typeof expression === "string" ? expression : "";
-    const url = typeof sourceURL === "string" ? sourceURL : "";
-    try {
-      // eslint-disable-next-line no-new, no-new-func
-      new Function(expr);
-    } catch (err) {
-      return packException(err);
-    }
-    if (!persistScript) {
-      return { ok: true, scriptId: null };
-    }
-    const scriptId = compileScriptEntry(expr, url);
-    return { ok: true, scriptId };
+    return getExecutionBackend().compileScript(expression, sourceURL, persistScript);
   }
 
   async runScript(scriptId: string, options: EvalOptions): Promise<RunScriptReply> {
-    const returnByValue = !!(options && options.returnByValue);
-    const awaitPromise = options === undefined ? true : options.awaitPromise !== false;
-    const entry = getCompiledScript(scriptId);
-    if (!entry) {
-      return packException(new Error(`No script with id ${scriptId} (was the context evicted?)`));
-    }
-    let expr = entry.source;
-    if (entry.sourceURL) {
-      expr = expr + "\n//# sourceURL=" + entry.sourceURL;
-    }
-    return await runExpression(expr, { returnByValue, awaitPromise });
+    return await getExecutionBackend().runCompiledScript(scriptId, options ?? {});
   }
 
   async callFunctionOn(
@@ -4503,102 +4527,20 @@ export class PageScript extends WorkerEntrypoint implements PageScriptSession {
     argumentSpecs: ArgSpec[],
     options: CallFunctionOnOptions,
   ): Promise<EvalResult> {
-    const returnByValue = !!(options && options.returnByValue);
-    const awaitPromise = options === undefined ? true : options.awaitPromise !== false;
-    const thisObjectId =
-      options && typeof options.thisObjectId === "string" ? options.thisObjectId : null;
-    let result: EvalResultBody;
-    try {
-      const functionSource =
-        typeof functionDeclaration === "string" ? functionDeclaration : "undefined";
-      const factory = new SyncFunction("return (" + functionSource + ");");
-      const pageFunction = factory();
-      if (typeof pageFunction !== "function") {
-        throw new TypeError("functionDeclaration did not evaluate to a function");
-      }
-      const argumentValues = (Array.isArray(argumentSpecs) ? argumentSpecs : []).map((spec) => {
-        if (typeof spec === "string") {
-          try {
-            return JSON.parse(spec);
-          } catch {
-            return undefined;
-          }
-        }
-        if (spec && typeof spec === "object") {
-          if (typeof spec.objectId === "string") {
-            return lookupHandle(spec.objectId);
-          }
-          if (typeof spec.json === "string") {
-            try {
-              return JSON.parse(spec.json);
-            } catch {
-              return undefined;
-            }
-          }
-        }
-        return undefined;
-      });
-      const thisValue =
-        thisObjectId !== null ? (lookupHandle(thisObjectId) ?? globalThis) : globalThis;
-      let value = pageFunction.apply(thisValue, argumentValues);
-      if (awaitPromise && value && typeof value.then === "function") {
-        value = await value;
-      }
-      result = packResult(value, returnByValue);
-    } catch (error) {
-      if (
-        error instanceof Error &&
-        error.name === "EvalError" &&
-        typeof error.message === "string" &&
-        error.message.includes("Code generation from strings disallowed")
-      ) {
-        const functionSource =
-          typeof functionDeclaration === "string" ? functionDeclaration : "undefined";
-        const liveArguments = (Array.isArray(argumentSpecs) ? argumentSpecs : []).map((spec) => {
-          if (typeof spec === "string") {
-            try {
-              return JSON.parse(spec);
-            } catch {
-              return undefined;
-            }
-          }
-          if (spec && typeof spec === "object") {
-            if (typeof spec.objectId === "string") return lookupHandle(spec.objectId);
-            if (typeof spec.json === "string") {
-              try {
-                return JSON.parse(spec.json);
-              } catch {
-                return undefined;
-              }
-            }
-          }
-          return undefined;
-        });
-        const thisValue =
-          thisObjectId !== null ? (lookupHandle(thisObjectId) ?? globalThis) : globalThis;
-        try {
-          const boaResult = await ks_call_cdp(
-            functionSource,
-            thisValue,
-            liveArguments,
-            awaitPromise,
-            returnByValue,
-          );
-          result = packBoaResult(boaResult, returnByValue);
-        } catch (boaError) {
-          result = packException(
-            boaError instanceof Error ? boaError : new Error(String(boaError)),
-          );
-        }
-      } else {
-        result = packException(error);
-      }
-    }
-    return drainEvalResult(result);
+    return await getExecutionBackend().callFunctionOn(
+      functionDeclaration,
+      argumentSpecs,
+      options ?? {},
+    );
   }
 
   async releaseObject(objectId: string): Promise<OkReply> {
-    releaseHandle(objectId);
+    getExecutionBackend().releaseObject(objectId);
+    return { ok: true };
+  }
+
+  async releaseObjectGroup(objectGroup: string): Promise<OkReply> {
+    getExecutionBackend().releaseObjectGroup(objectGroup);
     return { ok: true };
   }
 
@@ -4606,77 +4548,7 @@ export class PageScript extends WorkerEntrypoint implements PageScriptSession {
     objectId: string,
     options: { ownProperties?: boolean },
   ): Promise<{ result: PropertyDescriptor[] }> {
-    const ownOnly = !options || options.ownProperties !== false;
-    const objectValue = lookupHandle(objectId);
-    if (
-      objectValue === null ||
-      (typeof objectValue !== "object" && typeof objectValue !== "function")
-    ) {
-      return { result: [] };
-    }
-    const result: PropertyDescriptor[] = [];
-    const seen = new Set();
-    const collect = (target, isOwn) => {
-      let names;
-      try {
-        names = Object.getOwnPropertyNames(target);
-      } catch {
-        return;
-      }
-      for (const name of names) {
-        if (seen.has(name)) continue;
-        seen.add(name);
-        let descriptor;
-        try {
-          descriptor = Object.getOwnPropertyDescriptor(target, name);
-        } catch {
-          continue;
-        }
-        if (!descriptor) continue;
-        const entry: PropertyDescriptor = {
-          name,
-          configurable: !!descriptor.configurable,
-          enumerable: !!descriptor.enumerable,
-          isOwn,
-        };
-        if ("value" in descriptor) {
-          entry.writable = !!descriptor.writable;
-          try {
-            entry.value = packResult(descriptor.value, false);
-          } catch {}
-        } else {
-          if (typeof descriptor.get === "function") {
-            try {
-              entry.get = packResult(descriptor.get, false);
-            } catch {}
-          }
-          if (typeof descriptor.set === "function") {
-            try {
-              entry.set = packResult(descriptor.set, false);
-            } catch {}
-          }
-        }
-        result.push(entry);
-      }
-    };
-    collect(objectValue, true);
-    if (!ownOnly) {
-      const MAX_PROTOTYPE_DESCRIPTOR_CHAIN_DEPTH = 6;
-      let proto = null;
-      try {
-        proto = Object.getPrototypeOf(objectValue);
-      } catch {}
-      let depth = 0;
-      while (proto && depth++ < MAX_PROTOTYPE_DESCRIPTOR_CHAIN_DEPTH) {
-        collect(proto, false);
-        try {
-          proto = Object.getPrototypeOf(proto);
-        } catch {
-          break;
-        }
-      }
-    }
-    return { result };
+    return getExecutionBackend().getProperties(objectId, options ?? {});
   }
 
   async dispatchMouseEvent(type: string, init: MouseEventInit): Promise<MouseDispatchReply> {
@@ -4995,7 +4867,7 @@ export class PageScript extends WorkerEntrypoint implements PageScriptSession {
           const activationNavigation = buttonActivationNavigation(targetEl);
           if (activationNavigation) navigateTo = activationNavigation;
         } catch (err) {
-          console.error("[kitesurf] button activation failed", err);
+          console.error("[parawing] button activation failed", err);
         }
       }
 
@@ -5005,7 +4877,7 @@ export class PageScript extends WorkerEntrypoint implements PageScriptSession {
         try {
           __ks_activateLabel?.(targetEl, event);
         } catch (err) {
-          console.error("[kitesurf] label activation failed", err);
+          console.error("[parawing] label activation failed", err);
         }
       }
 
@@ -5024,7 +4896,7 @@ export class PageScript extends WorkerEntrypoint implements PageScriptSession {
             toggle(sel);
           }
         } catch (err) {
-          console.error("[kitesurf] select dropdown toggle failed", err);
+          console.error("[parawing] select dropdown toggle failed", err);
         }
       }
 
@@ -5032,7 +4904,7 @@ export class PageScript extends WorkerEntrypoint implements PageScriptSession {
         try {
           toggleDetailsFromSummary(targetEl);
         } catch (err) {
-          console.error("[kitesurf] details toggle failed", err);
+          console.error("[parawing] details toggle failed", err);
         }
       }
 
@@ -5045,7 +4917,7 @@ export class PageScript extends WorkerEntrypoint implements PageScriptSession {
         }
       }
     } catch (err) {
-      console.error("[kitesurf] Input.dispatchMouseEvent failed", err);
+      console.error("[parawing] Input.dispatchMouseEvent failed", err);
     } finally {
       const nav = takePendingSubmitNav();
       if (nav && typeof nav.url === "string") {
@@ -5089,6 +4961,7 @@ export class PageScript extends WorkerEntrypoint implements PageScriptSession {
     let defaultPrevented = false;
     let navigateTo: string | null = null;
     let navigatePost: ReturnType<typeof takePendingSubmitNav> = null;
+    let journalInput: JournalInputCapture | null = null;
     const internalState = getInternalState();
     internalState.dispatchingUserEvent = true;
     internalState.pendingSubmitNav = null;
@@ -5230,19 +5103,27 @@ export class PageScript extends WorkerEntrypoint implements PageScriptSession {
           setValueRawOnControl(focused, newValue);
           notifyControlValueMutation(focused, nextCursor, KeyboardEventConstructor);
         }
+        let submitTriggered = false;
         if (eventType === "keydown" && key === "Enter" && focused.tagName === "INPUT") {
           dispatchEnterChange(focused, KeyboardEventConstructor);
           const implicitNavigation = submitFormOnEnter(focused);
-          if (implicitNavigation) navigateTo = implicitNavigation;
+          if (implicitNavigation) {
+            navigateTo = implicitNavigation;
+            submitTriggered = true;
+          }
+        }
+        if (newValue !== oldValue || submitTriggered) {
+          journalInput = buildJournalInputCapture(focused, newValue, nextCursor, submitTriggered);
         }
       }
     } catch (err) {
-      console.error("[kitesurf] Input.dispatchKeyEvent failed", err);
+      console.error("[parawing] Input.dispatchKeyEvent failed", err);
     } finally {
       const nav = takePendingSubmitNav();
       if (nav && typeof nav.url === "string") {
         if (typeof nav.postData === "string") navigatePost = nav;
         else if (!navigateTo) navigateTo = nav.url;
+        if (journalInput) journalInput.submitTriggered = true;
       }
     }
     return {
@@ -5252,7 +5133,13 @@ export class PageScript extends WorkerEntrypoint implements PageScriptSession {
       defaultPrevented,
       navigateTo,
       navigatePost,
+      journalInput,
     };
+  }
+
+  async getHandlerRegions(): Promise<HandlerRegionInfo[]> {
+    const paint = ensurePaintDom();
+    return paint ? collectHandlerRegions(paint) : [];
   }
 
   queryDom<M extends QueryDomMethod>(method: M, args: QueryDomArgs<M>): Promise<QueryDomResult<M>>;
@@ -5264,6 +5151,12 @@ export class PageScript extends WorkerEntrypoint implements PageScriptSession {
       const parentOrigin = String(args?.parentOrigin ?? "");
       getInternalState().frameContext = { parentOrigin };
       return { ok: true } satisfies QueryDomResult<"setFrameContext">;
+    }
+    if (method === "setCdpDomActive") {
+      try {
+        ksInternals.cdpDomActive = Boolean(args?.active);
+      } catch {}
+      return { ok: true } satisfies QueryDomResult<"setCdpDomActive">;
     }
     requireQueryDomDocument(state);
     const queryArgs = args || {};
@@ -5290,6 +5183,12 @@ export class PageScript extends WorkerEntrypoint implements PageScriptSession {
         return queryDomPumpTasks(queryArgs);
       case "recordScene":
         return queryDomRecordScene(state, queryArgs);
+      case "recordSceneV2":
+        return queryDomRecordSceneV2(state, queryArgs);
+      case "applyScrollDeltaV2":
+        return queryDomApplyScrollDeltaV2(queryArgs);
+      case "restoreEditableField":
+        return queryDomRestoreEditableField(state, queryArgs);
       case "getFontUrlData":
         return queryDomGetFontUrlData(queryArgs);
       case "getPaintResources":
@@ -5316,7 +5215,6 @@ export class PageScript extends WorkerEntrypoint implements PageScriptSession {
       case "pageBoxJson":
       case "setLayoutMode":
       case "getLayoutMode":
-      case "setCdpDomActive":
         return queryDomLayoutSettings(state, method, queryArgs);
       case "layoutMetrics": {
         // One layout walk for both axes; documentScrollSize falls back to
@@ -6109,6 +6007,327 @@ function queryDomRecordSceneResponse(
   } satisfies QueryDomResult<"recordScene">;
 }
 
+function collectHandlerRegions(paint: DomHandle): HandlerRegionInfo[] {
+  const dom = state.dom;
+  if (!dom) return [];
+  const docId = dom.documentNodeId();
+  const rootElId = state.document?.documentElement?._id;
+  return snapshotHandlerRegions({
+    documentNodeId: typeof docId === "number" ? docId : -1,
+    documentElementNodeId: typeof rootElId === "number" ? rootElId : -1,
+    viewportWidth: state.paintViewportW,
+    viewportHeight: state.paintViewportH,
+    getBoundingRect: (nodeId) => {
+      const rect = paint.getBoundingClientRect(nodeId);
+      if (!rect) return null;
+      return {
+        x: Number(rect.x) || 0,
+        y: Number(rect.y) || 0,
+        width: Number(rect.width) || 0,
+        height: Number(rect.height) || 0,
+      };
+    },
+    getScrollInfo: (nodeId) => paint.nodeScrollInfo(nodeId) ?? null,
+    parentNodeId: (nodeId) => {
+      const slot = dom.assignedSlotOf(nodeId);
+      if (slot >= 0) return slot;
+      return dom.parentId(nodeId);
+    },
+  });
+}
+
+function readOptionalAttr(target: unknown, name: string): string | undefined {
+  if (!target || typeof target !== "object") return undefined;
+  const getter = Reflect.get(target, "getAttribute");
+  if (typeof getter !== "function") return undefined;
+  try {
+    const val = getter.call(target, name);
+    return typeof val === "string" && val.length > 0 ? val : undefined;
+  } catch {
+    return undefined;
+  }
+}
+
+function computeElementDomPath(element: ShimElement): string {
+  const parts: string[] = [];
+  let cur: ShimElement | null = element;
+  for (let depth = 0; cur && depth < 16; depth++) {
+    const tag = String(cur.tagName || Reflect.get(cur, "localName") || "el").toLowerCase();
+    const idAttr = readOptionalAttr(cur, "id");
+    if (idAttr) {
+      parts.unshift(`${tag}#${idAttr}`);
+      break;
+    }
+    let idx = 1;
+    let sib = Reflect.get(cur, "previousElementSibling") as ShimElement | null | undefined;
+    while (sib) {
+      const sibTag = String(sib.tagName || Reflect.get(sib, "localName") || "").toLowerCase();
+      if (sibTag === tag) idx += 1;
+      sib = Reflect.get(sib, "previousElementSibling") as ShimElement | null | undefined;
+    }
+    parts.unshift(`${tag}:nth-of-type(${idx})`);
+    if (tag === "body" || tag === "html") break;
+    cur = cur.parentElement ?? null;
+  }
+  return parts.join(">");
+}
+
+const SENSITIVE_FORM_AUTOCOMPLETE_SET = new Set([
+  "current-password",
+  "new-password",
+  "username",
+  "webauthn",
+  "one-time-code",
+]);
+const SENSITIVE_FORM_TYPE_SET = new Set([
+  "password",
+  "hidden",
+  "file",
+  "submit",
+  "button",
+  "image",
+  "reset",
+]);
+const SENSITIVE_FORM_IDENT_RE =
+  /(?:^|[^a-z0-9])(password|passwd|passphrase|passcode|pwd|pin|otp|totp|mfa|2fa|twofactor|two_factor|one_time_code|verification_code|authcode|sms_code|cardnumber|card_number|ccnumber|cc_number|ccnum|cvv|cvc|csc|ccv|iban|creditcard|credit_card|debit_card|card_exp|expiry|exp_date|expdate|pan|credential|secret|token|csrf|xsrf|apikey|api_key|access_key|private_key|bearer|ssn|social_security|auth_key)(?:[^a-z0-9]|$)/i;
+
+function isSensitiveFormElement(el: ShimElement): boolean {
+  const rawType = (
+    readOptionalAttr(el, "type") ?? (typeof el.type === "string" ? el.type : "")
+  ).toLowerCase();
+  if (SENSITIVE_FORM_TYPE_SET.has(rawType)) return true;
+  const acRaw = (readOptionalAttr(el, "autocomplete") ?? "").toLowerCase().trim();
+  if (acRaw) {
+    for (const tok of acRaw.split(/\s+/)) {
+      if (!tok) continue;
+      if (SENSITIVE_FORM_AUTOCOMPLETE_SET.has(tok) || tok.startsWith("cc-")) return true;
+    }
+  }
+  const identJoined = [readOptionalAttr(el, "name") ?? "", readOptionalAttr(el, "id") ?? ""].join(
+    " ",
+  );
+  return SENSITIVE_FORM_IDENT_RE.test(identJoined);
+}
+
+function buildJournalInputCapture(
+  focused: ShimElement,
+  value: string,
+  cursor: number,
+  submitTriggered: boolean,
+): JournalInputCapture {
+  const documentUrl = String(ksGlobal.location?.href ?? "");
+  const form = focused.form ?? null;
+  const tagName = String(focused.tagName || "INPUT").toUpperCase();
+  const rawType =
+    readOptionalAttr(focused, "type") ??
+    (typeof focused.type === "string" ? focused.type : undefined);
+  const field: JournalInputField = {
+    origin: pageOriginFromUrl(documentUrl),
+    documentUrl,
+    formId: readOptionalAttr(form, "id"),
+    formAction: readOptionalAttr(form, "action"),
+    fieldName: readOptionalAttr(focused, "name"),
+    fieldId: readOptionalAttr(focused, "id"),
+    tagName,
+    inputType: rawType || (tagName === "INPUT" ? "text" : "textarea"),
+    autocomplete: readOptionalAttr(focused, "autocomplete"),
+    domPath: computeElementDomPath(focused),
+    nodeId: typeof focused._id === "number" ? focused._id : undefined,
+  };
+  const selStart = typeof focused.selectionStart === "number" ? focused.selectionStart : cursor;
+  const selEnd = typeof focused.selectionEnd === "number" ? focused.selectionEnd : selStart;
+  return {
+    field,
+    value,
+    selectionStart: selStart,
+    selectionEnd: selEnd,
+    submitTriggered,
+  };
+}
+
+function coerceBytesArg(raw: unknown): Uint8Array {
+  if (raw instanceof Uint8Array) return raw;
+  if (raw instanceof ArrayBuffer) return new Uint8Array(raw);
+  if (ArrayBuffer.isView(raw)) {
+    return new Uint8Array(raw.buffer, raw.byteOffset, raw.byteLength);
+  }
+  return new Uint8Array(0);
+}
+
+async function queryDomRecordSceneV2(
+  _pageState: QueryDomActiveState,
+  queryArgs: Record<string, unknown>,
+): Promise<QueryDomResult<"recordSceneV2">> {
+  if (queryArgs.pumpRaf === true) {
+    await pumpPageTasksAsDriver(queryArgs.frameIntervalMs);
+  }
+  const { paint, fresh: isFreshPaint } = takePaintPrep();
+  if (!paint) {
+    return {
+      frame: new Uint8Array(0),
+      seq: getInternalState().mutationSeq | 0,
+      scrollX: state.scrollX,
+      scrollY: state.scrollY,
+      error: "ensurePaintDom returned null",
+    } satisfies QueryDomResult<"recordSceneV2">;
+  }
+  prepareCachedPaint(paint, isFreshPaint, cascadeSeq());
+  const handlerRegions = collectHandlerRegions(paint);
+  const ackedScrollSeq =
+    typeof queryArgs.ackedScrollSeq === "number" ? queryArgs.ackedScrollSeq >>> 0 : 0;
+  const ackedInputSeq =
+    typeof queryArgs.ackedInputSeq === "number" ? queryArgs.ackedInputSeq >>> 0 : 0;
+  const velX =
+    typeof queryArgs.velX === "number" && Number.isFinite(queryArgs.velX) ? queryArgs.velX : 0;
+  const velY =
+    typeof queryArgs.velY === "number" && Number.isFinite(queryArgs.velY) ? queryArgs.velY : 0;
+  const knownHashes = coerceBytesArg(queryArgs.knownHashes);
+  const documentUrl = String(ksGlobal.location?.href ?? "");
+  try {
+    const frame = paint.renderSceneV2WithInterest(
+      ackedScrollSeq,
+      ackedInputSeq,
+      knownHashes,
+      velX,
+      velY,
+      JSON.stringify(handlerRegions),
+    );
+    return {
+      frame,
+      seq: getInternalState().mutationSeq | 0,
+      scrollX: state.scrollX,
+      scrollY: state.scrollY,
+      origin: pageOriginFromUrl(documentUrl),
+      documentUrl,
+      handlerRegions,
+    } satisfies QueryDomResult<"recordSceneV2">;
+  } catch (err) {
+    invalidatePaintDom();
+    return {
+      frame: new Uint8Array(0),
+      seq: getInternalState().mutationSeq | 0,
+      scrollX: state.scrollX,
+      scrollY: state.scrollY,
+      error: errorMessage(err),
+    } satisfies QueryDomResult<"recordSceneV2">;
+  }
+}
+
+function queryDomApplyScrollDeltaV2(
+  queryArgs: Record<string, unknown>,
+): QueryDomResult<"applyScrollDeltaV2"> {
+  const scrollNodeId =
+    typeof queryArgs.scrollNodeId === "number" ? queryArgs.scrollNodeId >>> 0 : 0;
+  const x = typeof queryArgs.x === "number" && Number.isFinite(queryArgs.x) ? queryArgs.x : 0;
+  const y = typeof queryArgs.y === "number" && Number.isFinite(queryArgs.y) ? queryArgs.y : 0;
+  const docId = state.dom?.documentNodeId() ?? 0;
+  if (scrollNodeId === 0 || scrollNodeId === docId) {
+    const next = setScrollOffset(x, y);
+    return {
+      ok: true,
+      scrollNodeId: 0,
+      x: next.x,
+      y: next.y,
+    } satisfies QueryDomResult<"applyScrollDeltaV2">;
+  }
+  const paint = ensurePaintDom();
+  const res = paint?.setNodeScrollOffset?.(scrollNodeId, x, y) ?? null;
+  if (!res) {
+    return { ok: false, scrollNodeId, x, y } satisfies QueryDomResult<"applyScrollDeltaV2">;
+  }
+  try {
+    const internalState = getInternalState();
+    internalState.mutationSeq = (internalState.mutationSeq | 0) + 1;
+    internalState.paintNeutralSeq = (internalState.paintNeutralSeq | 0) + 1;
+  } catch {}
+  return {
+    ok: true,
+    scrollNodeId,
+    x: res.x,
+    y: res.y,
+  } satisfies QueryDomResult<"applyScrollDeltaV2">;
+}
+
+function matchesEditableKeyMetadata(
+  candidate: ShimElement,
+  queryArgs: Record<string, unknown>,
+): boolean {
+  const tag = String(candidate.tagName ?? "").toUpperCase();
+  if (tag !== "INPUT" && tag !== "TEXTAREA") return false;
+  if (isSensitiveFormElement(candidate)) return false;
+  const expectedTag = typeof queryArgs.tagName === "string" ? queryArgs.tagName.toUpperCase() : "";
+  if (expectedTag && tag !== expectedTag) return false;
+  const candType = (
+    readOptionalAttr(candidate, "type") ??
+    (typeof candidate.type === "string" ? candidate.type : tag === "INPUT" ? "text" : "textarea")
+  ).toLowerCase();
+  const expectedType =
+    typeof queryArgs.inputType === "string" ? queryArgs.inputType.toLowerCase() : "";
+  if (expectedType && candType !== expectedType) return false;
+  const form = candidate.form ?? null;
+  const expectedFormId = typeof queryArgs.formId === "string" ? queryArgs.formId : "";
+  if (expectedFormId && readOptionalAttr(form, "id") !== expectedFormId) return false;
+  const expectedFormAction = typeof queryArgs.formAction === "string" ? queryArgs.formAction : "";
+  if (expectedFormAction && readOptionalAttr(form, "action") !== expectedFormAction) return false;
+  return true;
+}
+
+function findEditableRestoreTarget(queryArgs: Record<string, unknown>): ShimElement | null {
+  const expectedOrigin = typeof queryArgs.origin === "string" ? queryArgs.origin : "";
+  if (expectedOrigin) {
+    const rawOrigin = pageOriginFromUrl(String(ksGlobal.location?.href ?? ""));
+    const currentOrigin = rawOrigin || "null";
+    if (currentOrigin !== expectedOrigin) return null;
+  }
+  const controls = state.document?.querySelectorAll
+    ? Array.from(state.document.querySelectorAll("input,textarea"))
+    : [];
+  const fieldId = typeof queryArgs.fieldId === "string" ? queryArgs.fieldId : "";
+  const fieldName = typeof queryArgs.fieldName === "string" ? queryArgs.fieldName : "";
+  const domPath = typeof queryArgs.domPath === "string" ? queryArgs.domPath : "";
+  for (const el of controls) {
+    if (!matchesEditableKeyMetadata(el, queryArgs)) continue;
+    if (fieldId && readOptionalAttr(el, "id") !== fieldId) continue;
+    if (fieldName && readOptionalAttr(el, "name") !== fieldName) continue;
+    if (fieldId || fieldName) return el;
+  }
+  if (domPath) {
+    for (const el of controls) {
+      if (!matchesEditableKeyMetadata(el, queryArgs)) continue;
+      if (computeElementDomPath(el) === domPath) return el;
+    }
+  }
+  if (typeof queryArgs.nodeId === "number") {
+    const byId = state.resolveNodeId(queryArgs.nodeId);
+    if (byId && matchesEditableKeyMetadata(byId, queryArgs)) {
+      const idOk = !fieldId || readOptionalAttr(byId, "id") === fieldId;
+      const nameOk = !fieldName || readOptionalAttr(byId, "name") === fieldName;
+      if (idOk && nameOk) return byId;
+    }
+  }
+  return null;
+}
+
+function queryDomRestoreEditableField(
+  _pageState: QueryDomActiveState,
+  queryArgs: Record<string, unknown>,
+): QueryDomResult<"restoreEditableField"> {
+  const target = findEditableRestoreTarget(queryArgs);
+  if (!target || isSensitiveFormElement(target)) {
+    return { restored: false } satisfies QueryDomResult<"restoreEditableField">;
+  }
+  const nextVal = String(queryArgs.value ?? "");
+  setControlValueAsUser(target, nextVal);
+  const start =
+    typeof queryArgs.selectionStart === "number" ? queryArgs.selectionStart : nextVal.length;
+  const end = typeof queryArgs.selectionEnd === "number" ? queryArgs.selectionEnd : start;
+  target.setSelectionRange?.(start, end);
+  return {
+    restored: true,
+    nodeId: typeof target._id === "number" ? target._id : undefined,
+  } satisfies QueryDomResult<"restoreEditableField">;
+}
+
 async function queryDomGetFontUrlData(
   queryArgs: Record<string, unknown>,
 ): Promise<QueryDomResult<"getFontUrlData">> {
@@ -6529,7 +6748,7 @@ async function queryDomAwaitPendingResources(
   const images = await drainPendingImages(pageState, captureRect, deadline, drainStartedAt);
   if (fontPromises.length > 0) {
     console.log(
-      `[kitesurf-fonts] pre-render font drain settled in ` +
+      `[parawing-fonts] pre-render font drain settled in ` +
         `${fontsMs}ms (emoji=${!!emoji} cjk=${!!cjk} ` +
         `upgrade=${!!upgrade} timedOut=${fontsTimedOut})`,
     );
@@ -6739,7 +6958,7 @@ function reportPendingImageDrainTimeout(options: {
     if (stuck.length >= MAX_STUCK_RESOURCE_URLS_LOGGED) break;
   }
   console.warn(
-    `[ks-images] image drain timed out after ${currentTime - options.drainStartedAt}ms: ` +
+    `[pw-images] image drain timed out after ${currentTime - options.drainStartedAt}ms: ` +
       `pending=${options.pending} inflight=${resourceInflight.size} ` +
       `resolves=${options.resolves} iterations=${options.iterations}` +
       ` iterTimes=[${options.iterTimes.join(",")}]` +
@@ -6760,7 +6979,7 @@ function reportPendingImageDrainTimeout(options: {
 
 type QueryDomLayoutSettingsMethod = Extract<
   QueryDomMethod,
-  "pageBoxJson" | "setLayoutMode" | "getLayoutMode" | "setCdpDomActive"
+  "pageBoxJson" | "setLayoutMode" | "getLayoutMode"
 >;
 
 function queryDomLayoutSettings(
@@ -6809,12 +7028,6 @@ function queryDomLayoutSettings(
       } catch {
         return { mode: "full" } satisfies QueryDomResult<"getLayoutMode">;
       }
-    }
-    case "setCdpDomActive": {
-      try {
-        ksInternals.cdpDomActive = !!(queryArgs && queryArgs.active);
-      } catch {}
-      return { ok: true } satisfies QueryDomResult<"setCdpDomActive">;
     }
   }
 }
@@ -7165,7 +7378,7 @@ function queryDomDiagnostics(
       const dump = ksInternals.memprofDump;
       if (typeof dump !== "function") {
         return {
-          error: "memprof recorder not installed (build with KITESURF_MEMPROF=1)",
+          error: "memprof recorder not installed (build with PARAWING_MEMPROF=1)",
         } satisfies QueryDomResult<"getMemprofDump">;
       }
       try {
@@ -7180,7 +7393,7 @@ function queryDomDiagnostics(
       const reset = ksInternals.memprofReset;
       if (typeof reset !== "function") {
         return {
-          error: "memprof recorder not installed (build with KITESURF_MEMPROF=1)",
+          error: "memprof recorder not installed (build with PARAWING_MEMPROF=1)",
         } satisfies QueryDomResult<"resetMemprof">;
       }
       try {

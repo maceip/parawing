@@ -3,7 +3,7 @@
 // https://opensource.org/licenses/Apache-2.0
 
 import { describe, expect, it } from "vitest";
-import type { ReceivedUpstreamParams, UpstreamEventName } from "@kitesurf/jsrpc-types/page-script";
+import type { ReceivedUpstreamParams, UpstreamEventName } from "@parawing/jsrpc-types/page-script";
 import { makeMainFrameState } from "../src/cdp/frames.ts";
 import { installUpstreamEventHandler } from "../src/cdp/page.ts";
 import type { DispatchCtx } from "../src/cdp/dispatch.ts";
@@ -61,11 +61,11 @@ function installFor(isolateUrl: string) {
   return { store, emitted, target, send, ctx, stub };
 }
 
-describe("kitesurf.insertedScriptRan", () => {
+describe("parawing.insertedScriptRan", () => {
   it("files the script under the isolate's url while a navigate moved target.url", () => {
     const { store, target, send } = installFor("https://first.test/");
     target.url = "https://second.test/";
-    send("kitesurf.insertedScriptRan", { url: "https://cdn.test/a.js", bytes: BIG, run: "boa" });
+    send("parawing.insertedScriptRan", { url: "https://cdn.test/a.js", bytes: BIG, run: "boa" });
     expect(learnedScriptsFor(store, "https://second.test/")).toEqual([]);
     expect(learnedScriptsFor(store, "https://first.test/")).toEqual(["https://cdn.test/a.js"]);
   });
@@ -80,10 +80,10 @@ describe("pageScriptUrl", () => {
   });
 });
 
-describe("kitesurf.navigatedWithinDocument", () => {
+describe("parawing.navigatedWithinDocument", () => {
   const navigate = (isolateUrl: string, url: string, kind = "pushState") => {
     const h = installFor(isolateUrl);
-    h.send("kitesurf.navigatedWithinDocument", {
+    h.send("parawing.navigatedWithinDocument", {
       url,
       kind,
       navigationType: kind === "hash" ? "fragment" : "historyApi",
@@ -124,7 +124,7 @@ describe("kitesurf.navigatedWithinDocument", () => {
 
 describe("frame events while a navigate replaces the document", () => {
   const attach = (h: ReturnType<typeof installFor>, frameId: string) =>
-    h.send("kitesurf.frameAttached", {
+    h.send("parawing.frameAttached", {
       frameId,
       url: "https://child.test/",
       ownerBackendNodeId: 7,
@@ -143,7 +143,7 @@ describe("frame events while a navigate replaces the document", () => {
     h.target.url = "https://next.test/";
     h.target.frames = new Map();
     attach(h, "child");
-    h.send("kitesurf.navigatedWithinDocument", {
+    h.send("parawing.navigatedWithinDocument", {
       url: "https://first.test/pushed",
       kind: "pushState",
       navigationType: "historyApi",
@@ -156,10 +156,10 @@ describe("frame events while a navigate replaces the document", () => {
 });
 
 it.each([
-  ["kitesurf.frameNavigated", { url: "https://attacker.test/" }],
-  ["kitesurf.frameLifecycle", { name: "load" }],
-  ["kitesurf.frameStoppedLoading", {}],
-  ["kitesurf.frameDetached", {}],
+  ["parawing.frameNavigated", { url: "https://attacker.test/" }],
+  ["parawing.frameLifecycle", { name: "load" }],
+  ["parawing.frameStoppedLoading", {}],
+  ["parawing.frameDetached", {}],
 ] as const)("ignores %s naming the main frame", (event, params) => {
   const url = "https://first.test/";
   const h = installFor(url);
@@ -176,9 +176,9 @@ it.each([
     detached: false,
   });
   expect(h.emitted).toEqual([]);
-  h.send("kitesurf.frameAttached", { frameId: "child", url, ownerBackendNodeId: 7 });
+  h.send("parawing.frameAttached", { frameId: "child", url, ownerBackendNodeId: 7 });
   h.emitted.length = 0;
-  h.send("kitesurf.frameNavigated", { frameId: "child", url: "https://first.test/next.html" });
+  h.send("parawing.frameNavigated", { frameId: "child", url: "https://first.test/next.html" });
   expect(h.target.frames.get("child")?.url).toBe("https://first.test/next.html");
   expect(
     h.emitted.some((e) => e.method === "Page.frameNavigated" && e.params.frame.id === "child"),

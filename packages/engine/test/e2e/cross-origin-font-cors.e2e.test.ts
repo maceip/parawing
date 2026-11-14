@@ -65,7 +65,7 @@ test("an ACAO-granted cross-origin face shapes; an ACAO-less one falls back", as
 
 test("the same verdicts hold on a pixel-free CDP session", async ({ browserFactory }) => {
   const browser = await browserFactory({
-    headers: { "x-kitesurf-skip-raster": "1" },
+    headers: { "x-parawing-skip-raster": "1" },
   });
   const page = await browser.newPage();
   await page.setViewport({ width: 600, height: 300 });

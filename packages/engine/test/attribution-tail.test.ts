@@ -9,7 +9,7 @@ import { attributionTails, type AttributionTailProps } from "../src/eval/attribu
 describe("attributionTails", () => {
   const headers = { "x-run": "r1" };
   // Identity-only sentinel; attributionTails never invokes this platform binding.
-  // oxlint-disable-next-line kitesurf/no-chained-type-assertions -- identity-only Fetcher sentinel.
+  // oxlint-disable-next-line parawing/no-chained-type-assertions -- identity-only Fetcher sentinel.
   const tail = { fetch: () => {} } as unknown as Fetcher;
   const seen: AttributionTailProps[] = [];
   const exports = {

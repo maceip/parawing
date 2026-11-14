@@ -347,7 +347,7 @@ function stubOutbound(
   return {
     external: false,
     parent: () => fetcher,
-    loaded: () => fetcher,
+    loadedProps: (props) => ({ ...props }),
     session: () => (request) => fetcher.fetch(request.url),
     final: async () => new Response(null, { status: 404 }),
   };
@@ -497,7 +497,7 @@ describe("walkModuleGraph asset-import stubs", () => {
       ),
     );
     // A registry-renamed module also gets a synthetic import.meta that holds the url as a string.
-    expect(stub.endsWith("/* kitesurf: asset-import side-effect stub */\nexport {};\n")).toBe(true);
+    expect(stub.endsWith("/* parawing: asset-import side-effect stub */\nexport {};\n")).toBe(true);
     expect(stub.split(JSON.stringify(url)).join("")).not.toContain("globalThis.ran");
   });
 });
@@ -572,7 +572,7 @@ describe("walkModuleGraph modulepreload seeds", () => {
       sandboxOutbound: {
         external: false,
         parent: () => fetcher,
-        loaded: () => fetcher,
+        loadedProps: (props) => ({ ...props }),
         session: () => (request) => fetcher.fetch(request.url),
         final: async () => new Response(null, { status: 404 }),
       },
@@ -740,7 +740,7 @@ describe("walkModuleGraph import maps in document order", () => {
     expect(baked).toContain("https://example.com/late.js");
     expect(baked).not.toContain("https://example.com/b.js");
     expect(baked).not.toContain("https://example.com/redirected.js");
-    const later = additionalModules["https://example.com/__kitesurf_inline_1.js"];
+    const later = additionalModules["https://example.com/__parawing_inline_1.js"];
     expect(later).toBe(`import "/a.js"; import "https://example.com/late.js"; import "/early.js";`);
     expect(importMapModuleSource).toContain(`["late","https://example.com/late.js"]`);
     expect(importMapModuleSource).not.toContain("b.js");
@@ -1460,7 +1460,7 @@ describe("import map budgets", () => {
 });
 
 describe("walkModuleGraph import.meta against dynamic import ranges", () => {
-  const SELF = JSON.stringify("https://example.com/__kitesurf_inline_0.js");
+  const SELF = JSON.stringify("https://example.com/__parawing_inline_0.js");
   const RESOLVE = `((specifier) => globalThis.__ks_resolve_import_map(specifier, ${SELF}))`;
   const walk = async (body: string) => {
     const { additionalModules } = await walkModuleGraph({
@@ -1469,7 +1469,7 @@ describe("walkModuleGraph import.meta against dynamic import ranges", () => {
       connectionId: "conn",
       sandboxOutbound: stubOutbound({ "https://example.com/dep.js": "export default 1;" }),
     });
-    return additionalModules["https://example.com/__kitesurf_inline_0.js"];
+    return additionalModules["https://example.com/__parawing_inline_0.js"];
   };
 
   it.each([

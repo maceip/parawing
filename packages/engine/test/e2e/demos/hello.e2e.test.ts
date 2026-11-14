@@ -5,7 +5,7 @@
 import { expect, test } from "../harness";
 
 test("hello", async ({ page }) => {
-  const TARGET = process.env.KITESURF_URL ?? "https://example.com/__fixtures/inline-script.html";
+  const TARGET = process.env.PARAWING_URL ?? "https://example.com/__fixtures/inline-script.html";
 
   await page.goto(TARGET, { timeout: 15000 }).catch((e) => {
     console.log("[hello] goto rejected:", e.message);

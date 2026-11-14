@@ -76,7 +76,7 @@ test("page-renderer-screencast", async ({ page, cdpSession }) => {
 
   await cdpSession.send("Page.stopScreencast");
 
-  const info = await cdpSession.send("Kitesurf.getRendererInfo");
+  const info = await cdpSession.send("Parawing.getRendererInfo");
   console.log(
     `[screencast] frames=${frames.length} rendererFrames=${info.framesRendered} ` +
       `relaunches=${info.relaunchCount} ackFailures=${ackFailures}`,

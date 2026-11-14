@@ -15,7 +15,7 @@ import type { PageScriptStub } from "../src/eval/page-script.ts";
 type Delivered = { origin?: string; dataJson?: string };
 
 function recordingStub(log: Delivered[]): PageScriptStub {
-  // oxlint-disable-next-line kitesurf/no-chained-type-assertions -- only deliverMessage is stubbed.
+  // oxlint-disable-next-line parawing/no-chained-type-assertions -- only deliverMessage is stubbed.
   return {
     deliverMessage: async (m: Delivered) => {
       log.push(m);
@@ -140,7 +140,7 @@ describe("postMessage routing", () => {
     const h = setup("https://main.test/page", "https://child.test/x");
     const toNested: Delivered[] = [];
     addNested(h, toNested);
-    // kitesurf.frameNavigated commits the next url before the old isolate runs its unload handlers.
+    // parawing.frameNavigated commits the next url before the old isolate runs its unload handlers.
     h.child.url = "https://next.test/y";
     routeChildFramePostMessage(
       h.target,

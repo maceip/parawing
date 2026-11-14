@@ -9,7 +9,7 @@ import type {
   ConsoleEntry,
   ConsoleLevel,
   PackedResult,
-} from "@kitesurf/jsrpc-types/shared";
+} from "@parawing/jsrpc-types/shared";
 import { getInternalState } from "./internal-state.js";
 import { packResult } from "./pack.ts";
 import { ksGlobal, state } from "./state.ts";
@@ -37,7 +37,7 @@ export function pushConsole(level: ConsoleLevel, args: ArrayLike<unknown>): void
       __consoleDropped = true;
       __consoleBuffer.push({
         level: "warn",
-        args: [__captureArg("[kitesurf] console buffer full; dropping oldest entries")],
+        args: [__captureArg("[parawing] console buffer full; dropping oldest entries")],
         timestamp: Date.now(),
       });
     }

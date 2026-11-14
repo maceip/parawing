@@ -11,11 +11,8 @@ import {
 } from "../src/cdp/fetch-interception.ts";
 import { NetworkEventTracker } from "../src/cdp/network-events.ts";
 import { registerTracker, unregisterTracker } from "../src/cdp/network-events-registry.ts";
-import {
-  SandboxOutbound,
-  type CallerOutboundProps,
-  type SandboxOutboundEnv,
-} from "../src/eval/outbound.ts";
+import { SandboxOutbound, type CallerOutboundProps } from "../src/eval/outbound.ts";
+import { createMemoryHostCapabilities } from "../src/host-capabilities.ts";
 
 // Every case drives the real gateway; only the host transport is faked.
 const gateway = (
@@ -24,7 +21,7 @@ const gateway = (
   fetch: (request: Request) => Promise<Response>,
 ): Promise<Response> =>
   SandboxOutbound.handle(
-    {} as SandboxOutboundEnv,
+    createMemoryHostCapabilities(),
     { pageOrigin: "https://page.test", externalOutbound: { fetch }, ...props },
     request,
   );
@@ -32,7 +29,7 @@ const gateway = (
 const WRITE_LABELS: [string, Record<string, string>][] = [
   ["Image", {}],
   ["Stylesheet", {}],
-  ["Script", { "x-kitesurf-script-cors": "no-cors" }],
+  ["Script", { "x-parawing-script-cors": "no-cors" }],
 ];
 
 it.each(WRITE_LABELS)("preflights a %s-labelled cross-origin write", async (type, labels) => {
@@ -43,8 +40,8 @@ it.each(WRITE_LABELS)("preflights a %s-labelled cross-origin write", async (type
       method: "PUT",
       body: "{}",
       headers: {
-        "x-kitesurf-resource-type": type,
-        "x-kitesurf-allow-cross-origin": "1",
+        "x-parawing-resource-type": type,
+        "x-parawing-allow-cross-origin": "1",
         "content-type": "application/json",
         ...labels,
       },
@@ -70,7 +67,7 @@ it.each([false, true])("withholds an unusable image's status (captured=%s)", asy
   const response = await gateway(
     { connectionId: capture ? CAPTURE_CONNECTION : undefined },
     new Request("https://other.test/asset", {
-      headers: { "x-kitesurf-resource-type": "Image", "x-kitesurf-allow-cross-origin": "1" },
+      headers: { "x-parawing-resource-type": "Image", "x-parawing-allow-cross-origin": "1" },
     }),
     async () =>
       new Response("<html>not an image</html>", {
@@ -126,10 +123,10 @@ it.each(["same-origin", "same-site"])("admits %s CORP on a same-origin hop", asy
     {},
     new Request("https://page.test/asset", {
       headers: {
-        "x-kitesurf-page-origin": "null",
-        "x-kitesurf-resource-type": "Script",
-        "x-kitesurf-script-cors": "no-cors",
-        "x-kitesurf-allow-cross-origin": "1",
+        "x-parawing-page-origin": "null",
+        "x-parawing-resource-type": "Script",
+        "x-parawing-script-cors": "no-cors",
+        "x-parawing-allow-cross-origin": "1",
       },
     }),
     async () =>
@@ -143,7 +140,7 @@ it.each(["same-origin", "same-site"])("admits %s CORP on a same-origin hop", asy
 
 it.each(["same-origin", "same-site"])("enforces %s CORP on a tainted script", async (policy) => {
   const response = await SandboxOutbound.handle(
-    {} as SandboxOutboundEnv,
+    createMemoryHostCapabilities(),
     {
       pageOrigin: "https://attacker.test",
       externalOutbound: {
@@ -155,18 +152,18 @@ it.each(["same-origin", "same-site"])("enforces %s CORP on a tainted script", as
     },
     new Request("https://victim.test/script.js", {
       headers: {
-        "x-kitesurf-page-origin": "null",
-        "x-kitesurf-resource-type": "Script",
-        "x-kitesurf-script-cors": "no-cors",
-        "x-kitesurf-allow-cross-origin": "1",
+        "x-parawing-page-origin": "null",
+        "x-parawing-resource-type": "Script",
+        "x-parawing-script-cors": "no-cors",
+        "x-parawing-allow-cross-origin": "1",
       },
     }),
   );
   expect(response.status).toBe(403);
-  expect(response.headers.get("x-kitesurf-blocked")).toBe("cors");
+  expect(response.headers.get("x-parawing-blocked")).toBe("cors");
 });
 
-// A page names its requests with x-kitesurf-network-id; interception must pair requestPaused
+// A page names its requests with x-parawing-network-id; interception must pair requestPaused
 // with the Network request the engine started, while a document walk keeps its loader id.
 const INTERCEPTION_CONNECTION = "interception-id";
 
@@ -191,7 +188,7 @@ async function interceptedRequest(
   const settled = gateway(
     props,
     new Request("https://page.test/routed", {
-      headers: { "x-kitesurf-resource-type": "Fetch", ...headers },
+      headers: { "x-parawing-resource-type": "Fetch", ...headers },
     }),
     async () => new Response("reached"),
   ).then(
@@ -211,14 +208,14 @@ async function interceptedRequest(
 it("pairs a page request with its tracked network id, not a forged header", async () => {
   const page = await interceptedRequest(
     { pageRealm: true, connectionId: INTERCEPTION_CONNECTION },
-    { "x-kitesurf-network-id": "forged" },
+    { "x-parawing-network-id": "forged" },
   );
   expect(page.networkId).toBe(page.tracked);
   expect(page.rejected).toBe(true);
   // The engine's own document walk still pairs through its loader id header.
   const doc = await interceptedRequest(
     { interceptConnectionId: INTERCEPTION_CONNECTION },
-    { "x-kitesurf-network-id": "loader-1" },
+    { "x-parawing-network-id": "loader-1" },
   );
   expect(doc.networkId).toBe("loader-1");
 });

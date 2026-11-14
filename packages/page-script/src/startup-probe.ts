@@ -151,18 +151,8 @@ export const startupInputSnapshot = {
     : [],
 };
 
-let dynamicImport: ((spec: string) => Promise<Record<string, unknown>>) | null = null;
-
-try {
-  const AsyncFunctionConstructor = (async () => {}).constructor as new (
-    ...args: string[]
-  ) => (spec: string) => Promise<Record<string, unknown>>;
-  dynamicImport = new AsyncFunctionConstructor("spec", "return await import(spec);");
-} catch {
-  dynamicImport = null;
-}
-
+// Keep dynamic import in static ESM source so --disallow-code-generation-from-strings
+// and module-bundler rewrites work without AsyncFunction codegen.
 export function importModule(spec: string): Promise<Record<string, unknown>> {
-  if (!dynamicImport) throw new TypeError("dynamic import() is unavailable");
-  return dynamicImport(spec);
+  return import(spec) as Promise<Record<string, unknown>>;
 }

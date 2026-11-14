@@ -39,7 +39,7 @@ async function measure(browser: Browser, fixtureUrl: string): Promise<FixtureMet
 
     const session = await page.createCDPSession();
     const targetId = await targetIdForSession(session);
-    const stats = await session.send("Kitesurf.getMemoryStats", { targetId });
+    const stats = await session.send("Parawing.getMemoryStats", { targetId });
     const delta = stats.wasmDeltaBytes;
     if (typeof delta !== "number" || !(delta > 0)) {
       throw new Error(`wasmDeltaBytes: expected a positive number, got ${String(delta)}`);
@@ -62,7 +62,7 @@ test("font modes shape identically; Lazy and PixelFree heaps stay small", async 
   await lazyBrowser.disconnect();
 
   const pixelFreeBrowser = await browserFactory({
-    headers: { "x-kitesurf-skip-raster": "1" },
+    headers: { "x-parawing-skip-raster": "1" },
   });
   const pixelFree = await measure(pixelFreeBrowser, FIXTURE);
   await pixelFreeBrowser.disconnect();

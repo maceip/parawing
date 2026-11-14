@@ -5,7 +5,7 @@
 // Converts page values and exceptions into bounded CDP result records.
 
 import { mintHandle } from "./handles.ts";
-import type { PackedException, PackedResult, PackedResultType } from "@kitesurf/jsrpc-types/shared";
+import type { PackedException, PackedResult, PackedResultType } from "@parawing/jsrpc-types/shared";
 
 export type ClassifyTag =
   | "null"
@@ -28,6 +28,16 @@ export function classify(value: unknown): ClassifyTag {
   return t as ClassifyTag;
 }
 
+function isErrorObject(value: unknown): value is Error {
+  if (value instanceof Error) return true;
+  if (typeof value !== "object" || value === null) return false;
+  try {
+    return Object.prototype.toString.call(value) === "[object Error]";
+  } catch {
+    return false;
+  }
+}
+
 export function safeReplacer(): (_key: string, val: unknown) => unknown {
   const seen = new WeakSet<object>();
   return function (_key, val) {
@@ -39,7 +49,7 @@ export function safeReplacer(): (_key: string, val: unknown) => unknown {
     if (typeof val === "symbol") {
       return { __sym: (val as symbol).description ?? "" };
     }
-    if (val instanceof Error) {
+    if (isErrorObject(val)) {
       return { __err: { name: val.name, message: val.message, stack: val.stack } };
     }
     if (val !== null && typeof val === "object") {
@@ -71,7 +81,7 @@ export function describe(value: unknown): string | undefined {
   }
   if (sub === "object") {
     try {
-      if (value instanceof Error) {
+      if (isErrorObject(value)) {
         const stack = value.stack;
         if (typeof stack === "string" && stack) return stack;
         const name = value.name;
@@ -94,6 +104,7 @@ export function packResult(
   value: unknown,
   returnByValue: boolean,
   nodeBudget?: number,
+  objectGroup?: string,
 ): PackedResult {
   const sub = classify(value);
   let className: string | undefined;
@@ -137,13 +148,13 @@ export function packResult(
   }
   let objectId: string | undefined;
   if (!returnByValue && (sub === "object" || sub === "function" || sub === "array")) {
-    objectId = mintHandle(value);
+    objectId = mintHandle(value, objectGroup);
   }
   const type: PackedResultType = sub === "null" || sub === "array" ? "object" : sub;
   let subtype: "null" | "array" | "error" | undefined;
   if (sub === "null") subtype = "null";
   else if (sub === "array") subtype = "array";
-  else if (sub === "object" && value instanceof Error) subtype = "error";
+  else if (sub === "object" && isErrorObject(value)) subtype = "error";
   return {
     ok: true,
     type,
@@ -159,16 +170,24 @@ export function packResult(
 export function packException(err: unknown): PackedException {
   let message: string;
   let stack: string | undefined;
-  if (err instanceof Error) {
-    message = err.message;
-    stack = err.stack;
+  const errObj = isErrorObject(err);
+  if (errObj) {
+    message = typeof err.message === "string" ? err.message : String(err);
+    stack = typeof err.stack === "string" ? err.stack : undefined;
   } else {
     message = String(err);
   }
   let className = "Error";
-  if (err instanceof Error) {
+  if (errObj) {
     try {
-      const name: unknown = err.constructor?.name;
+      const ctorName: unknown = err.constructor?.name;
+      const errName: unknown = err.name;
+      const name =
+        typeof errName === "string" &&
+        errName &&
+        (ctorName === "Error" || typeof ctorName !== "string")
+          ? errName
+          : ctorName;
       if (typeof name === "string" && name) className = name;
     } catch {}
   }

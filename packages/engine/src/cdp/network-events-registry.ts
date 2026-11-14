@@ -21,5 +21,5 @@ export function getTracker(connectionId: string): NetworkEventTracker | undefine
   return registry.get(connectionId);
 }
 
-export const CONNECTION_ID_HEADER = "x-kitesurf-connection-id";
-export const FRAME_ID_HEADER = "x-kitesurf-frame-id";
+export const CONNECTION_ID_HEADER = "x-parawing-connection-id";
+export const FRAME_ID_HEADER = "x-parawing-frame-id";

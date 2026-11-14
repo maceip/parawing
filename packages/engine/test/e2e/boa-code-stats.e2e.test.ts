@@ -16,7 +16,7 @@ async function boaCode(page: Page) {
   const session = await page.createCDPSession();
   const targetId: unknown = Reflect.get(page.target(), "_targetId");
   if (typeof targetId !== "string") throw new Error("puppeteer target has no _targetId");
-  const stats = await session.send("Kitesurf.getMemoryStats", { targetId });
+  const stats = await session.send("Parawing.getMemoryStats", { targetId });
   await session.detach().catch(() => {});
   if (!stats.bridge) throw new Error("no bridge gauges in getMemoryStats");
   return stats.bridge.boaCode;

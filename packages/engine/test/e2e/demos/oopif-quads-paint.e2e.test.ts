@@ -35,7 +35,7 @@ test("oopif-quads-paint", async ({ page }) => {
 
 test("foreign frame pixels bypass a shadowed DOM method", async ({ page }) => {
   await page.evaluateOnNewDocument(`(() => {
-    const dom = globalThis[Symbol.for("kitesurf.internals")].domDebug;
+    const dom = globalThis[Symbol.for("parawing.internals")].domDebug;
     const real = dom.setIframeImage;
     globalThis.__bitmapCaptured = false;
     dom.setIframeImage = function (...args) {

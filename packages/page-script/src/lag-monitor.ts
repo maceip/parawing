@@ -28,7 +28,7 @@ export function installLagWatchdog(): void {
   let last = Date.now();
   let ticks = 0;
   let maxLag = 0;
-  nativeLog(`[ks-lag] watchdog installed at ${Date.now()}`);
+  nativeLog(`[pw-lag] watchdog installed at ${Date.now()}`);
   setInterval(() => {
     const opsMap = ops;
     if (!opsMap) return;
@@ -43,12 +43,12 @@ export function installLagWatchdog(): void {
         parts.push(n > 1 ? `${tag}x${n}` : tag);
       }
       nativeWarn(
-        `[ks-lag] event loop stalled ~${lag}ms; ops since last tick: ` +
+        `[pw-lag] event loop stalled ~${lag}ms; ops since last tick: ` +
           (parts.join(", ") || "(none recorded)"),
       );
     }
     if (ticks % HEARTBEAT_TICKS === 0) {
-      nativeLog(`[ks-lag] alive ticks=${ticks} clock=${now} maxLagSinceLast=${maxLag}ms`);
+      nativeLog(`[pw-lag] alive ticks=${ticks} clock=${now} maxLagSinceLast=${maxLag}ms`);
       maxLag = 0;
     }
     opsMap.clear();

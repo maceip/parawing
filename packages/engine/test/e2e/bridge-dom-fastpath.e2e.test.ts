@@ -19,7 +19,7 @@ interface FastpathStats {
 async function fastpathStats(page: Page): Promise<FastpathStats> {
   const session = await page.createCDPSession();
   const targetId = await targetIdForSession(session);
-  const stats = await session.send("Kitesurf.getMemoryStats", { targetId });
+  const stats = await session.send("Parawing.getMemoryStats", { targetId });
   await session.detach().catch(() => {});
   const fp = stats.domFastpath;
   if (!fp) throw new Error(`no domFastpath in ${JSON.stringify(stats).slice(0, 200)}`);
@@ -348,7 +348,7 @@ test("fast-path fallbacks still reach the real method after a GC releases the fi
   });
   const collect = async () => {
     const session = await page.createCDPSession();
-    await session.send("Kitesurf.boaForceCollect");
+    await session.send("Parawing.boaForceCollect");
     await session.detach().catch(() => {});
   };
   await collect();

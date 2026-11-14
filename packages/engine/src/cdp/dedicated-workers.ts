@@ -8,8 +8,8 @@ import type {
   WorkerEventParams,
   WorkerNavigatorInfo,
   WorkerUpstreamMessage,
-} from "@kitesurf/jsrpc-types/dedicated-worker";
-import type { ReceivedUpstreamParams, UpstreamEventName } from "@kitesurf/jsrpc-types/page-script";
+} from "@parawing/jsrpc-types/dedicated-worker";
+import type { ReceivedUpstreamParams, UpstreamEventName } from "@parawing/jsrpc-types/page-script";
 import type { DispatchCtx } from "./dispatch.ts";
 import type { TargetState } from "./types.ts";
 import type { PageScriptStub } from "../eval/page-script.ts";
@@ -56,9 +56,9 @@ let nextDocumentSerial = 1;
 
 export function isWorkerUpstreamEvent(event: UpstreamEventName): boolean {
   return (
-    event === "kitesurf.workerCreate" ||
-    event === "kitesurf.workerPostMessage" ||
-    event === "kitesurf.workerTerminate"
+    event === "parawing.workerCreate" ||
+    event === "parawing.workerPostMessage" ||
+    event === "parawing.workerTerminate"
   );
 }
 
@@ -90,6 +90,8 @@ function readNavigator(raw: unknown): WorkerNavigatorInfo {
   };
 }
 
+import type { TaskCapability } from "../host-capabilities.ts";
+
 export class DedicatedWorkers {
   private workers = new Map<string, WorkerEntry>();
   private targetEpochs = new Map<string, number>();
@@ -97,7 +99,7 @@ export class DedicatedWorkers {
 
   constructor(
     private readonly budget: DynamicWorkerBudget,
-    private readonly waitUntil: (promise: Promise<unknown>) => void,
+    private readonly tasks: TaskCapability,
   ) {}
 
   get live(): number {
@@ -135,17 +137,17 @@ export class DedicatedWorkers {
     const workerId = typeof params.workerId === "number" ? params.workerId : -1;
     if (workerId <= 0) return;
     const key = `${owner.target.targetId}|${owner.frameId}|${owner.documentKey}|${workerId}`;
-    if (event === "kitesurf.workerCreate") {
+    if (event === "parawing.workerCreate") {
       this.create(ctx, owner, key, workerId, params);
       return;
     }
     const entry = this.workers.get(key);
     if (!entry || entry.dead) return;
-    if (event === "kitesurf.workerTerminate") {
+    if (event === "parawing.workerTerminate") {
       this.retire(entry, "Worker.terminate()");
       return;
     }
-    if (event === "kitesurf.workerPostMessage") {
+    if (event === "parawing.workerPostMessage") {
       if (!entry.started) {
         entry.pending.push(params.data);
         return;
@@ -222,7 +224,7 @@ export class DedicatedWorkers {
     const lease = this.budget.acquire("worker");
     if (!lease) {
       console.warn(
-        `[kitesurf-worker] connection ${ctx.connectionId}: budget full, ` +
+        `[parawing-worker] connection ${ctx.connectionId}: budget full, ` +
           `new Worker(${url.slice(0, MAX_WORKER_URL_PREVIEW_CHARS)}) fails ` +
           `(${this.budget.describe()})`,
       );
@@ -245,14 +247,14 @@ export class DedicatedWorkers {
       wallTimer: null,
     };
     this.workers.set(key, entry);
-    const caps = pageIsolateCaps(ctx.env, ctx.browser.isolateCapOverrides);
+    const caps = pageIsolateCaps(ctx.host, ctx.browser.isolateCapOverrides);
     if (caps.wallMs > 0) {
       entry.wallTimer = setTimeout(() => {
         entry.wallTimer = null;
         this.kill(
           entry,
           url,
-          `Kitesurf: worker exceeded its wall-clock time limit (${caps.wallMs} ms) and was terminated.`,
+          `Parawing: worker exceeded its wall-clock time limit (${caps.wallMs} ms) and was terminated.`,
         );
       }, caps.wallMs);
     }
@@ -267,7 +269,7 @@ export class DedicatedWorkers {
               ? "wall-clock time limit"
               : "isolate (reclaimed by the platform)";
       const gone = notice.kind !== "wall";
-      this.kill(entry, url, `Kitesurf: worker exceeded its ${what} and was terminated.`, gone);
+      this.kill(entry, url, `Parawing: worker exceeded its ${what} and was terminated.`, gone);
     });
     const cookieKey = cookieKeyFor(ctx.connectionId, target.browserContextId);
     const navigator = readNavigator(params.navigator);
@@ -276,7 +278,7 @@ export class DedicatedWorkers {
       try {
         const { spawnDedicatedWorker } = await import("../eval/dedicated-worker.ts");
         if (entry.dead) return;
-        entry.handle = spawnDedicatedWorker(ctx.env, ctx.ctx, {
+        entry.handle = spawnDedicatedWorker(ctx.host, ctx.isolateLoader, {
           connectionId: ctx.connectionId,
           cookieKey,
           label,
@@ -318,7 +320,7 @@ export class DedicatedWorkers {
         if (entry.dead) return;
         const detail = err instanceof Error ? err.message : String(err);
         console.warn(
-          `[kitesurf-worker] ${label} (connection ${ctx.connectionId}): ` +
+          `[parawing-worker] ${label} (connection ${ctx.connectionId}): ` +
             `spawn failed for ${url.slice(0, MAX_WORKER_URL_PREVIEW_CHARS)}:`,
           err instanceof Error ? (err.stack ?? detail) : detail,
         );
@@ -331,7 +333,7 @@ export class DedicatedWorkers {
     void entry.handle?.deliverMessage(data).catch((err) => {
       if (entry.dead) return;
       const detail = err instanceof Error ? err.message : String(err);
-      this.kill(entry, "", `Kitesurf: the worker stopped unexpectedly (${detail}).`);
+      this.kill(entry, "", `Parawing: the worker stopped unexpectedly (${detail}).`);
     });
   }
 
@@ -359,7 +361,7 @@ export class DedicatedWorkers {
   private toPage(entry: WorkerEntry, params: WorkerEventParams): void {
     void entry.owner.stub.deliverWorkerEvent(params).catch((err: unknown) => {
       console.debug(
-        `[kitesurf-worker] ${entry.label} (connection ${entry.connectionId}): ` +
+        `[parawing-worker] ${entry.label} (connection ${entry.connectionId}): ` +
           `dropped a ${params.type} event for a gone document:`,
         err instanceof Error ? err.message : String(err),
       );
@@ -388,7 +390,7 @@ export class DedicatedWorkers {
       .then(() => stub.deliverWorkerEvent({ workerId, type: "closed" }))
       .catch((err: unknown) => {
         console.debug(
-          `[kitesurf-worker] ${label}: could not report "${reason}" to a gone document:`,
+          `[parawing-worker] ${label}: could not report "${reason}" to a gone document:`,
           err instanceof Error ? err.message : String(err),
         );
       });
@@ -405,6 +407,6 @@ export class DedicatedWorkers {
     entry.lease.release();
     const handle = entry.handle;
     if (!handle) return;
-    this.waitUntil(handle.terminate(reason, { gone }).then(() => this.budget.noteIsolateKilled()));
+    this.tasks.run(handle.terminate(reason, { gone }).then(() => this.budget.noteIsolateKilled()));
   }
 }

@@ -6,7 +6,7 @@ import { expect, test } from "../harness";
 
 test("external-scripts-demo", async ({ page }) => {
   const FIXTURE_URL =
-    process.env.KITESURF_FIXTURE ?? "http://127.0.0.1:8787/__fixtures/external-scripts.html";
+    process.env.PARAWING_FIXTURE ?? "http://127.0.0.1:8787/__fixtures/external-scripts.html";
 
   const messages = [];
 

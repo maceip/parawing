@@ -5,7 +5,7 @@
 import { expect, test } from "../harness";
 
 test("boa-evalless-phase10a", async ({ page }) => {
-  const ORIGIN = process.env.KITESURF_ORIGIN ?? "http://127.0.0.1:8787";
+  const ORIGIN = process.env.PARAWING_ORIGIN ?? "http://127.0.0.1:8787";
 
   const session = await page.target().createCDPSession();
   await session.send("Page.enable");

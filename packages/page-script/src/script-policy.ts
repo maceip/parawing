@@ -15,8 +15,8 @@ import {
   inlineHashAlgorithms,
   type ScriptGateContext,
   type ScriptGateDecision,
-} from "@kitesurf/script-gate";
-import type { NavigateOptions } from "@kitesurf/jsrpc-types/page-script";
+} from "@parawing/script-gate";
+import type { NavigateOptions } from "@parawing/jsrpc-types/page-script";
 import { startupCsp, startupMetaCsp } from "./startup-probe.ts";
 import { state } from "./state.ts";
 

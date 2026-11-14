@@ -24,7 +24,7 @@ const MARKUP = `<script>
   // FileReader: concurrent readers, then two reads on one reader with the
   // WPT EventWatcher discipline (only loadstart/loadend listened for).
   (async () => {
-    const blob = new Blob(["kitesurf"]);
+    const blob = new Blob(["parawing"]);
     const others = ["readAsText", "readAsDataURL", "readAsArrayBuffer", "readAsBinaryString"].map((m) => {
       const r = new FileReader(); r[m](blob); return r;
     });

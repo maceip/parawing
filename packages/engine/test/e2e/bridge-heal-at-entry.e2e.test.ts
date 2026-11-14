@@ -14,7 +14,7 @@ import { targetIdForSession } from "./connect";
 async function healedAtEntry(page: Page): Promise<number> {
   const session = await page.createCDPSession();
   const targetId = await targetIdForSession(session);
-  const stats = await session.send("Kitesurf.getMemoryStats", { targetId });
+  const stats = await session.send("Parawing.getMemoryStats", { targetId });
   await session.detach().catch(() => {});
   if (!stats.bridge) throw new Error("no bridge gauges in getMemoryStats");
   return stats.bridge.healedAtEntry;

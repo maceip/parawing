@@ -4,8 +4,8 @@
 
 // Adds drained console, cookie, exception, and DOM effects to evaluation results.
 
-import type { EvalResult } from "@kitesurf/jsrpc-types/page-script";
-import type { PackedException, PackedResult } from "@kitesurf/jsrpc-types/shared";
+import type { EvalResult } from "@parawing/jsrpc-types/page-script";
+import type { PackedException, PackedResult } from "@parawing/jsrpc-types/shared";
 import { drainCdpMutations, drainConsole } from "./console-buffer.ts";
 import { takeDocumentReopened } from "./internal-state.js";
 import { yieldToPageTasks } from "./native-scheduling.ts";

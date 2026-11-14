@@ -1,5 +1,5 @@
 {
-  "name": "@kitesurf/worker-script",
+  "name": "@parawing/worker-script",
   "version": "0.0.1",
   "private": true,
   "license": "Apache-2.0",
@@ -17,8 +17,8 @@
     "types": "tsc --noEmit && node ../../scripts/ts-strict-ratchet.mjs --project tsconfig.strict.json --only src"
   },
   "dependencies": {
-    "@kitesurf/jsrpc-types": "workspace:*",
-    "@kitesurf/page-script": "workspace:*"
+    "@parawing/jsrpc-types": "workspace:*",
+    "@parawing/page-script": "workspace:*"
   },
   "devDependencies": {
     "esbuild": "^0.27.0",

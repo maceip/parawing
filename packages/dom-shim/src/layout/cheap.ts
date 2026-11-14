@@ -4,7 +4,7 @@
 
 // Provides approximate block-flow geometry when full layout is disabled or unavailable.
 
-import type { KsLayoutRect } from "../../../core/pkg/kitesurf_core";
+import type { KsLayoutRect } from "../../../core/pkg/parawing_core";
 import { dom, getRectByAuthId } from "../state.js";
 import { getInternalState } from "../internal-state.js";
 import {

@@ -17,7 +17,7 @@ export function rateLimited(message: string, retryAfterSeconds = 10): Response {
 
 export function warnLimiterFailure(tier: "account" | "per-ip" | "aggregate", err: unknown): void {
   console.warn(
-    `[kitesurf] ${tier} rate limiter failed (failing open):`,
+    `[parawing] ${tier} rate limiter failed (failing open):`,
     err instanceof Error ? err.message : String(err),
   );
 }

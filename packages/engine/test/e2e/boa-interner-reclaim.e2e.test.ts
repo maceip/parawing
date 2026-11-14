@@ -18,7 +18,7 @@ interface InternerStats {
 async function internerStats(page: Page): Promise<InternerStats> {
   const session = await page.createCDPSession();
   const targetId = await targetIdForSession(session);
-  const stats = await session.send("Kitesurf.getMemoryStats", { targetId });
+  const stats = await session.send("Parawing.getMemoryStats", { targetId });
   await session.detach().catch(() => {});
   const bridge = stats.bridge;
   if (!bridge || typeof bridge.internerLen !== "number") {

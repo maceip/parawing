@@ -9,7 +9,7 @@ npm_link_all_packages(name = "node_modules")
 js_library(
     name = "srcs",
     srcs = ["package.json", "tsconfig.json"] + glob(["src/**"]),
-    deps = [":node_modules/@kitesurf/jsrpc-types"],
+    deps = [":node_modules/@parawing/jsrpc-types"],
 )
 
 js_binary(

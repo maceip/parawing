@@ -5,8 +5,8 @@
 import { expect, test } from "../harness";
 
 test("network-ua-override-demo", async ({ page }) => {
-  const ECHO = process.env.KITESURF_FIXTURE ?? "http://127.0.0.1:8787/__fixtures/echo-headers.html";
-  const UA = "KitesurfOverride/9.9 (e2e test)";
+  const ECHO = process.env.PARAWING_FIXTURE ?? "http://127.0.0.1:8787/__fixtures/echo-headers.html";
+  const UA = "ParawingOverride/9.9 (e2e test)";
 
   await page.setUserAgent(UA);
   await page.goto(ECHO, { timeout: 15000 });
@@ -23,7 +23,7 @@ test("network-ua-override-demo", async ({ page }) => {
   expect(gen1.sub["user-agent"], "subresource fetch UA overridden").toBe(UA);
   expect(gen1.nav, "navigator.userAgent overridden").toBe(UA);
 
-  const ALIAS_UA = "KitesurfEmulationAlias/1.1";
+  const ALIAS_UA = "ParawingEmulationAlias/1.1";
   const session = await page.target().createCDPSession();
   await session.send("Emulation.setUserAgentOverride", { userAgent: ALIAS_UA });
   await page.goto(ECHO, { timeout: 15000 });
@@ -44,5 +44,5 @@ test("network-ua-override-demo", async ({ page }) => {
     typeof gen3.doc["user-agent"] === "string" && gen3.doc["user-agent"].includes("Mozilla/5.0"),
     "doc fetch UA back to default",
   ).toBeTruthy();
-  expect(gen3.nav, "navigator.userAgent back to default").toBe("Kitesurf/0.0.1");
+  expect(gen3.nav, "navigator.userAgent back to default").toBe("Parawing/0.0.1");
 });

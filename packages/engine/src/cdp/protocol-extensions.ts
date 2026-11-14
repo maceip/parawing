@@ -6,8 +6,9 @@ import type { Protocol } from "devtools-protocol";
 import type {
   BoaCollectStats as PageScriptBoaCollectStats,
   FontFaces as PageScriptFontFaces,
+  HandlerRegionInfo,
   PageScriptGauges,
-} from "@kitesurf/jsrpc-types/query-dom";
+} from "@parawing/jsrpc-types/query-dom";
 import "devtools-protocol/types/protocol-mapping";
 
 declare module "devtools-protocol" {
@@ -34,15 +35,19 @@ declare module "devtools-protocol" {
         error?: string;
       }
       interface NavigateRequest {
-        _kitesurfInternal?: boolean;
-        _kitesurfPostData?: string;
-        _kitesurfPostContentType?: string;
-        _kitesurfLoaderId?: string;
+        _parawingInternal?: boolean;
+        _parawingPostData?: string;
+        _parawingPostContentType?: string;
+        _parawingLoaderId?: string;
+        _parawingRequireApproval?: boolean;
+        _parawingApprovalDecision?: unknown;
+        _parawingApprovalNonce?: string;
+        _parawingApprovalTimeoutMs?: number;
         /**
          * Origin of the document that initiated a page-started navigation. Absent for a
          * browser/CDP-started navigation; the literal "null" for an opaque page initiator.
          */
-        _kitesurfInitiatorOrigin?: string;
+        _parawingInitiatorOrigin?: string;
       }
       interface StartScreencastRequest {
         minFrameIntervalMs?: integer;
@@ -51,7 +56,7 @@ declare module "devtools-protocol" {
       }
     }
 
-    namespace Kitesurf {
+    namespace Parawing {
       type LayoutMode = "full" | "off";
 
       interface TargetScopedRequest {
@@ -128,6 +133,11 @@ declare module "devtools-protocol" {
         environment: string;
         buildVersion: string;
         colo: string;
+        persistentSessionId?: string | null;
+        userId?: string | null;
+        epoch?: number | null;
+        connectionRole?: "owner" | "viewer" | null;
+        delegatedAgent?: boolean;
       }
 
       interface SetLayoutModeRequest extends TargetScopedRequest {
@@ -226,7 +236,7 @@ declare module "devtools-protocol" {
       }
 
       interface GetPaintDamageSinceResponse {
-        /** Nodes whose painted output changed since `Kitesurf.markPaintDamage`. */
+        /** Nodes whose painted output changed since `Parawing.markPaintDamage`. */
         nodeIds: DOM.NodeId[];
         /** More nodes changed than the report holds. */
         overflow: boolean;
@@ -343,12 +353,108 @@ declare module "devtools-protocol" {
         connectionId: string;
       }
 
+      interface StartSceneStreamV2Request extends TargetScopedRequest {
+        width?: integer;
+        height?: integer;
+        fps?: integer;
+        initialCredits?: integer;
+        maxCredits?: integer;
+      }
+
+      interface StartSceneStreamV2Response {
+        wsPath?: string;
+        token?: string;
+        ackedScrollSeq?: integer;
+        ackedInputSeq?: integer;
+        journalSize?: integer;
+        error?: string;
+      }
+
+      interface StopSceneStreamV2Response {
+        stats?: {
+          availableCredits: integer;
+          maxCredits: integer;
+          sentReliableFrames: integer;
+          queuedReliableFrames: integer;
+          sentDatagrams: integer;
+          coalescedDatagrams: integer;
+          reattachCount: integer;
+          prunedKnownTilesTotal: integer;
+        } | null;
+        error?: string;
+      }
+
+      interface RecordSceneV2Request extends TargetScopedRequest {
+        knownHashesB64?: string;
+        velX?: number;
+        velY?: number;
+        pumpRaf?: boolean;
+      }
+
+      interface RecordSceneV2Response {
+        frameB64: string;
+        seq: integer;
+        scrollX: number;
+        scrollY: number;
+        origin: string;
+        ackedScrollSeq: integer;
+        ackedInputSeq: integer;
+        handlerRegions: HandlerRegionInfo[];
+        error?: string;
+      }
+
+      interface GetHandlerRegionsResponse {
+        regions: HandlerRegionInfo[];
+        error?: string;
+      }
+
+      interface GetInputJournalStateRequest extends TargetScopedRequest {
+        acknowledgeSeq?: integer;
+        includeEncryptedSnapshot?: boolean;
+        replay?: boolean;
+      }
+
+      interface GetInputJournalStateResponse {
+        size?: integer;
+        encryptedCount?: integer;
+        nextInputSeq?: integer;
+        ackedInputSeq?: integer;
+        lastRejectionReason?: string;
+        replayedCount?: integer;
+        origin?: string;
+        error?: string;
+      }
+
       type PageDiagnosticResponse<T extends { error?: string }> = ByTargetResponse<T> | T;
 
       type FontFaces = PageScriptFontFaces;
       type BoaCollectStats = PageScriptBoaCollectStats;
 
       type OpaqueDiagnostic = Record<string, unknown> & { error?: string };
+
+      interface DestroySessionRequest {
+        sessionId?: string;
+      }
+
+      interface DestroySessionResponse {
+        destroyed: boolean;
+        sessionId: string;
+      }
+
+      interface SessionRestoredEvent {
+        readonly sessionId: string;
+        readonly userId: string;
+        readonly reason: string;
+        readonly checkpointTakenAt: number;
+        readonly targets: ReadonlyArray<{
+          readonly targetId: string;
+          readonly generation: number;
+          readonly url: string;
+          readonly restoreMethod: "GET";
+          readonly pendingUnsafeNavigationUrl: string | null;
+        }>;
+        readonly replayedInputSeqs: ReadonlyArray<number>;
+      }
     }
   }
 }
@@ -356,125 +462,216 @@ declare module "devtools-protocol" {
 declare module "devtools-protocol/types/protocol-mapping" {
   namespace ProtocolMapping {
     interface Events {
-      "Kitesurf.sceneFrame": [Protocol.Kitesurf.SceneFrameEvent];
+      "Parawing.sceneFrame": [Protocol.Parawing.SceneFrameEvent];
+      "Parawing.sessionRestored": [Protocol.Parawing.SessionRestoredEvent];
+      "Parawing.sessionAttached": [Record<string, unknown>];
+      "Parawing.sessionSuspended": [Record<string, unknown>];
+      "Parawing.sessionResumed": [Record<string, unknown>];
+      "Parawing.sessionRoamed": [Record<string, unknown>];
+      "Parawing.sessionDestroyed": [Record<string, unknown>];
+      "Parawing.approvalRequired": [Record<string, unknown>];
     }
 
     interface Commands {
-      "Kitesurf.startSceneStream": {
-        paramsType: [Protocol.Kitesurf.StartSceneStreamRequest];
+      "Parawing.startSceneStream": {
+        paramsType: [Protocol.Parawing.StartSceneStreamRequest];
         returnType: void;
       };
-      "Kitesurf.stopSceneStream": {
-        paramsType: [Protocol.Kitesurf.TargetScopedRequest?];
+      "Parawing.stopSceneStream": {
+        paramsType: [Protocol.Parawing.TargetScopedRequest?];
         returnType: void;
       };
-      "Kitesurf.sceneFrameAck": {
-        paramsType: [Protocol.Kitesurf.SceneFrameAckRequest];
+      "Parawing.sceneFrameAck": {
+        paramsType: [Protocol.Parawing.SceneFrameAckRequest];
         returnType: void;
       };
-      "Kitesurf.getSceneResources": {
-        paramsType: [Protocol.Kitesurf.GetSceneResourcesRequest];
-        returnType: Protocol.Kitesurf.GetSceneResourcesResponse;
+      "Parawing.getSceneResources": {
+        paramsType: [Protocol.Parawing.GetSceneResourcesRequest];
+        returnType: Protocol.Parawing.GetSceneResourcesResponse;
       };
-      "Kitesurf.getSceneHostManifest": {
+      "Parawing.getSceneHostManifest": {
         paramsType: [];
-        returnType: Protocol.Kitesurf.SceneHostManifest;
+        returnType: Protocol.Parawing.SceneHostManifest;
       };
-      "Kitesurf.readSceneHost": {
-        paramsType: [Protocol.Kitesurf.ReadSceneHostRequest];
-        returnType: Protocol.Kitesurf.ReadSceneHostResponse;
+      "Parawing.readSceneHost": {
+        paramsType: [Protocol.Parawing.ReadSceneHostRequest];
+        returnType: Protocol.Parawing.ReadSceneHostResponse;
       };
-      "Kitesurf.getSessionInfo": {
+      "Parawing.getSessionInfo": {
         paramsType: [];
-        returnType: Protocol.Kitesurf.GetSessionInfoResponse;
+        returnType: Protocol.Parawing.GetSessionInfoResponse;
       };
-      "Kitesurf.setLayoutMode": {
-        paramsType: [Protocol.Kitesurf.SetLayoutModeRequest?];
-        returnType: Protocol.Kitesurf.SetLayoutModeResponse;
+      "Parawing.setLayoutMode": {
+        paramsType: [Protocol.Parawing.SetLayoutModeRequest?];
+        returnType: Protocol.Parawing.SetLayoutModeResponse;
       };
-      "Kitesurf.getLayoutMode": {
-        paramsType: [Protocol.Kitesurf.TargetScopedRequest?];
-        returnType: Protocol.Kitesurf.GetLayoutModeResponse;
+      "Parawing.getLayoutMode": {
+        paramsType: [Protocol.Parawing.TargetScopedRequest?];
+        returnType: Protocol.Parawing.GetLayoutModeResponse;
       };
-      "Kitesurf.getRendererInfo": {
+      "Parawing.getRendererInfo": {
         paramsType: [];
-        returnType: Protocol.Kitesurf.GetRendererInfoResponse;
+        returnType: Protocol.Parawing.GetRendererInfoResponse;
       };
-      "Kitesurf.setPartialRaster": {
-        paramsType: [Protocol.Kitesurf.SetPartialRasterRequest?];
-        returnType: Protocol.Kitesurf.SetPartialRasterResponse;
+      "Parawing.setPartialRaster": {
+        paramsType: [Protocol.Parawing.SetPartialRasterRequest?];
+        returnType: Protocol.Parawing.SetPartialRasterResponse;
       };
-      "Kitesurf.disposeRenderer": {
+      "Parawing.disposeRenderer": {
         paramsType: [];
-        returnType: Protocol.Kitesurf.DisposeRendererResponse;
+        returnType: Protocol.Parawing.DisposeRendererResponse;
       };
-      "Kitesurf.getNavigatePhases": {
-        paramsType: [Protocol.Kitesurf.TargetScopedRequest?];
-        returnType: Protocol.Kitesurf.GetNavigatePhasesResponse;
+      "Parawing.getNavigatePhases": {
+        paramsType: [Protocol.Parawing.TargetScopedRequest?];
+        returnType: Protocol.Parawing.GetNavigatePhasesResponse;
       };
-      "Kitesurf.hasPendingCriticalResources": {
-        paramsType: [Protocol.Kitesurf.TargetScopedRequest?];
-        returnType: Protocol.Kitesurf.HasPendingCriticalResourcesResponse;
+      "Parawing.hasPendingCriticalResources": {
+        paramsType: [Protocol.Parawing.TargetScopedRequest?];
+        returnType: Protocol.Parawing.HasPendingCriticalResourcesResponse;
       };
-      "Kitesurf.getPageState": {
-        paramsType: [Protocol.Kitesurf.TargetScopedRequest?];
-        returnType: Protocol.Kitesurf.GetPageStateResponse;
+      "Parawing.getPageState": {
+        paramsType: [Protocol.Parawing.TargetScopedRequest?];
+        returnType: Protocol.Parawing.GetPageStateResponse;
       };
-      "Kitesurf.setControlValue": {
-        paramsType: [Protocol.Kitesurf.SetControlValueRequest];
-        returnType: Protocol.Kitesurf.SetControlValueResponse;
+      "Parawing.setControlValue": {
+        paramsType: [Protocol.Parawing.SetControlValueRequest];
+        returnType: Protocol.Parawing.SetControlValueResponse;
       };
-      "Kitesurf.markPaintDamage": {
-        paramsType: [Protocol.Kitesurf.TargetScopedRequest?];
-        returnType: Protocol.Kitesurf.MarkPaintDamageResponse;
+      "Parawing.markPaintDamage": {
+        paramsType: [Protocol.Parawing.TargetScopedRequest?];
+        returnType: Protocol.Parawing.MarkPaintDamageResponse;
       };
-      "Kitesurf.getPaintDamageSince": {
-        paramsType: [Protocol.Kitesurf.GetPaintDamageSinceRequest?];
-        returnType: Protocol.Kitesurf.GetPaintDamageSinceResponse;
+      "Parawing.getPaintDamageSince": {
+        paramsType: [Protocol.Parawing.GetPaintDamageSinceRequest?];
+        returnType: Protocol.Parawing.GetPaintDamageSinceResponse;
       };
-      "Kitesurf.getMemoryStats": {
-        paramsType: [Protocol.Kitesurf.TargetScopedRequest?];
-        returnType: Protocol.Kitesurf.GetMemoryStatsResponse;
+      "Parawing.getMemoryStats": {
+        paramsType: [Protocol.Parawing.TargetScopedRequest?];
+        returnType: Protocol.Parawing.GetMemoryStatsResponse;
       };
-      "Kitesurf.setOutboundFilters": {
-        paramsType: [Protocol.Kitesurf.SetOutboundFiltersRequest?];
-        returnType: Protocol.Kitesurf.SetOutboundFiltersResponse;
+      "Parawing.setOutboundFilters": {
+        paramsType: [Protocol.Parawing.SetOutboundFiltersRequest?];
+        returnType: Protocol.Parawing.SetOutboundFiltersResponse;
       };
-      "Kitesurf.recordScene": {
-        paramsType: [Protocol.Kitesurf.RecordSceneRequest?];
-        returnType: Protocol.Kitesurf.RecordSceneResponse;
+      "Parawing.recordScene": {
+        paramsType: [Protocol.Parawing.RecordSceneRequest?];
+        returnType: Protocol.Parawing.RecordSceneResponse;
       };
-      "Kitesurf.getScreencastStatus": {
-        paramsType: [Protocol.Kitesurf.TargetScopedRequest?];
-        returnType: Protocol.Kitesurf.GetScreencastStatusResponse;
+      "Parawing.getScreencastStatus": {
+        paramsType: [Protocol.Parawing.TargetScopedRequest?];
+        returnType: Protocol.Parawing.GetScreencastStatusResponse;
       };
-      "Kitesurf.getConnectionInfo": {
+      "Parawing.getConnectionInfo": {
         paramsType: [];
-        returnType: Protocol.Kitesurf.GetConnectionInfoResponse;
+        returnType: Protocol.Parawing.GetConnectionInfoResponse;
       };
-      "Kitesurf.getRbiResources": {
-        paramsType: [Protocol.Kitesurf.GetRbiResourcesRequest?];
-        returnType: Protocol.Kitesurf.GetRbiResourcesResponse;
+      "Parawing.getRbiResources": {
+        paramsType: [Protocol.Parawing.GetRbiResourcesRequest?];
+        returnType: Protocol.Parawing.GetRbiResourcesResponse;
       };
-      "Kitesurf.getFontFaces": {
-        paramsType: [Protocol.Kitesurf.TargetScopedRequest?];
-        returnType: Protocol.Kitesurf.PageDiagnosticResponse<Protocol.Kitesurf.FontFaces>;
+      "Parawing.getFontFaces": {
+        paramsType: [Protocol.Parawing.TargetScopedRequest?];
+        returnType: Protocol.Parawing.PageDiagnosticResponse<Protocol.Parawing.FontFaces>;
       };
-      "Kitesurf.boaForceCollect": {
-        paramsType: [Protocol.Kitesurf.TargetScopedRequest?];
-        returnType: Protocol.Kitesurf.PageDiagnosticResponse<Protocol.Kitesurf.BoaCollectStats>;
+      "Parawing.boaForceCollect": {
+        paramsType: [Protocol.Parawing.TargetScopedRequest?];
+        returnType: Protocol.Parawing.PageDiagnosticResponse<Protocol.Parawing.BoaCollectStats>;
       };
-      "Kitesurf.getMemprofDump": {
-        paramsType: [Protocol.Kitesurf.TargetScopedRequest?];
-        returnType: Protocol.Kitesurf.PageDiagnosticResponse<Protocol.Kitesurf.OpaqueDiagnostic>;
+      "Parawing.getMemprofDump": {
+        paramsType: [Protocol.Parawing.TargetScopedRequest?];
+        returnType: Protocol.Parawing.PageDiagnosticResponse<Protocol.Parawing.OpaqueDiagnostic>;
       };
-      "Kitesurf.resetMemprof": {
-        paramsType: [Protocol.Kitesurf.TargetScopedRequest?];
-        returnType: Protocol.Kitesurf.PageDiagnosticResponse<Protocol.Kitesurf.OpaqueDiagnostic>;
+      "Parawing.resetMemprof": {
+        paramsType: [Protocol.Parawing.TargetScopedRequest?];
+        returnType: Protocol.Parawing.PageDiagnosticResponse<Protocol.Parawing.OpaqueDiagnostic>;
       };
-      "Kitesurf.getSceneStats": {
-        paramsType: [Protocol.Kitesurf.TargetScopedRequest?];
-        returnType: Protocol.Kitesurf.PageDiagnosticResponse<Protocol.Kitesurf.OpaqueDiagnostic>;
+      "Parawing.getSceneStats": {
+        paramsType: [Protocol.Parawing.TargetScopedRequest?];
+        returnType: Protocol.Parawing.PageDiagnosticResponse<Protocol.Parawing.OpaqueDiagnostic>;
+      };
+      "Parawing.destroySession": {
+        paramsType: [Protocol.Parawing.DestroySessionRequest?];
+        returnType: Protocol.Parawing.DestroySessionResponse;
+      };
+      "Parawing.checkpointSession": {
+        paramsType: [Record<string, unknown>?];
+        returnType: Record<string, unknown>;
+      };
+      "Parawing.requestControllerLease": {
+        paramsType: [Record<string, unknown>?];
+        returnType: Record<string, unknown>;
+      };
+      "Parawing.approveControllerLease": {
+        paramsType: [Record<string, unknown>?];
+        returnType: Record<string, unknown>;
+      };
+      "Parawing.releaseControllerLease": {
+        paramsType: [Record<string, unknown>?];
+        returnType: Record<string, unknown>;
+      };
+      "Parawing.revokeControllerLease": {
+        paramsType: [Record<string, unknown>?];
+        returnType: Record<string, unknown>;
+      };
+      "Parawing.getControllerLease": {
+        paramsType: [Record<string, unknown>?];
+        returnType: Record<string, unknown>;
+      };
+      "Parawing.performSealedFill": {
+        paramsType: [Record<string, unknown>];
+        returnType: Record<string, unknown>;
+      };
+      "Parawing.performTokenizedFill": {
+        paramsType: [Record<string, unknown>];
+        returnType: Record<string, unknown>;
+      };
+      "Parawing.suspendSession": {
+        paramsType: [Record<string, unknown>?];
+        returnType: Record<string, unknown>;
+      };
+      "Parawing.resumeSession": {
+        paramsType: [Record<string, unknown>?];
+        returnType: Record<string, unknown>;
+      };
+      "Parawing.roamSession": {
+        paramsType: [Record<string, unknown>?];
+        returnType: Record<string, unknown>;
+      };
+      "Parawing.issueAttestedKeyLease": {
+        paramsType: [Record<string, unknown>];
+        returnType: Record<string, unknown>;
+      };
+      "Parawing.releaseDbscCredential": {
+        paramsType: [Record<string, unknown>];
+        returnType: Record<string, unknown>;
+      };
+      "Parawing.requestActionApproval": {
+        paramsType: [Record<string, unknown>];
+        returnType: Record<string, unknown>;
+      };
+      "Parawing.submitApprovalDecision": {
+        paramsType: [Record<string, unknown>];
+        returnType: Record<string, unknown>;
+      };
+      "Parawing.startSceneStreamV2": {
+        paramsType: [Protocol.Parawing.StartSceneStreamV2Request?];
+        returnType: Protocol.Parawing.StartSceneStreamV2Response;
+      };
+      "Parawing.stopSceneStreamV2": {
+        paramsType: [Protocol.Parawing.TargetScopedRequest?];
+        returnType: Protocol.Parawing.StopSceneStreamV2Response;
+      };
+      "Parawing.recordSceneV2": {
+        paramsType: [Protocol.Parawing.RecordSceneV2Request?];
+        returnType: Protocol.Parawing.RecordSceneV2Response;
+      };
+      "Parawing.getHandlerRegions": {
+        paramsType: [Protocol.Parawing.TargetScopedRequest?];
+        returnType: Protocol.Parawing.GetHandlerRegionsResponse;
+      };
+      "Parawing.getInputJournalState": {
+        paramsType: [Protocol.Parawing.GetInputJournalStateRequest?];
+        returnType: Protocol.Parawing.GetInputJournalStateResponse;
       };
     }
   }

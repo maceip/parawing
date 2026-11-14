@@ -21,7 +21,7 @@ async function pdfFor(
   const reply = await cdp.send("Page.printToPDF", { printBackground: true });
   expect(reply.error, "printToPDF error").toBeUndefined();
   const bytes = Uint8Array.from(atob(reply.data), (c) => c.charCodeAt(0));
-  const mem = await cdp.send("Kitesurf.getMemoryStats", {});
+  const mem = await cdp.send("Parawing.getMemoryStats", {});
   const t = Object.values(mem.byTarget ?? {}).find(
     (v) => v && typeof v.wasmDeltaBytes === "number",
   );

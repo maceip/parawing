@@ -39,7 +39,7 @@ test("the runtime module loader does not load the isolate's own modules", async 
     page,
     `<!doctype html><title>start</title><script>
       try {
-        const internals = globalThis[Symbol.for("kitesurf.internals")];
+        const internals = globalThis[Symbol.for("parawing.internals")];
         Promise.resolve(internals.nativeImport("${PRIVATE}"))
           .then(${report("loader")}, () => { document.title = "refused"; });
       } catch {

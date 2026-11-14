@@ -4,10 +4,10 @@
 
 // Holds the PageScript generation's shared DOM, globals, and lifecycle state.
 
-import type { RawCdpMutation } from "@kitesurf/jsrpc-types/shared";
-import type { LoadCompletion } from "@kitesurf/jsrpc-types/page-script";
-import type { CommittedOrigin } from "@kitesurf/jsrpc-types/frame-origin";
-import { SANDBOX_ALLOW_ALL, type SandboxRestrictions } from "@kitesurf/script-gate";
+import type { RawCdpMutation } from "@parawing/jsrpc-types/shared";
+import type { LoadCompletion } from "@parawing/jsrpc-types/page-script";
+import type { CommittedOrigin } from "@parawing/jsrpc-types/frame-origin";
+import { SANDBOX_ALLOW_ALL, type SandboxRestrictions } from "@parawing/script-gate";
 import type {
   BuildDocumentResult,
   DomHandle,

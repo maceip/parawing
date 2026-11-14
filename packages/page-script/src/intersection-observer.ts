@@ -311,7 +311,7 @@ function reportCallbackError(win: any, thrown: unknown): void {
     if (handler) handler.call(win, message, "", 0, 0, thrown);
   } catch {}
   try {
-    console.error("[kitesurf] IntersectionObserver callback threw:", thrown);
+    console.error("[parawing] IntersectionObserver callback threw:", thrown);
   } catch {}
 }
 

@@ -30,10 +30,10 @@ test("network-stylesheet-headers-demo", async ({ page }) => {
   const lower = {};
   for (const [k, v] of Object.entries(headers)) lower[k.toLowerCase()] = v;
 
-  const kitesurfKeys = Object.keys(lower).filter((k) => k.startsWith("x-kitesurf-"));
+  const parawingKeys = Object.keys(lower).filter((k) => k.startsWith("x-parawing-"));
   expect(
-    kitesurfKeys.length === 0,
-    `no x-kitesurf-* headers leak into Network.requestWillBeSent (leaked: ${JSON.stringify(kitesurfKeys)})`,
+    parawingKeys.length === 0,
+    `no x-parawing-* headers leak into Network.requestWillBeSent (leaked: ${JSON.stringify(parawingKeys)})`,
   ).toBeTruthy();
 
   expect(

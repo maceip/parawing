@@ -15,11 +15,8 @@ import { handlePage, installUpstreamEventHandler } from "../src/cdp/page.ts";
 import { createPageTarget } from "../src/cdp/target.ts";
 import type { CdpRequest } from "../src/cdp/types.ts";
 import { createCookieJar } from "../src/cookies.ts";
-import {
-  createSandboxOutboundOverride,
-  type SandboxOutboundEnv,
-  type SandboxOutboundExports,
-} from "../src/eval/outbound.ts";
+import { createSandboxOutboundOverride } from "../src/eval/outbound.ts";
+import { createMemoryHostCapabilities } from "../src/host-capabilities.ts";
 import type { PageScriptStub, UpstreamEventHandler } from "../src/eval/page-script.ts";
 
 const CONN = "page-navigation-origin";
@@ -50,25 +47,21 @@ async function navigate(opts: NavigateOptions) {
   const jar = createCookieJar();
   jar.setFromHeader(VICTIM, "session=1; Secure; HttpOnly; SameSite=Strict");
   registerCookieJar(CONN, jar);
-  const sandboxOutbound = createSandboxOutboundOverride(
-    {} as SandboxOutboundExports,
-    {} as SandboxOutboundEnv,
-    {
-      fetch: async (req) => {
-        sent.push([
-          req.method,
-          req.url,
-          await req.text(),
-          req.headers.get("content-type"),
-          req.headers.get("origin"),
-          req.headers.get("referer"),
-          req.headers.get("cookie"),
-        ]);
-        return new Response(null, { status: 204 });
-      },
+  const sandboxOutbound = createSandboxOutboundOverride(createMemoryHostCapabilities(), {
+    fetch: async (req) => {
+      sent.push([
+        req.method,
+        req.url,
+        await req.text(),
+        req.headers.get("content-type"),
+        req.headers.get("origin"),
+        req.headers.get("referer"),
+        req.headers.get("cookie"),
+      ]);
+      return new Response(null, { status: 204 });
     },
-  );
-  // oxlint-disable-next-line kitesurf/no-chained-type-assertions -- only fields navigate reads.
+  });
+  // oxlint-disable-next-line parawing/no-chained-type-assertions -- only fields navigate reads.
   const browser = {
     targets: new Map(),
     sandboxOutbound,
@@ -77,12 +70,11 @@ async function navigate(opts: NavigateOptions) {
     networkEvents: new NetworkEventTracker(() => {}, CONN),
     dedicatedWorkers: { terminateTarget: () => {}, terminateFrame: () => {}, ownerFor: () => null },
   } as unknown as DispatchCtx["browser"];
-  // oxlint-disable-next-line kitesurf/no-chained-type-assertions -- only fields navigate reads.
+  // oxlint-disable-next-line parawing/no-chained-type-assertions -- only fields navigate reads.
   const ctx = {
     browser,
     emit: () => {},
-    env: {},
-    ctx: { waitUntil: () => {} },
+    host: createMemoryHostCapabilities(),
     connectionId: CONN,
   } as unknown as DispatchCtx;
   const target = createPageTarget(ctx, "about:blank");
@@ -90,7 +82,7 @@ async function navigate(opts: NavigateOptions) {
   const post = { url: opts.url, postData: opts.postData, postContentType: opts.postContentType };
   if (opts.via) {
     let handler: UpstreamEventHandler | null = null;
-    // oxlint-disable-next-line kitesurf/no-chained-type-assertions -- only the page-realm fields.
+    // oxlint-disable-next-line parawing/no-chained-type-assertions -- only the page-realm fields.
     const stub = {
       dispatchMouseEvent: async () => ({ navigatePost: post }),
       setUpstreamEventHandler: (h: UpstreamEventHandler | null) => (handler = h),
@@ -105,7 +97,7 @@ async function navigate(opts: NavigateOptions) {
         sessionId: SID,
       });
     } else {
-      handler!("kitesurf.formSubmitNavigate", post);
+      handler!("parawing.formSubmitNavigate", post);
       await new Promise((resolve) => setTimeout(resolve, 0)); // the dispatch is not awaited.
     }
     return sent;
@@ -115,10 +107,10 @@ async function navigate(opts: NavigateOptions) {
     method: "Page.navigate",
     params: {
       url: opts.url,
-      _kitesurfInternal: true,
-      _kitesurfInitiatorOrigin: opts.initiatorOrigin,
+      _parawingInternal: true,
+      _parawingInitiatorOrigin: opts.initiatorOrigin,
       ...(opts.postData !== undefined
-        ? { _kitesurfPostData: opts.postData, _kitesurfPostContentType: "application/json" }
+        ? { _parawingPostData: opts.postData, _parawingPostContentType: "application/json" }
         : {}),
     },
     sessionId: SID,

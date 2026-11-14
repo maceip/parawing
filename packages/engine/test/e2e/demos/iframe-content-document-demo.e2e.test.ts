@@ -5,7 +5,7 @@
 import { expect, test } from "../harness";
 
 test("iframe-content-document-demo", async ({ page }) => {
-  const BASE = process.env.KITESURF_FIXTURE_BASE ?? "http://127.0.0.1:8787";
+  const BASE = process.env.PARAWING_FIXTURE_BASE ?? "http://127.0.0.1:8787";
 
   await page.goto(`${BASE}/__fixtures/iframe-host.html`, { timeout: 15000 });
 

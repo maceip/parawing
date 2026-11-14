@@ -36,16 +36,18 @@ export interface TailExceptionReport {
   panicStack?: string;
 }
 
+const PW_ERR_PREFIX = "[pw-err] ";
+
 // Console output is page-visible. Accept engine errors only with the load-time
 // token, and cap fields before forwarding them to an error reporter.
-export function parseKsErrLine(
+export function parsePwErrLine(
   line: string,
   expectedToken: string | undefined,
 ): Omit<TailExceptionReport, "scriptName"> | null {
   if (!expectedToken) return null;
-  if (!line.startsWith("[ks-err] ")) return null;
+  if (!line.startsWith(PW_ERR_PREFIX)) return null;
   try {
-    const raw: unknown = JSON.parse(line.slice("[ks-err] ".length));
+    const raw: unknown = JSON.parse(line.slice(PW_ERR_PREFIX.length));
     const field = (name: string): unknown =>
       raw === null || raw === undefined ? undefined : Reflect.get(Object(raw), name, raw);
     if (field("token") !== expectedToken) return null;

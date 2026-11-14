@@ -8,7 +8,7 @@ import { expect, test } from "../harness";
 
 // Runs in the page: puppeteer serializes it, so it can't close over imports.
 function readClockFloor(): number | undefined {
-  const internals: unknown = Reflect.get(globalThis, Symbol.for("kitesurf.internals"));
+  const internals: unknown = Reflect.get(globalThis, Symbol.for("parawing.internals"));
   if (typeof internals !== "object" || internals === null) return undefined;
   const floor: unknown = Reflect.get(internals, "clockFloorMs");
   return typeof floor === "number" ? floor : undefined;

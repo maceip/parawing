@@ -80,7 +80,7 @@ test("only a withheld image is keyed — a readable one keeps its bytes", async 
         try {
           const r = await fetch(u);
           return {
-            key: r.headers.get("x-kitesurf-resource-key"),
+            key: r.headers.get("x-parawing-resource-key"),
             bytes: (await r.arrayBuffer()).byteLength,
           };
         } catch (e) {
@@ -167,7 +167,7 @@ test("there is no route back: the engine store is not page-reachable", async ({ 
       // is minted, never derived, so this is the best a page can do.
       const key = "9223372036854775809";
       return {
-        sentinel: await pull("http://kitesurf-resources/" + key),
+        sentinel: await pull("http://parawing-resources/" + key),
         asPath: await pull("/__ks_resource/" + key),
         learnKey: await pull(${JSON.stringify(CROSS_IMAGE)}),
       };
@@ -182,7 +182,7 @@ test("same-origin SVG keeps its bytes, since usvg parses in the isolate", async 
   await page.goto(FIXTURE, { waitUntil: "domcontentloaded" });
   const out = (await page.evaluate(`
     fetch("/__fixtures/svg-document.svg?case=sized").then(async (r) => ({
-      w: r.headers.get("x-kitesurf-image-width"),
+      w: r.headers.get("x-parawing-image-width"),
       bodyBytes: (await r.arrayBuffer()).byteLength,
     }))
   `)) as Record<string, unknown>;

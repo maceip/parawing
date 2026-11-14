@@ -6,7 +6,7 @@
 // Every worker URL, including blob: and data:, passes the inserted-script CSP gate; blob: sources
 // are read here because no other isolate can resolve them.
 
-import type { WorkerEventParams } from "@kitesurf/jsrpc-types/dedicated-worker";
+import type { WorkerEventParams } from "@parawing/jsrpc-types/dedicated-worker";
 import { sendUpstreamEvent } from "./internal-state.js";
 import { fetchInsertedScript } from "./resource-fetch.ts";
 import {
@@ -133,7 +133,7 @@ function cloneForWorker(message: unknown, transferOrOptions: unknown): unknown {
       throw domException("Duplicate transferable in transfer list", "DataCloneError");
     seen.add(item);
     if (!(item instanceof ksGlobal.ArrayBuffer)) {
-      throw domException("Kitesurf can only transfer ArrayBuffers to a worker", "DataCloneError");
+      throw domException("Parawing can only transfer ArrayBuffers to a worker", "DataCloneError");
     }
   }
   const clone: (value: unknown, options?: { transfer: unknown[] }) => unknown =
@@ -221,7 +221,7 @@ export function installWorker(): void {
 
 function buildWorkerClass(): unknown {
   const EventTargetBase = ksGlobal.EventTarget;
-  const STATE = Symbol("kitesurf-worker-state");
+  const STATE = Symbol("parawing-worker-state");
 
   class Worker extends EventTargetBase {
     declare [STATE]: KsWorkerState;
@@ -237,7 +237,7 @@ function buildWorkerClass(): unknown {
         options && typeof options === "object" ? options : {};
       if (opts.type !== undefined && String(opts.type) === "module") {
         throw domException(
-          "Failed to construct 'Worker': Kitesurf does not support module workers yet.",
+          "Failed to construct 'Worker': Parawing does not support module workers yet.",
           "NotSupportedError",
         );
       }
@@ -292,13 +292,13 @@ function buildWorkerClass(): unknown {
         (source) => {
           if (ws.done) return;
           sendUpstreamEvent({
-            event: "kitesurf.workerCreate",
+            event: "parawing.workerCreate",
             params: { workerId: id, url: href, name, source, navigator: navigatorInfo },
           });
           ws.created = true;
           for (const data of ws.queue) {
             sendUpstreamEvent({
-              event: "kitesurf.workerPostMessage",
+              event: "parawing.workerPostMessage",
               params: { workerId: id, data },
             });
           }
@@ -331,7 +331,7 @@ function buildWorkerClass(): unknown {
         ws.queue.push(data);
         return;
       }
-      sendUpstreamEvent({ event: "kitesurf.workerPostMessage", params: { workerId: ws.id, data } });
+      sendUpstreamEvent({ event: "parawing.workerPostMessage", params: { workerId: ws.id, data } });
     }
 
     terminate(): void {
@@ -340,7 +340,7 @@ function buildWorkerClass(): unknown {
       const wasCreated = ws.created;
       finish(ws);
       if (wasCreated) {
-        sendUpstreamEvent({ event: "kitesurf.workerTerminate", params: { workerId: ws.id } });
+        sendUpstreamEvent({ event: "parawing.workerTerminate", params: { workerId: ws.id } });
       }
     }
 

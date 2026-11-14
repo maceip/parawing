@@ -9,11 +9,8 @@
 import { afterEach, beforeAll, describe, expect, it, vi } from "vitest";
 import { registerCookieJar, unregisterCookieJar } from "../src/cdp/cookie-jar-registry.ts";
 import { createCookieJar } from "../src/cookies.ts";
-import {
-  createSandboxOutboundOverride,
-  type SandboxOutboundEnv,
-  type SandboxOutboundExports,
-} from "../src/eval/outbound.ts";
+import { createSandboxOutboundOverride } from "../src/eval/outbound.ts";
+import { createMemoryHostCapabilities } from "../src/host-capabilities.ts";
 
 const KEY = "event-source-credentials";
 const ORIGIN = "https://attacker.example";
@@ -67,7 +64,7 @@ beforeAll(async () => {
   }) as typeof fetch;
   fetchShim.installFetchShim();
   eventSource.installEventSource();
-});
+}, 30_000);
 
 afterEach(() => {
   gateway = null;
@@ -114,13 +111,9 @@ function openSource(
   jar.setFromHeader("https://victim.example/", "sid=SECRET; Secure; Path=/; SameSite=None");
   registerCookieJar(KEY, jar);
   let index = 0;
-  const outbound = createSandboxOutboundOverride(
-    {} as SandboxOutboundExports,
-    {} as SandboxOutboundEnv,
-    {
-      fetch: async (request) => respond(request, index++),
-    },
-  );
+  const outbound = createSandboxOutboundOverride(createMemoryHostCapabilities(), {
+    fetch: async (request) => respond(request, index++),
+  });
   const fetcher = outbound.parent({
     pageOrigin: ORIGIN,
     pageUrl: PAGE,

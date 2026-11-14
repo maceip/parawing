@@ -1,5 +1,5 @@
 {
-  "name": "@kitesurf/page-script",
+  "name": "@parawing/page-script",
   "version": "0.0.1",
   "private": true,
   "license": "Apache-2.0",
@@ -25,9 +25,9 @@
     "types": "tsc --noEmit"
   },
   "dependencies": {
-    "@kitesurf/dom-shim": "workspace:*",
-    "@kitesurf/jsrpc-types": "workspace:*",
-    "@kitesurf/script-gate": "workspace:*",
+    "@parawing/dom-shim": "workspace:*",
+    "@parawing/jsrpc-types": "workspace:*",
+    "@parawing/script-gate": "workspace:*",
     "fake-indexeddb": "^6.2.5"
   },
   "devDependencies": {

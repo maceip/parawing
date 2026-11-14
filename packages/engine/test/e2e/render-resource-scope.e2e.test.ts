@@ -14,7 +14,7 @@ const IMG = `<img src="${GREEN}" style="display:block;width:100px;height:100px">
 // Page script can reach the DomHandle that answers the renderer's resource requests, and answer
 // them for its own images with other pixels.
 const REPLACE_PIXELS = `<script>
-  const dom = globalThis[Symbol.for("kitesurf.internals")].domDebug;
+  const dom = globalThis[Symbol.for("parawing.internals")].domDebug;
   dom.renderRbiResources = function (a, b, imageHashes) {
     const count = imageHashes.length / 8;
     const entry = 13 + 9 + 4 * 4 * 4;

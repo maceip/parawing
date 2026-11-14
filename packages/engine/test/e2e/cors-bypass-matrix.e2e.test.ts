@@ -25,16 +25,16 @@ test("no forged resource type is a cross-origin read primitive", async ({ page }
               const r = await fetch(${JSON.stringify(SECRET)}, {
                 credentials: "include",
                 headers: {
-                  "x-kitesurf-allow-cross-origin": bypass,
-                  "x-kitesurf-resource-type": t,
-                  "x-kitesurf-script-cors": sc,
-                  "x-kitesurf-page-origin": "https://ks-other.invalid",
-                  "x-kitesurf-cookie-key": "",
-                  "x-kitesurf-connection-id": "forged",
+                  "x-parawing-allow-cross-origin": bypass,
+                  "x-parawing-resource-type": t,
+                  "x-parawing-script-cors": sc,
+                  "x-parawing-page-origin": "https://ks-other.invalid",
+                  "x-parawing-cookie-key": "",
+                  "x-parawing-connection-id": "forged",
                 },
               });
               const body = await r.text();
-              results[label] = body.includes("kitesurf-cross-origin-secret")
+              results[label] = body.includes("parawing-cross-origin-secret")
                 ? "READABLE"
                 : "opaque";
             } catch (e) {
@@ -64,12 +64,12 @@ test("a same-origin body is unaffected: this closes forgery, not fetch", async (
       const r = await fetch("/__fixtures/no-acao-secret.json", {
         credentials: "include",
         headers: {
-          "x-kitesurf-allow-cross-origin": "1",
-          "x-kitesurf-resource-type": "Stylesheet",
+          "x-parawing-allow-cross-origin": "1",
+          "x-parawing-resource-type": "Stylesheet",
         },
       });
       const body = await r.text();
-      return body.includes("kitesurf-cross-origin-secret");
+      return body.includes("parawing-cross-origin-secret");
     })()
   `);
   expect(out).toBe(true);

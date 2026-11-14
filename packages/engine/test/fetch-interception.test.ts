@@ -20,7 +20,7 @@ const oldGlobToRegExp = (pattern: string): RegExp => {
   return new RegExp("^" + escaped.replace(/\*/g, ".*").replace(/\?/g, ".") + "$");
 };
 
-// oxlint-disable-next-line kitesurf/no-chained-type-assertions -- partial dispatch context fixture.
+// oxlint-disable-next-line parawing/no-chained-type-assertions -- partial dispatch context fixture.
 const ctx = { connectionId: "glob-test", emit: () => {} } as unknown as DispatchCtx;
 
 const enable = (urlPattern: string) =>

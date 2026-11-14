@@ -240,7 +240,7 @@ export function withDeadline(
     start(controller) {
       timer = setTimeout(() => {
         expired = true;
-        controller.error(new Error(`kitesurf: body deadline after ${ms}ms`));
+        controller.error(new Error(`parawing: body deadline after ${ms}ms`));
         void reader.cancel("deadline").catch(() => {});
       }, ms);
     },

@@ -4,7 +4,7 @@
 
 // Buffers page exceptions for parent-side CDP Runtime.exceptionThrown events.
 
-import type { ExceptionEntry } from "@kitesurf/jsrpc-types/shared";
+import type { ExceptionEntry } from "@parawing/jsrpc-types/shared";
 
 const __exceptionBuffer: ExceptionEntry[] = [];
 const EXCEPTION_BUFFER_CAP = 200;

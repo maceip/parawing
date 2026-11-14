@@ -8,7 +8,7 @@
 import type { BuildDocumentResult, DomShimGlobals, ScrollIntoViewOptions } from "./dom-shim.js";
 
 // DomHandle's runtime value comes from the loaded worker's wasm-bindgen sibling.
-export type { DomHandle } from "../../core/pkg/kitesurf_core";
+export type { DomHandle } from "../../core/pkg/parawing_core";
 
 export interface ShimCaretNode {
   nodeType?: number;

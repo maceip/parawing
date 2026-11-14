@@ -7,10 +7,14 @@
 import { signatureHeaders, type Signer } from "web-bot-auth";
 import { signerFromJWK } from "web-bot-auth/crypto";
 
+import type { WebBotAuthConfig } from "../host-capabilities.ts";
+
 export interface WbaEnv {
   WEB_BOT_AUTH_JWK?: string;
   WEB_BOT_AUTH_SIGNATURE_AGENT?: string;
 }
+
+export type WbaConfigSource = WbaEnv | WebBotAuthConfig;
 
 const SIGNATURE_TTL_MS = 5 * 60_000;
 
@@ -42,7 +46,7 @@ const loggedFailures = new Set<string>();
 function logOnce(reason: string, detail: unknown): void {
   if (loggedFailures.has(reason)) return;
   loggedFailures.add(reason);
-  console.error(`[kitesurf] web-bot-auth ${reason}:`, detail);
+  console.error(`[parawing] web-bot-auth ${reason}:`, detail);
 }
 
 function getSigner(jwkJson: string): Promise<Signer> | null {
@@ -74,11 +78,14 @@ function signatureAgentHeaderValue(agent: string): string {
 
 /** Returns signed headers for an authority, or `{}` when signing is unavailable or fails. */
 export async function wbaHeadersFor(
-  env: WbaEnv,
+  source: WbaConfigSource,
   authority: string,
 ): Promise<Record<string, string>> {
-  const jwkJson = env.WEB_BOT_AUTH_JWK;
-  const agent = env.WEB_BOT_AUTH_SIGNATURE_AGENT;
+  const jwkJson = "jwkJson" in source ? source.jwkJson : (source as WbaEnv).WEB_BOT_AUTH_JWK;
+  const agent =
+    "signatureAgent" in source
+      ? source.signatureAgent
+      : (source as WbaEnv).WEB_BOT_AUTH_SIGNATURE_AGENT;
   if (!jwkJson || !agent || !authority) return {};
 
   const now = Date.now();

@@ -9,12 +9,12 @@ import {
   checkScriptResponse,
   scriptGateIsNoop,
   type ScriptGateContext,
-} from "@kitesurf/script-gate";
+} from "@parawing/script-gate";
 import {
-  KITESURF_CORS_VERDICT_HEADER,
-  KITESURF_NOSNIFF_HEADER,
+  PARAWING_CORS_VERDICT_HEADER,
+  PARAWING_NOSNIFF_HEADER,
   responseIsOpaque,
-} from "@kitesurf/script-gate/gateway-headers";
+} from "@parawing/script-gate/gateway-headers";
 import type { ParentScriptDescriptor } from "../wasm.ts";
 import type { SandboxOutboundOverride } from "./outbound.ts";
 import { localTraceParentProps } from "../tracing-local.ts";
@@ -70,7 +70,7 @@ function classifyOrigin(target: URL, pageUrl: string): "synthetic" | "same" | "c
   } catch {
     return "invalid";
   }
-  if (page.hostname === "kitesurf.local") return "synthetic";
+  if (page.hostname === "parawing.local") return "synthetic";
   return originKey(target) === originKey(page) ? "same" : "cross";
 }
 
@@ -164,21 +164,21 @@ export async function prefetchExternalScripts({
         try {
           const scriptCorsMode = d.crossOrigin == null ? "no-cors" : "cors";
           const headers: Record<string, string> = {
-            "x-kitesurf-resource-type": "Script",
-            "x-kitesurf-initiator": initiator,
-            "x-kitesurf-page-origin": pageOrigin,
-            "x-kitesurf-allow-cross-origin": "1",
-            "x-kitesurf-script-cors": scriptCorsMode,
+            "x-parawing-resource-type": "Script",
+            "x-parawing-initiator": initiator,
+            "x-parawing-page-origin": pageOrigin,
+            "x-parawing-allow-cross-origin": "1",
+            "x-parawing-script-cors": scriptCorsMode,
             // A crossorigin classic script fetches with credentials mode "same-origin" unless it
             // asks for use-credentials; a plain no-CORS script keeps the browser's include.
             ...(d.crossOrigin == null
               ? {}
-              : { "x-kitesurf-credentials": scriptCredentialsMode(d.crossOrigin) }),
+              : { "x-parawing-credentials": scriptCredentialsMode(d.crossOrigin) }),
           };
           if (connectionId) {
-            headers["x-kitesurf-connection-id"] = connectionId;
+            headers["x-parawing-connection-id"] = connectionId;
           }
-          if (mainFrameId) headers["x-kitesurf-frame-id"] = mainFrameId;
+          if (mainFrameId) headers["x-parawing-frame-id"] = mainFrameId;
           if (originClass === "cross" && pageOrigin) {
             headers["origin"] = pageOrigin;
           }
@@ -212,7 +212,7 @@ export async function prefetchExternalScripts({
           if (!walk.ok && walk.reason === "redirect-blocked") {
             d.blocked = redirectBlocked ?? { reason: "csp", message: "blocked by policy" };
             console.warn(
-              `[kitesurf-csp] blocked (${d.blocked.reason}) ${walk.url}: ` + d.blocked.message,
+              `[parawing-csp] blocked (${d.blocked.reason}) ${walk.url}: ` + d.blocked.message,
             );
             return;
           }
@@ -221,7 +221,7 @@ export async function prefetchExternalScripts({
             return;
           }
           const res = walk.response;
-          const blockedReason = res.headers.get("x-kitesurf-blocked");
+          const blockedReason = res.headers.get("x-parawing-blocked");
           if (res.status === 403 && blockedReason) {
             const text = await readCappedText(res, MAX_BLOCKED_MESSAGE_BYTES, connectionId);
             d.prefetchError = text.ok ? text.text : "<script src> blocked for " + resolved;
@@ -241,7 +241,7 @@ export async function prefetchExternalScripts({
             return;
           }
           const bytes = capped.bytes;
-          const opaque = responseIsOpaque(res.headers.get(KITESURF_CORS_VERDICT_HEADER));
+          const opaque = responseIsOpaque(res.headers.get(PARAWING_CORS_VERDICT_HEADER));
           const verdict = await checkScriptResponse(
             {
               url: resolved,
@@ -250,7 +250,7 @@ export async function prefetchExternalScripts({
             },
             {
               contentType: res.headers.get("content-type"),
-              contentTypeOptions: res.headers.get(KITESURF_NOSNIFF_HEADER),
+              contentTypeOptions: res.headers.get(PARAWING_NOSNIFF_HEADER),
               bytes,
               opaque,
             },
@@ -261,7 +261,7 @@ export async function prefetchExternalScripts({
               message: verdict.message ?? "blocked by policy",
             };
             console.warn(
-              `[kitesurf-csp] blocked (${d.blocked.reason}) ${resolved}: ` + d.blocked.message,
+              `[parawing-csp] blocked (${d.blocked.reason}) ${resolved}: ` + d.blocked.message,
             );
             return;
           }

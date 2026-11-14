@@ -8,7 +8,7 @@ import { escapeHtmlText, jsonForScript, MIB } from "../util.ts";
 
 export const cors = new Hono();
 
-const SECRET = "kitesurf-cross-origin-secret";
+const SECRET = "parawing-cross-origin-secret";
 
 const anyOrigin = createMiddleware(async (c, next) => {
   await next();

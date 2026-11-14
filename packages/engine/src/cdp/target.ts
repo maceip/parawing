@@ -23,7 +23,10 @@ import { detachWebMcpSession } from "./webmcp.ts";
 import { stopSceneStreams } from "./scene-stream.ts";
 import { cancelAndRemoveTargetWheelQueues, stopAndRemoveWheelQueue } from "./wheel-queue.ts";
 import { unregisterIsolateLimitListenersForTarget } from "../eval/limit-registry.ts";
+import { asTargetId } from "../session/identities.ts";
+import type { Tier1FormDraft } from "../session/checkpoint.ts";
 import { registerCookieJar, unregisterCookieJar, cookieKeyFor } from "./cookie-jar-registry.ts";
+import { setFrameSealedOrigin } from "./session-security-registry.ts";
 
 const BROWSER_TARGET_ID = "browser";
 
@@ -335,6 +338,11 @@ export function ensureBrowserTarget(ctx: DispatchCtx): TargetState {
     lastNavigatePhases: null,
     extraHttpHeaders: {},
     userAgentOverride: "",
+    sealedOrigin: null,
+    lastNavigationMethod: "GET",
+    lastSafeGetUrl: null,
+    pendingUnsafeNavigationUrl: null,
+    lastAckedInputSeq: 0,
   };
   ctx.browser.targets.set(BROWSER_TARGET_ID, t);
   return t;
@@ -349,6 +357,12 @@ export async function closeTargetInternal(ctx: DispatchCtx, id: string): Promise
     } catch {}
     target.pendingNavAbort = null;
     target.navigateGeneration++;
+    target.sealedOrigin = null;
+    setFrameSealedOrigin(ctx.connectionId, target.frameId, null);
+    ctx.browser.webStorage?.clearTabSessionStorage(asTargetId(id));
+    if (ctx.sessionManager && ctx.browser.sessionId) {
+      ctx.sessionManager.unregisterTarget(ctx.browser.sessionId, asTargetId(id));
+    }
     unregisterIsolateLimitListenersForTarget(ctx.connectionId, target.targetId);
     target.blankReady = null;
     target.wheelTeardownDepth += 1;
@@ -382,7 +396,7 @@ export async function closeTargetInternal(ctx: DispatchCtx, id: string): Promise
         frame.oopifPrespawn = undefined;
         frame.pageScriptLease?.release();
         frame.pageScriptLease = null;
-        ctx.ctx.waitUntil(
+        ctx.host.tasks.run(
           prespawn.promise.then(async (pre) => {
             if (!pre) return;
             try {
@@ -416,12 +430,54 @@ export async function closeTargetInternal(ctx: DispatchCtx, id: string): Promise
   return existed;
 }
 
+/** Harvests live scroll offsets and unsealed form drafts onto TargetState for Tier 1 capture. */
+export async function captureTargetVisualState(target: TargetState): Promise<void> {
+  if (!target.pageScript) return;
+  try {
+    const metrics = await stubQueryDom(target.pageScript, "layoutMetrics", {});
+    if (metrics) {
+      target.lastScrollX = metrics.scrollX;
+      target.lastScrollY = metrics.scrollY;
+    }
+  } catch {}
+  if (target.sealedOrigin) return;
+  try {
+    const snap = await stubQueryDom(target.pageScript, "formStateSnapshot", {});
+    const draftsByKey = new Map<string, Tier1FormDraft>();
+    for (const existing of target.lastFormDrafts ?? []) {
+      draftsByKey.set(existing.fieldKey, existing);
+    }
+    for (const [nodeId, val] of snap?.values ?? []) {
+      draftsByKey.set(`node:${nodeId}`, {
+        fieldKey: `node:${nodeId}`,
+        tagName: "INPUT",
+        fieldType: "text",
+        value: val,
+      });
+    }
+    for (const [nodeId, checked] of snap?.checked ?? []) {
+      const prev = draftsByKey.get(`node:${nodeId}`);
+      draftsByKey.set(`node:${nodeId}`, {
+        fieldKey: `node:${nodeId}`,
+        tagName: prev?.tagName ?? "INPUT",
+        fieldType: prev?.value !== undefined ? prev.fieldType : "checkbox",
+        ...(prev?.value !== undefined ? { value: prev.value } : {}),
+        checked,
+      });
+    }
+    if (draftsByKey.size > 0) {
+      target.lastFormDrafts = [...draftsByKey.values()];
+    }
+  } catch {}
+}
+
 export function createPageTarget(
   ctx: DispatchCtx,
   url: string,
   browserContextId?: string,
+  explicitTargetId?: string,
 ): TargetState {
-  const targetId = makeTargetId();
+  const targetId = explicitTargetId ?? makeTargetId();
   const loaderId = makeTargetId();
   const frames = new Map<string, FrameState>();
   frames.set(targetId, makeMainFrameState({ frameId: targetId, loaderId, url }));
@@ -478,8 +534,16 @@ export function createPageTarget(
     lastNavigatePhases: null,
     extraHttpHeaders: {},
     userAgentOverride: "",
+    sealedOrigin: null,
+    lastNavigationMethod: "GET",
+    lastSafeGetUrl: url || "about:blank",
+    pendingUnsafeNavigationUrl: null,
+    lastAckedInputSeq: 0,
   };
   ctx.browser.targets.set(targetId, t);
+  if (ctx.sessionManager && ctx.browser.sessionId) {
+    ctx.sessionManager.registerTarget(ctx.browser.sessionId, t);
+  }
   return t;
 }
 
@@ -553,14 +617,14 @@ export function emitFrameTarget(ctx: DispatchCtx, frame: FrameState): string | n
   return sessionId;
 }
 
-export const RENDERER_TARGET_ID = "kitesurf-page-renderer";
+export const RENDERER_TARGET_ID = "parawing-page-renderer";
 
 function rendererTargetInfo(ctx: DispatchCtx) {
   return {
     targetId: RENDERER_TARGET_ID,
     type: "worker",
     title: "PageRenderer",
-    url: "kitesurf://renderer/page-renderer.js",
+    url: "parawing://renderer/page-renderer.js",
     attached: ctx.browser.rendererSessionId !== null,
     canAccessOpener: false,
     browserContextId: "default",
@@ -582,14 +646,14 @@ export function announceRendererTarget(ctx: DispatchCtx): string | null {
   return sessionId;
 }
 
-export const ENGINE_TARGET_ID = "kitesurf-engine";
+export const ENGINE_TARGET_ID = "parawing-engine";
 
 function engineTargetInfo(ctx: DispatchCtx) {
   return {
     targetId: ENGINE_TARGET_ID,
     type: "worker",
     title: "Engine",
-    url: "kitesurf://engine/index.js",
+    url: "parawing://engine/index.js",
     attached: ctx.browser.engineSessionId !== null,
     canAccessOpener: false,
     browserContextId: "default",
@@ -651,9 +715,9 @@ export async function handleEngineSession(ctx: DispatchCtx, req: CdpRequest): Pr
         params: {
           context: {
             id: 1,
-            origin: "kitesurf://engine",
+            origin: "parawing://engine",
             name: "Engine",
-            uniqueId: "kitesurf-engine-context",
+            uniqueId: "parawing-engine-context",
           },
         },
         sessionId: req.sessionId,
@@ -677,9 +741,9 @@ export async function handleRendererSession(ctx: DispatchCtx, req: CdpRequest): 
         params: {
           context: {
             id: 1,
-            origin: "kitesurf://renderer",
+            origin: "parawing://renderer",
             name: "PageRenderer",
-            uniqueId: "kitesurf-renderer-context",
+            uniqueId: "parawing-renderer-context",
           },
         },
         sessionId: req.sessionId,

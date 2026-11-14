@@ -136,7 +136,7 @@ export function pumpAnimationFrames(deadlineMs?: number): number {
       callbacksRun++;
     } catch (error) {
       try {
-        console.error("[kitesurf] rAF callback threw:", error);
+        console.error("[parawing] rAF callback threw:", error);
       } catch {}
     }
   }
@@ -399,7 +399,7 @@ function coerceWheelCallback(callback: unknown): unknown {
       ksGlobal.eval(source);
     } catch (error) {
       try {
-        console.error("[kitesurf] setTimeout/setInterval string-task threw:", error);
+        console.error("[parawing] setTimeout/setInterval string-task threw:", error);
       } catch {}
     }
   };
@@ -498,7 +498,7 @@ export function pumpDueTimers(
     timerEntry.callback.call(globalThis, ...timerEntry.callbackArgs);
   } catch (error) {
     try {
-      console.error("[kitesurf] pumped timer threw:", error);
+      console.error("[parawing] pumped timer threw:", error);
     } catch {}
   } finally {
     activeTimerDeadline = previousTimerDeadline;

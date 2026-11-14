@@ -209,7 +209,7 @@ class KsSpan implements Span {
     if (this._ended) return;
     this._ended = true;
     console.log(
-      "[ks-otel-span] " +
+      "[pw-otel-span] " +
         JSON.stringify({
           name: this._name,
           traceId: this._ctx.traceId,

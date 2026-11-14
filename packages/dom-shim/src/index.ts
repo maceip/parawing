@@ -4,7 +4,7 @@
 
 // Builds one page generation's DOM shim and wires its document, Window, and PageScript hooks.
 
-import type { DomHandle } from "../../core/pkg/kitesurf_core";
+import type { DomHandle } from "../../core/pkg/parawing_core";
 import type { BuildDocumentOpts } from "./state.js";
 
 import { getInternalState } from "./internal-state.js";

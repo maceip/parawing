@@ -5,10 +5,9 @@
 // Gates and runs scripts inserted after parsing.
 // Every inline insert and external fetch passes the shared script gate before it runs.
 
-import { scriptSourceDigest } from "@kitesurf/script-gate";
-import type { ModulePreloadPin } from "@kitesurf/jsrpc-types/page-script";
-import { ks_eval_page, ks_import } from "./wasm-glue.js";
-import { globalizeForBoa } from "./boa-classic.ts";
+import { scriptSourceDigest } from "@parawing/script-gate";
+import type { ModulePreloadPin } from "@parawing/jsrpc-types/page-script";
+import { getExecutionBackend } from "./exec-backend.ts";
 import { getInternalState, sendUpstreamEvent } from "./internal-state.js";
 import { importModule, startupInsertedBaked } from "./startup-probe.ts";
 import { nativeSetTimeout } from "./native-scheduling.ts";
@@ -43,7 +42,7 @@ let insertedCount = 0;
 const startedUrls = new Set<string>();
 const bakedByUrl = new Map(startupInsertedBaked.map((e) => [e.url, e]));
 export function evalInsertedOnBoa(source: string): void {
-  ks_eval_page(globalizeForBoa(source));
+  getExecutionBackend().evaluateGlobalClassic(source);
 }
 
 async function runBaked(module: string): Promise<void> {
@@ -313,7 +312,7 @@ function runInsertedModuleScript(info: InsertedScriptInfo): void {
   if (!url) return;
   if (insertedCount >= MAX_INSERTED_SCRIPTS) {
     console.warn(
-      `[ks-inserted-script] budget: skipping ${url} (cap ${MAX_INSERTED_SCRIPTS} per navigate)`,
+      `[pw-inserted-script] budget: skipping ${url} (cap ${MAX_INSERTED_SCRIPTS} per navigate)`,
     );
     return;
   }
@@ -334,14 +333,14 @@ function runInsertedModuleScript(info: InsertedScriptInfo): void {
         parser: false,
       });
       holdsAttributes = true;
-      await ks_import(url, state.pageUrl || "about:blank");
+      await getExecutionBackend().evaluateModule(url, state.pageUrl || "about:blank");
       ok = true;
     } catch (err) {
       const reason = err instanceof Error ? err.message : String(err);
       ok = !importHitFailedFetch(reason);
       try {
         console.error(
-          "[ks-inserted-script] module " + url + (ok ? " threw: " : " failed: "),
+          "[pw-inserted-script] module " + url + (ok ? " threw: " : " failed: "),
           reason,
         );
       } catch {}
@@ -367,7 +366,7 @@ export function runInsertedExternalScript(info: InsertedScriptInfo): void {
   if (startedUrls.has(url)) return;
   if (insertedCount >= MAX_INSERTED_SCRIPTS) {
     console.warn(
-      `[ks-inserted-script] budget: skipping ${url} (cap ${MAX_INSERTED_SCRIPTS} per navigate)`,
+      `[pw-inserted-script] budget: skipping ${url} (cap ${MAX_INSERTED_SCRIPTS} per navigate)`,
     );
     return;
   }
@@ -447,13 +446,13 @@ export function runInsertedExternalScript(info: InsertedScriptInfo): void {
         if (bakedModule) {
           await runBaked(bakedModule);
           sendUpstreamEvent({
-            event: "kitesurf.insertedScriptRan",
+            event: "parawing.insertedScriptRan",
             params: { url, bytes: source.length, run: "baked" },
           });
         } else {
           evalInsertedOnBoa(source);
           sendUpstreamEvent({
-            event: "kitesurf.insertedScriptRan",
+            event: "parawing.insertedScriptRan",
             params: { url, bytes: source.length, run: baked ? "stale" : "boa" },
           });
         }
@@ -469,7 +468,7 @@ export function runInsertedExternalScript(info: InsertedScriptInfo): void {
       if (outcome !== "silent") outcome = "error";
       try {
         console.warn(
-          "[ks-inserted-script] " +
+          "[pw-inserted-script] " +
             url +
             " failed: " +
             (err instanceof Error ? err.message : String(err)) +

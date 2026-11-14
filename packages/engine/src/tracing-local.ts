@@ -23,7 +23,7 @@ const MAX_SPAN_LIMIT_ERROR_NAME_CHARS = 64;
 const NON_STRING_TAG_VALUE_BYTES = 8;
 const MICROSECONDS_PER_MILLISECOND = 1_000;
 const NANOSECONDS_PER_MICROSECOND = 1_000n;
-const SERVICE_NAME = "kitesurf-local";
+const SERVICE_NAME = "parawing-local";
 const ZERO_SPAN_ID = "0000000000000000";
 const TRACE_ID_RE = new RegExp(
   `^([0-9a-f]{${SHORT_TRACE_ID_HEX_CHARS}}|[0-9a-f]{${TRACE_ID_HEX_CHARS}})$`,
@@ -215,10 +215,22 @@ export type OtlpTarget =
   | { url: string }
   | { binding: { fetch(input: string, init?: RequestInit): Promise<Response> } };
 
+import type { TaskCapability } from "./host-capabilities.ts";
+
+export type LocalTaskTarget = TaskCapability | Pick<ExecutionContext, "waitUntil">;
+
+function toTaskCapability(target: LocalTaskTarget): TaskCapability {
+  return "run" in target
+    ? target
+    : {
+        run: (promise: Promise<unknown>) => target.waitUntil(promise),
+      };
+}
+
 export class OtlpExporter {
   #queue: SpanRecord[] = [];
   #scheduled = false;
-  #ctx: ExecutionContext | null = null;
+  #tasks: TaskCapability | null = null;
   #target: OtlpTarget | null;
   #warned = false;
 
@@ -226,8 +238,8 @@ export class OtlpExporter {
     this.#target = target;
   }
 
-  bind(ctx: ExecutionContext): void {
-    this.#ctx = ctx;
+  bind(ctxOrTasks: LocalTaskTarget): void {
+    this.#tasks = toTaskCapability(ctxOrTasks);
   }
 
   enqueue(rec: SpanRecord): void {
@@ -246,7 +258,7 @@ export class OtlpExporter {
     })();
     flushed.catch(() => {});
     try {
-      this.#ctx?.waitUntil(flushed);
+      this.#tasks?.run(flushed);
     } catch {}
   }
 
@@ -307,7 +319,7 @@ export function toOtlpPayload(recs: SpanRecord[]): OtlpPayload {
         },
         scopeSpans: [
           {
-            scope: { name: "kitesurf-local-tracer" },
+            scope: { name: "parawing-local-tracer" },
             spans: recs.map((r) => ({
               traceId: r.traceId.padStart(TRACE_ID_HEX_CHARS, "0"),
               spanId: r.spanId,
@@ -534,9 +546,9 @@ export class LocalTracer implements Tracer {
 }
 
 interface LocalTracingEnv {
-  KITESURF_ENV?: string;
-  KITESURF_TRACE_ALL?: string;
-  KITESURF_OTLP_ENDPOINT?: string;
+  PARAWING_ENV?: string;
+  PARAWING_TRACE_ALL?: string;
+  PARAWING_OTLP_ENDPOINT?: string;
   OTLP_CAPTURE?: { fetch(input: string, init?: RequestInit): Promise<Response> };
   HOST_TRACER?: unknown;
 }
@@ -546,7 +558,7 @@ let singletonExporter: OtlpExporter | null = null;
 
 function targetFromEnv(env: LocalTracingEnv): OtlpTarget | null {
   if (env.OTLP_CAPTURE) return { binding: env.OTLP_CAPTURE };
-  if (env.KITESURF_OTLP_ENDPOINT) return { url: env.KITESURF_OTLP_ENDPOINT };
+  if (env.PARAWING_OTLP_ENDPOINT) return { url: env.PARAWING_OTLP_ENDPOINT };
   return null;
 }
 
@@ -554,14 +566,20 @@ export function localTracerSingleton(): LocalTracer | null {
   return singleton;
 }
 
-export function bindLocalFlushCtx(ctx: ExecutionContext): void {
-  singletonExporter?.bind(ctx);
+export function bindLocalFlushCtx(ctxOrTasks: LocalTaskTarget): void {
+  singletonExporter?.bind(ctxOrTasks);
 }
 
 const sessionEndResolvers = new Map<string, () => void>();
 
-export function endLocalTraceSession(env: { HOST_TRACER?: unknown }): void {
-  const tracer = env.HOST_TRACER;
+type TracerHolder = { tracer?: unknown; HOST_TRACER?: unknown };
+
+function tracerFromHolder(holder: TracerHolder): unknown {
+  return holder.tracer !== undefined ? holder.tracer : holder.HOST_TRACER;
+}
+
+export function endLocalTraceSession(holder: TracerHolder): void {
+  const tracer = tracerFromHolder(holder);
   if (!(tracer instanceof LocalTracer)) return;
   const sc = tracer.getSpanContext();
   if (sc === null) return;
@@ -575,8 +593,8 @@ export function endLocalTraceSession(env: { HOST_TRACER?: unknown }): void {
   }
 }
 
-export function localTraceEventWrap(env: { HOST_TRACER?: unknown }): <R>(fn: () => R) => R {
-  const tracer = env.HOST_TRACER;
+export function localTraceEventWrap(holder: TracerHolder): <R>(fn: () => R) => R {
+  const tracer = tracerFromHolder(holder);
   if (!(tracer instanceof LocalTracer)) return (fn) => fn();
   const captured = tracer.getSpanContext();
   if (captured === null) return (fn) => fn();
@@ -594,14 +612,14 @@ export function localTraceParentProps(): { localTraceParent?: SpanContext } {
 
 /**
  * Local-only and never over a real HOST_TRACER. Traces when `traceparent` is set (a bare
- * trace id there starts a new trace with that id) or `KITESURF_TRACE_ALL=1`.
+ * trace id there starts a new trace with that id) or `PARAWING_TRACE_ALL=1`.
  */
 export function armLocalTracing(
   env: LocalTracingEnv,
-  ctx: ExecutionContext,
+  ctxOrTasks: LocalTaskTarget,
   request: Request,
 ): (<R>(fn: () => R) => R) | null {
-  if (env.KITESURF_ENV !== "local") return null;
+  if (env.PARAWING_ENV !== "local") return null;
   if (env.HOST_TRACER !== undefined && !(env.HOST_TRACER instanceof LocalTracer)) {
     return null;
   }
@@ -611,9 +629,9 @@ export function armLocalTracing(
   }
   const shim = singleton;
   env.HOST_TRACER = shim;
-  singletonExporter?.bind(ctx);
+  singletonExporter?.bind(ctxOrTasks);
   const header = request.headers.get(TRACE_HEADER)?.toLowerCase() ?? null;
-  if (header === null && env.KITESURF_TRACE_ALL !== "1") return null;
+  if (header === null && env.PARAWING_TRACE_ALL !== "1") return null;
   const full = header !== null ? parseTraceparent(header) : null;
   const traceId =
     full?.traceId ??

@@ -3,7 +3,7 @@
 // https://opensource.org/licenses/Apache-2.0
 
 // Registers and loads fonts for core layout and text rendering.
-// Fonts come from engine Static Assets through the `kitesurf-fonts` sentinel host and must be
+// Fonts come from engine Static Assets through the `parawing-fonts` sentinel host and must be
 // registered before the first DomHandle, or text renders as tofu.
 
 import {
@@ -34,7 +34,7 @@ function needsEmoji(text: string): boolean {
   return /[\u{1F000}-\u{1FFFF}]/u.test(text) || EMOJI_BMP_SCAN.test(text);
 }
 
-const ASSET_HOST = "http://kitesurf-fonts";
+const ASSET_HOST = "http://parawing-fonts";
 
 const UA_FONT_PATHS = ["/fonts/NotoSans.ttf", "/fonts/NotoSans-Italic.ttf", "/fonts/NotoSerif.ttf"];
 
@@ -117,7 +117,7 @@ const ANY_SCRIPT_RANGE = new RegExp(
       const source = scriptFont.range.source;
       if (!source.startsWith("[") || !source.endsWith("]")) {
         throw new Error(
-          `[kitesurf-fonts] SCRIPT_FONTS[${scriptFont.tag}] must be a bare char class, got ${source}`,
+          `[parawing-fonts] SCRIPT_FONTS[${scriptFont.tag}] must be a bare char class, got ${source}`,
         );
       }
       return source.slice(1, -1);
@@ -147,9 +147,9 @@ function registerScriptIfNeeded(scriptFont: ScriptFont): Promise<void> {
     try {
       const bytes = await fetchFaceBytes(scriptFont.path);
       register_script_font(bytes, scriptFont.tag);
-      console.log(`[kitesurf-fonts] registered ${scriptFont.tag} (${bytes.byteLength} bytes)`);
+      console.log(`[parawing-fonts] registered ${scriptFont.tag} (${bytes.byteLength} bytes)`);
     } catch (e) {
-      console.warn(`[kitesurf-fonts] ${scriptFont.tag} registration failed:`, String(e));
+      console.warn(`[parawing-fonts] ${scriptFont.tag} registration failed:`, String(e));
       scriptPending.delete(scriptFont.tag);
       throw e;
     }
@@ -188,7 +188,7 @@ function needsSerif(html: string): boolean {
 async function fetchBytes(path: string): Promise<Uint8Array> {
   const response = await fetch(ASSET_HOST + path);
   if (!response.ok) {
-    throw new Error(`[kitesurf-fonts] ${path}: HTTP ${response.status} ${response.statusText}`);
+    throw new Error(`[parawing-fonts] ${path}: HTTP ${response.status} ${response.statusText}`);
   }
   return new Uint8Array(await response.arrayBuffer());
 }
@@ -262,7 +262,7 @@ export function upgradeToFullFonts(): Promise<void> | null {
         try {
           return [fontPath, await fetchBytes(fontPath)] as const;
         } catch (e) {
-          console.warn(`[kitesurf-fonts] upgrade fetch ${fontPath} failed:`, String(e));
+          console.warn(`[parawing-fonts] upgrade fetch ${fontPath} failed:`, String(e));
           return [fontPath, null] as const;
         }
       }),
@@ -273,7 +273,7 @@ export function upgradeToFullFonts(): Promise<void> | null {
       try {
         if (upgradeFontFace(fontPath, fontBytes)) swappedCount++;
       } catch (e) {
-        console.warn(`[kitesurf-fonts] upgrade swap ${fontPath} failed:`, String(e));
+        console.warn(`[parawing-fonts] upgrade swap ${fontPath} failed:`, String(e));
       }
     }
     try {
@@ -291,7 +291,7 @@ export function upgradeToFullFonts(): Promise<void> | null {
     const finishedAt =
       typeof performance !== "undefined" && performance.now ? performance.now() : Date.now();
     console.log(
-      `[kitesurf-fonts] upgraded ${swappedCount}/${fontPaths.length} faces to full in ${(finishedAt - startedAt).toFixed(1)}ms`,
+      `[parawing-fonts] upgraded ${swappedCount}/${fontPaths.length} faces to full in ${(finishedAt - startedAt).toFixed(1)}ms`,
     );
     if (swappedCount > 0) {
       try {
@@ -313,10 +313,10 @@ function registerSymbolsIfNeeded(wantSymbols2: boolean): Promise<void> {
       const symbols2 = wantSymbols2 ? fetchedFonts[1] : new Uint8Array(0);
       register_symbol_fonts(symbols, symbols2);
       console.log(
-        `[kitesurf-fonts] registered ${wantSymbols2 ? 2 : 1} symbol font(s) (${symbols.byteLength + symbols2.byteLength} bytes)`,
+        `[parawing-fonts] registered ${wantSymbols2 ? 2 : 1} symbol font(s) (${symbols.byteLength + symbols2.byteLength} bytes)`,
       );
     } catch (e) {
-      console.warn("[kitesurf-fonts] symbol registration failed:", String(e));
+      console.warn("[parawing-fonts] symbol registration failed:", String(e));
       symbolPending = null;
       throw e;
     }
@@ -335,10 +335,10 @@ function registerCjkIfNeeded(): Promise<void> {
       const finishedAt =
         typeof performance !== "undefined" && performance.now ? performance.now() : Date.now();
       console.log(
-        `[kitesurf-fonts] registered CJK font (${bytes.byteLength} bytes) in ${(finishedAt - startedAt).toFixed(1)}ms`,
+        `[parawing-fonts] registered CJK font (${bytes.byteLength} bytes) in ${(finishedAt - startedAt).toFixed(1)}ms`,
       );
     } catch (e) {
-      console.warn("[kitesurf-fonts] CJK registration failed:", String(e));
+      console.warn("[parawing-fonts] CJK registration failed:", String(e));
       cjkPending = null;
       throw e;
     }
@@ -352,9 +352,9 @@ function registerEmojiIfNeeded(): Promise<void> {
     try {
       const emoji = await fetchBytes(EMOJI_SHAPING_PATH).catch(() => fetchBytes(EMOJI_FONT_PATH));
       register_emoji_font(emoji);
-      console.log(`[kitesurf-fonts] registered color emoji (${emoji.byteLength} bytes)`);
+      console.log(`[parawing-fonts] registered color emoji (${emoji.byteLength} bytes)`);
     } catch (e) {
-      console.warn("[kitesurf-fonts] emoji registration failed:", String(e));
+      console.warn("[parawing-fonts] emoji registration failed:", String(e));
       emojiPending = null;
       throw e;
     }
@@ -487,10 +487,10 @@ export async function ensureFontsRegistered(htmlForEmojiScan?: string): Promise<
         const totalBytes =
           sans.byteLength + sansItalic.byteLength + serif.byteLength + mono.byteLength;
         console.log(
-          `[kitesurf-fonts] registered ${wantMono ? 4 : 3} Latin UA fonts (${totalBytes} bytes) in ${(completedAt - startedAt).toFixed(1)}ms`,
+          `[parawing-fonts] registered ${wantMono ? 4 : 3} Latin UA fonts (${totalBytes} bytes) in ${(completedAt - startedAt).toFixed(1)}ms`,
         );
       } catch (e) {
-        console.warn("[kitesurf-fonts] registration failed:", String(e));
+        console.warn("[parawing-fonts] registration failed:", String(e));
         pending = null;
         throw e;
       }
@@ -575,9 +575,9 @@ function tryRegisterDeferred(): boolean {
         deferStash.mono ?? new Uint8Array(0),
       );
       deferCoreRegistered = true;
-      console.log("[kitesurf-fonts] deferred: registered Latin UA core on demand");
+      console.log("[parawing-fonts] deferred: registered Latin UA core on demand");
     } catch (e) {
-      console.warn("[kitesurf-fonts] deferred core registration failed:", String(e));
+      console.warn("[parawing-fonts] deferred core registration failed:", String(e));
       deferCoreFailed = true;
       return false;
     }
@@ -588,7 +588,7 @@ function tryRegisterDeferred(): boolean {
     try {
       run();
     } catch (e) {
-      console.warn(`[kitesurf-fonts] deferred ${name} registration failed:`, String(e));
+      console.warn(`[parawing-fonts] deferred ${name} registration failed:`, String(e));
     }
   };
   const { symbols, symbols2, emoji, cjk } = deferStash;
@@ -628,7 +628,7 @@ export function startFontPrefetch(html?: string): void {
             deferSettledEmpty.add(label);
             if (deferDemandArmed) tryRegisterDeferred();
           }
-          console.warn(`[kitesurf-fonts] deferred ${label} fetch failed:`, String(error));
+          console.warn(`[parawing-fonts] deferred ${label} fetch failed:`, String(error));
         }),
     );
   };
@@ -692,7 +692,7 @@ export function startFontPrefetch(html?: string): void {
   }
   deferFetchSettled = Promise.all(all).then(() => undefined);
   console.log(
-    `[kitesurf-fonts] deferred: prefetching ${all.length} face file(s), registration on demand`,
+    `[parawing-fonts] deferred: prefetching ${all.length} face file(s), registration on demand`,
   );
 }
 
@@ -710,7 +710,7 @@ function releaseParkedFonts(): void {
   try {
     parkedFontReleaseHook?.();
   } catch (e) {
-    console.warn("[kitesurf-fonts] parked font release failed:", String(e));
+    console.warn("[parawing-fonts] parked font release failed:", String(e));
   }
 }
 
@@ -729,7 +729,7 @@ export function demandDeferredFonts(): boolean {
   deferDegradedReads++;
   if (deferDegradedReads === 1) {
     console.warn(
-      "[kitesurf-fonts] layout demand before deferred font bytes arrived — degraded read",
+      "[parawing-fonts] layout demand before deferred font bytes arrived — degraded read",
     );
   }
   return false;

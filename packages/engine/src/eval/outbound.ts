@@ -5,7 +5,7 @@
 // Applies page-origin, cookie, CORS, interception, and egress rules to page requests.
 
 import { WorkerEntrypoint } from "cloudflare:workers";
-import type { SessionOutbound, SessionOutboundRequest } from "@kitesurf/jsrpc-types/page-script";
+import type { SessionOutbound, SessionOutboundRequest } from "@parawing/jsrpc-types/page-script";
 import {
   CONNECTION_ID_HEADER,
   FRAME_ID_HEADER,
@@ -35,7 +35,9 @@ import {
   needsPreflight,
   preflightCacheLookup,
 } from "./cors.ts";
-import { wbaHeadersFor, type WbaEnv } from "./web-bot-auth.ts";
+import { wbaHeadersFor } from "./web-bot-auth.ts";
+import type { AssetCapability, HostCapabilities } from "../host-capabilities.ts";
+import { createWorkersCapabilities, type WorkersCapabilitiesEnv } from "../workers-capabilities.ts";
 import { directExternalFetch, type ExternalOutbound } from "./external-outbound.ts";
 import { looksLikeSvg, sniffImageDims } from "./image-dims.ts";
 import { MAX_ENTRY_BYTES, putAuthorFont, putOpaqueImage } from "./resource-store.ts";
@@ -43,22 +45,23 @@ import { MAX_SHAPED_FONT_BYTES, shapeFontBytes } from "./font-shaping.ts";
 import { engineIsolateId, isForeignIsolate } from "./isolate-id.ts";
 import { readCapped, readCappedBudgeted, withDeadline } from "../read-capped.ts";
 import {
-  KITESURF_CORS_VERDICT_HEADER,
-  KITESURF_NOSNIFF_HEADER,
-} from "@kitesurf/script-gate/gateway-headers";
-import { determineReferrer, parseReferrerPolicy } from "@kitesurf/script-gate/referrer-policy";
-import { hasNosniff, mimeEssence } from "@kitesurf/script-gate/mime";
+  PARAWING_CORS_VERDICT_HEADER,
+  PARAWING_NOSNIFF_HEADER,
+} from "@parawing/script-gate/gateway-headers";
+import { determineReferrer, parseReferrerPolicy } from "@parawing/script-gate/referrer-policy";
+import { hasNosniff, mimeEssence } from "@parawing/script-gate/mime";
 import { isForbiddenRequestHeader } from "./forbidden-headers.ts";
 import { privateNetworkRefusal } from "./private-network.ts";
+import { getConnectionPolicy, getFrameSealedOrigin } from "../cdp/session-security-registry.ts";
 
-const RESOURCE_KEY_HEADER = "x-kitesurf-resource-key";
-const IMAGE_WIDTH_HEADER = "x-kitesurf-image-width";
-const IMAGE_HEIGHT_HEADER = "x-kitesurf-image-height";
-const FONT_KEY_HEADER = "x-kitesurf-font-key";
+const RESOURCE_KEY_HEADER = "x-parawing-resource-key";
+const IMAGE_WIDTH_HEADER = "x-parawing-image-width";
+const IMAGE_HEIGHT_HEADER = "x-parawing-image-height";
+const FONT_KEY_HEADER = "x-parawing-font-key";
 
-function stripKitesurfHeaders(headers: Record<string, string>): void {
+function stripParawingHeaders(headers: Record<string, string>): void {
   for (const name of Object.keys(headers)) {
-    if (name.toLowerCase().startsWith("x-kitesurf-")) delete headers[name];
+    if (name.toLowerCase().startsWith("x-parawing-")) delete headers[name];
   }
 }
 
@@ -104,7 +107,7 @@ export interface OutboundProps {
   pageRealm?: boolean;
 }
 
-const ASSET_SENTINEL_HOST = "kitesurf-fonts";
+const ASSET_SENTINEL_HOST = "parawing-fonts";
 
 const ASSET_CACHE_MAX_ENTRY_BYTES = 1_048_576;
 const ASSET_CACHE_MAX_TOTAL_BYTES = 4_194_304;
@@ -143,7 +146,7 @@ const MAX_SLOW_HEADER_URL_PREVIEW_CHARS = 160;
 const REDIRECT_STATUSES = new Set([301, 302, 303, 307, 308]);
 
 const STATUS_CARRIER = 599;
-export const CARRIED_STATUS_HEADER = "x-kitesurf-status";
+export const CARRIED_STATUS_HEADER = "x-parawing-status";
 
 const SUBRESOURCE_SPAN_BUDGET = 250;
 const MAX_SUBRESOURCE_SPAN_CONNECTIONS = 256;
@@ -180,34 +183,34 @@ function noteForeignIsolate(connectionId: string): void {
   }
   foreignIsolateNoted.add(connectionId);
   console.warn(
-    `[ks-outbound] foreign isolate: session=${connectionId || "?"} fetch ran outside the owning engine isolate; engine-held state skipped`,
+    `[pw-outbound] foreign isolate: session=${connectionId || "?"} fetch ran outside the owning engine isolate; engine-held state skipped`,
   );
 }
 
-export type SandboxOutboundEnv = WbaEnv & {
-  FONT_ASSETS: { fetch(req: Request): Promise<Response> };
-  HOST_TRACER?: Tracer;
-  /** "1" lets page-chosen requests reach loopback and private addresses. */
-  KITESURF_ALLOW_PRIVATE_NETWORK?: string;
-};
-
-export type SandboxOutboundExports = {
-  SandboxOutbound(opts: { props: OutboundProps }): Fetcher;
-};
+export type SandboxOutboundEnv = WorkersCapabilitiesEnv;
 
 /** Outbound props a caller supplies; the override seals in the connection's outbound hooks. */
 export type CallerOutboundProps = Omit<OutboundProps, "externalOutbound" | "egress">;
 
 export interface SandboxOutboundOverride {
   readonly external: boolean;
-  parent(props: CallerOutboundProps): Fetcher;
-  loaded(props: CallerOutboundProps): Fetcher;
+  parent(props: CallerOutboundProps): AssetCapability;
+  loadedProps(props: CallerOutboundProps): OutboundProps;
   session(props: CallerOutboundProps): SessionOutbound;
   final(request: Request): Promise<Response>;
 }
 
+type DuplexRequestInit = RequestInit & { duplex?: "half" };
+
+function buildRequestWithOptionalBody(url: string, init: DuplexRequestInit): Request {
+  if (init.body != null && init.duplex === undefined) {
+    init.duplex = "half";
+  }
+  return new Request(url, init);
+}
+
 function sessionRequest(req: SessionOutboundRequest): Request {
-  return new Request(req.url, {
+  return buildRequestWithOptionalBody(req.url, {
     method: req.method,
     headers: req.headers,
     body: req.body,
@@ -245,7 +248,15 @@ function pageVisibleResponse(resp: Response): Response {
 
 export type OutboundPolicyRefusal =
   | { readonly kind: "filter"; readonly reason: string }
-  | { readonly kind: "blocker"; readonly reason: string; readonly matched: string };
+  | { readonly kind: "blocker"; readonly reason: string; readonly matched: string }
+  | { readonly kind: "policy"; readonly reason: string };
+
+export interface OutboundPolicyRefusalOptions {
+  method?: string;
+  frameId?: string;
+  pageOrigin?: string;
+  isTopLevelNavigation?: boolean;
+}
 
 /**
  * The connection's URL/resource filters and host blocklist for one URL, without egress, so a
@@ -257,8 +268,40 @@ export function outboundPolicyRefusal(
   resourceType: string,
   pageHost: string,
   skipRequestBlocker: boolean,
+  opts: OutboundPolicyRefusalOptions = {},
 ): OutboundPolicyRefusal | null {
   if (!connectionId) return null;
+  const method = opts.method ?? "GET";
+  const frameId = opts.frameId ?? "";
+  const pageOrigin = opts.pageOrigin ?? "";
+  const isTopLevelNavigation = opts.isTopLevelNavigation === true;
+  const policyEngine = getConnectionPolicy(connectionId);
+  const sealedOrigin = getFrameSealedOrigin(connectionId, frameId, pageOrigin);
+  if (policyEngine || sealedOrigin !== null) {
+    if (policyEngine) {
+      const decision = policyEngine.evaluateEgress({
+        url,
+        method,
+        isTopLevelNavigation,
+        sealedOrigin,
+      });
+      if (!decision.allowed) return { kind: "policy", reason: decision.reason };
+    } else if (sealedOrigin !== null) {
+      let targetOrigin: string | null = null;
+      try {
+        const parsed = new URL(url);
+        targetOrigin = parsed.origin === "null" ? null : parsed.origin;
+      } catch {}
+      const upper = method.trim().toUpperCase();
+      const safeTop = isTopLevelNavigation && (upper === "GET" || upper === "HEAD");
+      if (targetOrigin !== sealedOrigin && !safeTop) {
+        return {
+          kind: "policy",
+          reason: `A1 sealed target (${sealedOrigin}) forbids cross-origin egress to ${url}`,
+        };
+      }
+    }
+  }
   const filters = getOutboundFilters(connectionId);
   if (filters) {
     const decision = shouldBlock(filters, url, resourceType);
@@ -275,8 +318,7 @@ export function outboundPolicyRefusal(
 }
 
 export function createSandboxOutboundOverride(
-  exports: SandboxOutboundExports,
-  env: SandboxOutboundEnv,
+  host: HostCapabilities,
   externalOutbound?: ExternalOutbound,
   egress?: ExternalOutbound,
 ): SandboxOutboundOverride {
@@ -291,16 +333,16 @@ export function createSandboxOutboundOverride(
     parent(props) {
       const sealed = seal(props);
       return {
-        fetch: (request: Request) => SandboxOutbound.handle(env, sealed, request),
-      } as Fetcher;
+        fetch: (request: Request) => SandboxOutbound.handle(host, sealed, request),
+      };
     },
-    loaded(props) {
-      return exports.SandboxOutbound({ props: { ...seal(props), pageRealm: true } });
+    loadedProps(props) {
+      return { ...seal(props), pageRealm: true };
     },
     session(props) {
       const sealed = { ...seal(props), pageRealm: true };
       return async (req) =>
-        rpcSafeResponse(await SandboxOutbound.handle(env, sealed, sessionRequest(req)));
+        rpcSafeResponse(await SandboxOutbound.handle(host, sealed, sessionRequest(req)));
     },
     final(request) {
       return directExternalFetch(externalOutbound ?? egress, request);
@@ -310,11 +352,15 @@ export function createSandboxOutboundOverride(
 
 export class SandboxOutbound extends WorkerEntrypoint<SandboxOutboundEnv, OutboundProps> {
   override fetch(request: Request): Promise<Response> {
-    return SandboxOutbound.handle(this.env, this.ctx.props, request);
+    return SandboxOutbound.handle(
+      createWorkersCapabilities(this.env, this.ctx),
+      this.ctx.props,
+      request,
+    );
   }
 
   static async handle(
-    env: SandboxOutboundEnv,
+    host: HostCapabilities,
     props: OutboundProps | undefined,
     request: Request,
   ): Promise<Response> {
@@ -325,7 +371,7 @@ export class SandboxOutbound extends WorkerEntrypoint<SandboxOutboundEnv, Outbou
       outboundInflight.set(conn, (outboundInflight.get(conn) ?? 0) + 1);
     }
     try {
-      const response = await SandboxOutbound.fetchTraced(env, props, request);
+      const response = await SandboxOutbound.fetchTraced(host, props, request);
       return props?.pageRealm === true ? pageVisibleResponse(response) : response;
     } finally {
       if (conn) {
@@ -337,64 +383,64 @@ export class SandboxOutbound extends WorkerEntrypoint<SandboxOutboundEnv, Outbou
   }
 
   private static async fetchTraced(
-    env: SandboxOutboundEnv,
+    host: HostCapabilities,
     props: OutboundProps | undefined,
     request: Request,
   ): Promise<Response> {
-    const tracer = env.HOST_TRACER;
-    if (!tracer) return SandboxOutbound.fetchPolicy(env, props, request);
+    const tracer = host.tracer;
+    if (!tracer) return SandboxOutbound.fetchPolicy(host, props, request);
     if (tracer.getSpanContext() === null) {
       const stamped = props?.localTraceParent;
       if (!(tracer instanceof LocalTracer) || !stamped) {
-        return SandboxOutbound.fetchPolicy(env, props, request);
+        return SandboxOutbound.fetchPolicy(host, props, request);
       }
       return tracer.runWithSpanContext(stamped, () =>
-        SandboxOutbound.fetchSpanned(env, props, tracer, request),
+        SandboxOutbound.fetchSpanned(host, props, tracer, request),
       );
     }
-    return SandboxOutbound.fetchSpanned(env, props, tracer, request);
+    return SandboxOutbound.fetchSpanned(host, props, tracer, request);
   }
 
   private static async fetchSpanned(
-    env: SandboxOutboundEnv,
+    host: HostCapabilities,
     props: OutboundProps | undefined,
-    tracer: import("../tracing.ts").Tracer,
+    tracer: Tracer,
     request: Request,
   ): Promise<Response> {
     const connectionId = props?.connectionId ?? request.headers.get(CONNECTION_ID_HEADER);
     if (!takeSubresourceSpanBudget(connectionId)) {
-      return SandboxOutbound.fetchPolicy(env, props, request);
+      return SandboxOutbound.fetchPolicy(host, props, request);
     }
-    let host = "";
+    let hostName = "";
     let path = "";
     try {
       const u = new URL(request.url);
-      host = u.hostname;
+      hostName = u.hostname;
       path = u.pathname;
     } catch {}
     return traceSpan(
       tracer,
       "subresource.fetch",
       async (s) => {
-        const resp = await SandboxOutbound.fetchPolicy(env, props, request);
+        const resp = await SandboxOutbound.fetchPolicy(host, props, request);
         if (s && s.isRecording) {
           s.setTags({
             status: resp.status,
             contentLength: resp.headers.get("content-length") ?? "",
-            blocked: resp.headers.get("x-kitesurf-blocked") ?? "",
+            blocked: resp.headers.get("x-parawing-blocked") ?? "",
           });
         }
         return resp;
       },
       {
-        kind: request.headers.get("x-kitesurf-resource-type") ?? "Other",
-        host,
+        kind: request.headers.get("x-parawing-resource-type") ?? "Other",
+        host: hostName,
         path,
       },
     );
   }
 
-  private static async fetchAsset(env: SandboxOutboundEnv, parsedUrl: URL): Promise<Response> {
+  private static async fetchAsset(host: HostCapabilities, parsedUrl: URL): Promise<Response> {
     const key = parsedUrl.pathname + parsedUrl.search;
     const hit = assetCache.get(key);
     if (hit) {
@@ -402,8 +448,8 @@ export class SandboxOutbound extends WorkerEntrypoint<SandboxOutboundEnv, Outbou
         headers: { "content-type": "font/otf" },
       });
     }
-    const cleanUrl = `https://kitesurf.invalid${key}`;
-    const resp = await env.FONT_ASSETS.fetch(new Request(cleanUrl, { method: "GET" }));
+    const cleanUrl = `https://parawing.invalid${key}`;
+    const resp = await host.assets.fetch(new Request(cleanUrl, { method: "GET" }));
     if (!resp.ok) return resp;
     const bytes = new Uint8Array(await resp.arrayBuffer());
     assetCacheStore(key, bytes);
@@ -417,7 +463,7 @@ export class SandboxOutbound extends WorkerEntrypoint<SandboxOutboundEnv, Outbou
    * Policy blocks return responses; upstream fetch or interception failures can reject the call.
    */
   static async fetchPolicy(
-    env: SandboxOutboundEnv,
+    host: HostCapabilities,
     props: OutboundProps | undefined,
     request: Request,
   ): Promise<Response> {
@@ -426,7 +472,7 @@ export class SandboxOutbound extends WorkerEntrypoint<SandboxOutboundEnv, Outbou
       parsedUrl = new URL(request.url);
     } catch {}
     if (parsedUrl && parsedUrl.hostname === ASSET_SENTINEL_HOST) {
-      return SandboxOutbound.fetchAsset(env, parsedUrl);
+      return SandboxOutbound.fetchAsset(host, parsedUrl);
     }
 
     const sealed = !!props;
@@ -434,7 +480,7 @@ export class SandboxOutbound extends WorkerEntrypoint<SandboxOutboundEnv, Outbou
     const externalOutbound = props?.externalOutbound;
     const hostEgress = externalOutbound !== undefined;
     const transport = externalOutbound ?? props?.egress;
-    const headerOrigin = request.headers.get("x-kitesurf-page-origin") ?? "";
+    const headerOrigin = request.headers.get("x-parawing-page-origin") ?? "";
     // "null" may narrow sealed identity to opaque; other header values cannot replace it.
     const pageOrigin =
       headerOrigin === "null" ? "" : sealed ? (props.pageOrigin ?? "") : headerOrigin;
@@ -469,7 +515,7 @@ export class SandboxOutbound extends WorkerEntrypoint<SandboxOutboundEnv, Outbou
       tracker?.logEntry(networkSessionIds, {
         source: "network",
         level: "error",
-        text: detail.startsWith("kitesurf: ") ? detail.slice("kitesurf: ".length) : detail,
+        text: detail.startsWith("parawing: ") ? detail.slice("parawing: ".length) : detail,
         timestamp: Date.now(),
         url: diagnosticUrl(href),
         lineNumber: 0,
@@ -487,8 +533,8 @@ export class SandboxOutbound extends WorkerEntrypoint<SandboxOutboundEnv, Outbou
     try {
       target = new URL(request.url);
     } catch {
-      logBlocked(request.url, "kitesurf: invalid URL");
-      return blocked("kitesurf: invalid URL", "invalid-url");
+      logBlocked(request.url, "parawing: invalid URL");
+      return blocked("parawing: invalid URL", "invalid-url");
     }
 
     // Every redirect hop and WebSocket upgrade comes back through here. The document the
@@ -496,7 +542,7 @@ export class SandboxOutbound extends WorkerEntrypoint<SandboxOutboundEnv, Outbou
     // a page-started navigation or a frame document names its initiator instead.
     const privateNetworkInitiator = props?.privateNetworkInitiator ?? pageOrigin;
     if (
-      env.KITESURF_ALLOW_PRIVATE_NETWORK !== "1" &&
+      !host.config.allowPrivateNetwork &&
       (props?.skipRequestBlocker !== true || props?.privateNetworkInitiator !== undefined)
     ) {
       const refusal = privateNetworkRefusal(target, privateNetworkInitiator);
@@ -513,13 +559,13 @@ export class SandboxOutbound extends WorkerEntrypoint<SandboxOutboundEnv, Outbou
       try {
         allowed = new URL(pageOrigin);
       } catch {
-        logBlocked(request.url, "kitesurf: invalid page origin");
-        return blocked("kitesurf: invalid page origin", "invalid-page-origin");
+        logBlocked(request.url, "parawing: invalid page origin");
+        return blocked("parawing: invalid page origin", "invalid-page-origin");
       }
     }
 
-    if (allowed.host === "kitesurf.local") {
-      const detail = "kitesurf: synthetic-origin fetch dropped (no network during bench)";
+    if (allowed.host === "parawing.local") {
+      const detail = "parawing: synthetic-origin fetch dropped (no network during bench)";
       logBlocked(request.url, detail);
       return blocked(detail, "synthetic-origin");
     }
@@ -529,13 +575,13 @@ export class SandboxOutbound extends WorkerEntrypoint<SandboxOutboundEnv, Outbou
     const sameOrigin = !opaqueOrigin && targetOriginKey === allowedOriginKey;
     let crossOriginNow = !sameOrigin;
 
-    const allowCrossOrigin = request.headers.get("x-kitesurf-allow-cross-origin") === "1";
+    const allowCrossOrigin = request.headers.get("x-parawing-allow-cross-origin") === "1";
     // The page's WebSocket opens through fetch() and can label its request with any type.
     const webSocketUpgrade = (request.headers.get("Upgrade") ?? "").toLowerCase() === "websocket";
     const resourceType = webSocketUpgrade
       ? "WebSocket"
-      : (request.headers.get("x-kitesurf-resource-type") ?? "");
-    const scriptCorsMode = request.headers.get("x-kitesurf-script-cors") ?? "";
+      : (request.headers.get("x-parawing-resource-type") ?? "");
+    const scriptCorsMode = request.headers.get("x-parawing-script-cors") ?? "";
     // A parser load is a read; a page can label any method with a parser resource type.
     const parserRead = request.method === "GET" || request.method === "HEAD";
     const safeCrossOriginType =
@@ -548,17 +594,17 @@ export class SandboxOutbound extends WorkerEntrypoint<SandboxOutboundEnv, Outbou
 
     const stylesheetCorsMode =
       resourceType === "Stylesheet"
-        ? (request.headers.get("x-kitesurf-stylesheet-cors") ?? "")
+        ? (request.headers.get("x-parawing-stylesheet-cors") ?? "")
         : "";
     const sheetWantsCors = stylesheetCorsMode === "cors" && !sameOrigin;
 
-    const noCorsMode = request.headers.get("x-kitesurf-mode") === "no-cors";
+    const noCorsMode = request.headers.get("x-parawing-mode") === "no-cors";
     let opaqueNoCors = noCorsMode && !sameOrigin;
     let needsCorsCheck = !sameOrigin && !opaqueResourceBypass && !noCorsMode;
 
     const corpApplies = noCorsMode || (resourceType === "Script" && scriptCorsMode === "no-cors");
 
-    const credentialsHeader = request.headers.get("x-kitesurf-credentials");
+    const credentialsHeader = request.headers.get("x-parawing-credentials");
     const credentialsMode: CredentialsMode | null =
       credentialsHeader === null
         ? null
@@ -592,28 +638,52 @@ export class SandboxOutbound extends WorkerEntrypoint<SandboxOutboundEnv, Outbou
       resourceType,
       pageHost,
       props?.skipRequestBlocker === true,
+      {
+        method: request.method,
+        frameId: networkFrameId,
+        pageOrigin,
+        isTopLevelNavigation: props?.topLevelDocument === true,
+      },
     );
-    if (refusal?.kind === "filter") {
-      return new Response(`kitesurf: outbound blocked — ${refusal.reason}\n`, {
-        status: 451,
-        statusText: "Blocked by kitesurf outbound filter",
-        headers: {
-          "content-type": "text/plain; charset=utf-8",
-          "x-kitesurf-blocked-reason": refusal.reason,
-        },
-      });
-    }
-    if (refusal) {
-      if (tracker) {
+    if (refusal?.kind === "filter" || refusal?.kind === "policy") {
+      if (refusal.kind === "policy" && tracker) {
         const headers = headersToRecord(request.headers);
-        stripKitesurfHeaders(headers);
+        stripParawingHeaders(headers);
         const requestId = tracker.beginRequest({
           url: request.url,
           method: request.method,
           headers,
           type: parseResourceType(resourceType),
           initiator: {
-            type: request.headers.get("x-kitesurf-initiator") === "parser" ? "parser" : "script",
+            type: request.headers.get("x-parawing-initiator") === "parser" ? "parser" : "script",
+            url: pageOrigin,
+          },
+          loaderId: networkLoaderId,
+          frameId: networkFrameId,
+          sessionIds: networkSessionIds,
+        });
+        tracker.failRequest(requestId, "net::ERR_BLOCKED_BY_CLIENT");
+      }
+      return new Response(`parawing: outbound blocked — ${refusal.reason}\n`, {
+        status: 451,
+        statusText: "Blocked by parawing outbound policy",
+        headers: {
+          "content-type": "text/plain; charset=utf-8",
+          "x-parawing-blocked-reason": refusal.reason,
+        },
+      });
+    }
+    if (refusal) {
+      if (tracker) {
+        const headers = headersToRecord(request.headers);
+        stripParawingHeaders(headers);
+        const requestId = tracker.beginRequest({
+          url: request.url,
+          method: request.method,
+          headers,
+          type: parseResourceType(resourceType),
+          initiator: {
+            type: request.headers.get("x-parawing-initiator") === "parser" ? "parser" : "script",
             url: pageOrigin,
           },
           loaderId: networkLoaderId,
@@ -622,13 +692,13 @@ export class SandboxOutbound extends WorkerEntrypoint<SandboxOutboundEnv, Outbou
         });
         tracker.failRequest(requestId, "net::ERR_BLOCKED_BY_CLIENT", "subresource-filter");
       }
-      return new Response(`kitesurf: outbound blocked — ${refusal.reason}\n`, {
+      return new Response(`parawing: outbound blocked — ${refusal.reason}\n`, {
         status: 451,
-        statusText: "Blocked by kitesurf request blocker",
+        statusText: "Blocked by parawing request blocker",
         headers: {
           "content-type": "text/plain; charset=utf-8",
-          "x-kitesurf-blocked-reason": refusal.reason,
-          "x-kitesurf-blocked-match": refusal.matched,
+          "x-parawing-blocked-reason": refusal.reason,
+          "x-parawing-blocked-match": refusal.matched,
         },
       });
     }
@@ -645,7 +715,7 @@ export class SandboxOutbound extends WorkerEntrypoint<SandboxOutboundEnv, Outbou
       wsHeaders.set("User-Agent", request.headers.get("user-agent") || BROWSER_UA);
       const wsCookieKey = sealed
         ? props.cookieKey || connectionId
-        : request.headers.get("x-kitesurf-cookie-key") || connectionId;
+        : request.headers.get("x-parawing-cookie-key") || connectionId;
       const wsJar = wsCookieKey ? getCookieJar(wsCookieKey) : undefined;
       if (wsJar) {
         const cookieHeader = wsJar.cookieHeaderForUrl(request.url, cookieContext);
@@ -666,11 +736,13 @@ export class SandboxOutbound extends WorkerEntrypoint<SandboxOutboundEnv, Outbou
     }
 
     const extraHeaders = props?.extraHeaders ?? {};
-    const wbaHeaders = hostEgress ? {} : await wbaHeadersFor(env, target.host);
+    const wbaHeaders = hostEgress
+      ? {}
+      : await wbaHeadersFor(host.config.webBotAuth ?? {}, target.host);
     let authorRequest = request;
     if (noCorsMode) {
       if (!isSafelistedMethod(request.method)) {
-        const detail = `kitesurf: mode 'no-cors' only permits GET, HEAD and POST, not ${request.method}`;
+        const detail = `parawing: mode 'no-cors' only permits GET, HEAD and POST, not ${request.method}`;
         logBlocked(request.url, detail);
         return blocked(detail, "no-cors-method");
       }
@@ -695,15 +767,28 @@ export class SandboxOutbound extends WorkerEntrypoint<SandboxOutboundEnv, Outbou
         resourceType === "Document" && props?.topLevelDocument === true && request.method === "GET",
     });
 
-    // Sealed props or x-kitesurf-cookie-key select the jar; only a missing context key
+    // Sealed props or x-parawing-cookie-key select the jar; only a missing context key
     // falls back to connectionId, the default-context jar.
     const cookieKey =
-      (sealed ? (props.cookieKey ?? "") : (request.headers.get("x-kitesurf-cookie-key") ?? "")) ||
+      (sealed ? (props.cookieKey ?? "") : (request.headers.get("x-parawing-cookie-key") ?? "")) ||
       connectionId;
     const jar = cookieKey ? getCookieJar(cookieKey) : undefined;
+    const outboundPolicy = connectionId ? getConnectionPolicy(connectionId) : undefined;
+    const outboundSealedOrigin = connectionId
+      ? getFrameSealedOrigin(connectionId, networkFrameId, pageOrigin)
+      : null;
+    const cookieReadAllowed =
+      !outboundPolicy ||
+      outboundPolicy.evaluateStorage({
+        operation: "read",
+        storageKind: "cookie",
+        origin: request.url,
+        sealedOrigin: outboundSealedOrigin,
+      }).allowed;
     if (
       jar &&
       sendCredentials &&
+      cookieReadAllowed &&
       !forwardRequest.headers.has("cookie") &&
       props?.topLevelDocument !== true
     ) {
@@ -714,7 +799,7 @@ export class SandboxOutbound extends WorkerEntrypoint<SandboxOutboundEnv, Outbou
     }
 
     if (tracker) {
-      const typeHint = (request.headers.get("x-kitesurf-resource-type") ?? "Other") as
+      const typeHint = (request.headers.get("x-parawing-resource-type") ?? "Other") as
         | "Document"
         | "Stylesheet"
         | "Image"
@@ -723,7 +808,7 @@ export class SandboxOutbound extends WorkerEntrypoint<SandboxOutboundEnv, Outbou
         | "Fetch"
         | "Other";
       const initType =
-        request.headers.get("x-kitesurf-initiator") === "parser" ? "parser" : "script";
+        request.headers.get("x-parawing-initiator") === "parser" ? "parser" : "script";
       requestId = tracker.beginRequest({
         url: request.url,
         method: request.method,
@@ -738,15 +823,17 @@ export class SandboxOutbound extends WorkerEntrypoint<SandboxOutboundEnv, Outbou
 
     const interceptConn = sealed
       ? props.interceptConnectionId || connectionId
-      : (request.headers.get("x-kitesurf-intercept-connection") ?? connectionId);
-    const interception = interceptConn ? getInterception(interceptConn) : undefined;
+      : (request.headers.get("x-parawing-intercept-connection") ?? connectionId);
+    const sealedFrameOrigin = getFrameSealedOrigin(connectionId, networkFrameId, pageOrigin);
+    const interception =
+      sealedFrameOrigin === null && interceptConn ? getInterception(interceptConn) : undefined;
     if (interception && interceptionMatches(interception, forwardRequest.url, resourceType)) {
       // Only the engine's own document walk carries an id header; a page's request is named by
       // the Network request the tracker just started.
       const networkId =
         requestId ??
         (sealed && props.pageRealm !== true && props.interceptConnectionId
-          ? (request.headers.get("x-kitesurf-network-id") ?? "")
+          ? (request.headers.get("x-parawing-network-id") ?? "")
           : "");
       let postData: string | undefined;
       if (forwardRequest.method !== "GET" && forwardRequest.method !== "HEAD") {
@@ -819,7 +906,7 @@ export class SandboxOutbound extends WorkerEntrypoint<SandboxOutboundEnv, Outbou
               return h;
             })()
           : forwardRequest.headers;
-        forwardRequest = new Request(action.url ?? forwardRequest.url, {
+        forwardRequest = buildRequestWithOptionalBody(action.url ?? forwardRequest.url, {
           method: action.method ?? forwardRequest.method,
           headers: oh,
           body:
@@ -857,7 +944,9 @@ export class SandboxOutbound extends WorkerEntrypoint<SandboxOutboundEnv, Outbou
         const authorHeaders = action.headers ? oh : request.headers;
         authorUnsafeHeaders = needsCorsCheck ? corsUnsafeRequestHeaderNames(authorHeaders) : [];
         wantsPreflight = needsCorsCheck && needsPreflight(forwardRequest.method, authorHeaders);
-        const wbaAfter = hostEgress ? {} : await wbaHeadersFor(env, target.host);
+        const wbaAfter = hostEgress
+          ? {}
+          : await wbaHeadersFor(host.config.webBotAuth ?? {}, target.host);
         for (const [k, v] of Object.entries(wbaAfter)) {
           forwardRequest.headers.set(k, v);
         }
@@ -884,7 +973,7 @@ export class SandboxOutbound extends WorkerEntrypoint<SandboxOutboundEnv, Outbou
       if (!cached) {
         const pfTimeout = new AbortController();
         const pfTimer = setTimeout(
-          () => pfTimeout.abort(new Error("kitesurf: preflight headers timeout")),
+          () => pfTimeout.abort(new Error("parawing: preflight headers timeout")),
           EGRESS_HEADERS_TIMEOUT_MS,
         );
         const pfSignal =
@@ -907,7 +996,9 @@ export class SandboxOutbound extends WorkerEntrypoint<SandboxOutboundEnv, Outbou
               cacheable: !hostEgress,
             },
             async (req) => {
-              const pfWba = hostEgress ? {} : await wbaHeadersFor(env, target.host);
+              const pfWba = hostEgress
+                ? {}
+                : await wbaHeadersFor(host.config.webBotAuth ?? {}, target.host);
               for (const [k, v] of Object.entries(pfWba)) {
                 req.headers.set(k, v);
               }
@@ -922,7 +1013,7 @@ export class SandboxOutbound extends WorkerEntrypoint<SandboxOutboundEnv, Outbou
           return blockedForClient(
             verdict.reason,
             target.href,
-            `kitesurf: Access to fetch at '${diagnosticUrl(target.href)}' from origin '${pageOrigin || "null"}' has been blocked by CORS policy: ` +
+            `parawing: Access to fetch at '${diagnosticUrl(target.href)}' from origin '${pageOrigin || "null"}' has been blocked by CORS policy: ` +
               `Response to preflight request doesn't pass access control check` +
               (verdict.message ? ` (${verdict.message})` : "."),
           );
@@ -939,7 +1030,7 @@ export class SandboxOutbound extends WorkerEntrypoint<SandboxOutboundEnv, Outbou
         ? DOCUMENT_HEADERS_TIMEOUT_MS
         : EGRESS_HEADERS_TIMEOUT_MS;
     const egressAbortTimer = setTimeout(() => {
-      egressAbortCtl.abort(new Error(`kitesurf: egress headers timeout after ${headersCapMs}ms`));
+      egressAbortCtl.abort(new Error(`parawing: egress headers timeout after ${headersCapMs}ms`));
     }, headersCapMs);
     const egressSignal =
       typeof AbortSignal.any === "function" && forwardRequest.signal
@@ -954,8 +1045,8 @@ export class SandboxOutbound extends WorkerEntrypoint<SandboxOutboundEnv, Outbou
       const __egressMs = Date.now() - __egressT0;
       if (__egressMs > SLOW_EGRESS_HEADERS_THRESHOLD_MS) {
         console.warn(
-          `[ks-egress] slow headers: ${__egressMs}ms ` +
-            `type=${request.headers.get("x-kitesurf-resource-type") ?? "Other"} ` +
+          `[pw-egress] slow headers: ${__egressMs}ms ` +
+            `type=${request.headers.get("x-parawing-resource-type") ?? "Other"} ` +
             `url=${forwardRequest.url.slice(0, MAX_SLOW_HEADER_URL_PREVIEW_CHARS)}`,
         );
       }
@@ -965,14 +1056,22 @@ export class SandboxOutbound extends WorkerEntrypoint<SandboxOutboundEnv, Outbou
         tracker.failRequest(requestId, err instanceof Error ? err.message : String(err));
       }
       if (egressAbortCtl.signal.aborted) {
-        const detail = `kitesurf: egress timeout after ${headersCapMs}ms`;
+        const detail = `parawing: egress timeout after ${headersCapMs}ms`;
         logBlocked(request.url, detail);
         return blocked(detail, "egress-timeout");
       }
       throw err;
     }
 
-    if (jar && sendCredentials) {
+    const cookieWriteAllowed =
+      !outboundPolicy ||
+      outboundPolicy.evaluateStorage({
+        operation: "write",
+        storageKind: "cookie",
+        origin: forwardRequest.url,
+        sealedOrigin: outboundSealedOrigin,
+      }).allowed;
+    if (jar && sendCredentials && cookieWriteAllowed) {
       try {
         const setCookies =
           typeof resp.headers.getSetCookie === "function" ? resp.headers.getSetCookie() : [];
@@ -1017,7 +1116,7 @@ export class SandboxOutbound extends WorkerEntrypoint<SandboxOutboundEnv, Outbou
           return blockedForClient(
             "corp-blocked",
             forwardRequest.url,
-            `kitesurf: Access to fetch at '${diagnosticUrl(forwardRequest.url)}' from origin '${pageOrigin || "null"}' has been blocked by Cross-Origin-Resource-Policy: ${corp}.`,
+            `parawing: Access to fetch at '${diagnosticUrl(forwardRequest.url)}' from origin '${pageOrigin || "null"}' has been blocked by Cross-Origin-Resource-Policy: ${corp}.`,
           );
         }
       }
@@ -1055,7 +1154,7 @@ export class SandboxOutbound extends WorkerEntrypoint<SandboxOutboundEnv, Outbou
         await resp.body?.cancel();
       } catch {}
       failTrackedRequest(tracker, requestId, "stylesheet-mime");
-      const detail = "kitesurf: stylesheet response has an invalid MIME type";
+      const detail = "parawing: stylesheet response has an invalid MIME type";
       logBlocked(request.url, detail);
       return blocked(detail, "stylesheet-mime");
     }
@@ -1074,7 +1173,7 @@ export class SandboxOutbound extends WorkerEntrypoint<SandboxOutboundEnv, Outbou
           return blockedForClient(
             "cors-redirect-userinfo",
             forwardRequest.url,
-            `kitesurf: Redirect from '${diagnosticUrl(forwardRequest.url)}' to a URL containing credentials is not allowed for a CORS request.`,
+            `parawing: Redirect from '${diagnosticUrl(forwardRequest.url)}' to a URL containing credentials is not allowed for a CORS request.`,
           );
         }
       }
@@ -1117,7 +1216,7 @@ export class SandboxOutbound extends WorkerEntrypoint<SandboxOutboundEnv, Outbou
       if (!shapeFont) return rebuild(bytes, headers);
       let shaped: Uint8Array | null = null;
       try {
-        shaped = await shapeFontBytes(bytes, env.HOST_TRACER);
+        shaped = await shapeFontBytes(bytes, host.tracer);
       } catch {
         shaped = null;
       }
@@ -1150,7 +1249,7 @@ export class SandboxOutbound extends WorkerEntrypoint<SandboxOutboundEnv, Outbou
       if (!dims) {
         if (!looksLikeSvg(bytes)) {
           console.warn(
-            `[ks-outbound] resource-type Image on a non-image body: ${forwardRequest.url}`,
+            `[pw-outbound] resource-type Image on a non-image body: ${forwardRequest.url}`,
           );
         }
         return shell(false);
@@ -1165,7 +1264,7 @@ export class SandboxOutbound extends WorkerEntrypoint<SandboxOutboundEnv, Outbou
     };
     const exposeHeaders = (h: Headers): Headers => {
       if (!needsCorsCheck || isRedirect) return h;
-      const filtered = scrubKitesurfNamespace(filterCorsResponseHeaders(h, credentialsInclude));
+      const filtered = scrubParawingNamespace(filterCorsResponseHeaders(h, credentialsInclude));
       if (emptyLocationRedirect) filtered.set("location", "");
       stampScriptSecurity(h, filtered);
       return filtered;
@@ -1174,9 +1273,9 @@ export class SandboxOutbound extends WorkerEntrypoint<SandboxOutboundEnv, Outbou
     function stampScriptSecurity(source: Headers, out: Headers): void {
       if (resourceType !== "Script") return;
       const nosniff = source.get("x-content-type-options");
-      if (nosniff) out.set(KITESURF_NOSNIFF_HEADER, nosniff);
+      if (nosniff) out.set(PARAWING_NOSNIFF_HEADER, nosniff);
       if (corsVerdict !== null) {
-        out.set(KITESURF_CORS_VERDICT_HEADER, corsVerdict);
+        out.set(PARAWING_CORS_VERDICT_HEADER, corsVerdict);
       }
     }
 
@@ -1195,8 +1294,8 @@ export class SandboxOutbound extends WorkerEntrypoint<SandboxOutboundEnv, Outbou
 
     const stampSheetCors = (h: Headers): Headers => {
       if (corsVerdict === null) return h;
-      const out = scrubKitesurfNamespace(h);
-      out.set(KITESURF_CORS_VERDICT_HEADER, corsVerdict);
+      const out = scrubParawingNamespace(h);
+      out.set(PARAWING_CORS_VERDICT_HEADER, corsVerdict);
       stampScriptSecurity(h, out);
       return out;
     };
@@ -1301,7 +1400,7 @@ export class SandboxOutbound extends WorkerEntrypoint<SandboxOutboundEnv, Outbou
     if (!needsCorsCheck || isRedirect) {
       if (corsVerdict === null || resp.status < 200 || resp.status > 599) {
         if (corsVerdict === null) return resp;
-        return corsFilteredResponse(resp, resp.body, scrubKitesurfNamespace(resp.headers));
+        return corsFilteredResponse(resp, resp.body, scrubParawingNamespace(resp.headers));
       }
       return new Response(resp.body, {
         status: resp.status,
@@ -1351,10 +1450,10 @@ function redirectShell(resp: Response): Response {
   });
 }
 
-function scrubKitesurfNamespace(headers: Headers): Headers {
+function scrubParawingNamespace(headers: Headers): Headers {
   const out = new Headers(headers);
   for (const name of [...out.keys()]) {
-    if (name.startsWith("x-kitesurf-")) out.delete(name);
+    if (name.startsWith("x-parawing-")) out.delete(name);
   }
   return out;
 }
@@ -1363,7 +1462,7 @@ function blocked(message: string, reason: string): Response {
   return new Response(message, {
     status: 403,
     headers: {
-      "x-kitesurf-blocked": reason,
+      "x-parawing-blocked": reason,
       "content-type": "text/plain;charset=utf-8",
     },
   });
@@ -1386,8 +1485,8 @@ function diagnosticUrl(href: string): string {
 /** A CORS rejection: the engine log keeps the reason and the stripped URL; a page-realm
  *  caller gets a generic body, since the detailed one names the blocked target. */
 function corsBlocked(reason: string, href: string, detail: string, pageRealm: boolean): Response {
-  console.warn(`[ks-outbound] cors ${reason} ${diagnosticUrl(href)}`);
-  return blocked(pageRealm ? `kitesurf: blocked by CORS policy (${reason})` : detail, "cors");
+  console.warn(`[pw-outbound] cors ${reason} ${diagnosticUrl(href)}`);
+  return blocked(pageRealm ? `parawing: blocked by CORS policy (${reason})` : detail, "cors");
 }
 
 function defaultPortForProtocol(protocol: string): string {
@@ -1428,7 +1527,7 @@ function checkCorsResponse(
   const requestOrigin = pageOrigin || "null";
   const reason = corsCheck(resp.headers, requestOrigin, credentialsInclude);
   if (reason === null) return null;
-  const prefix = `kitesurf: Access to fetch at '${diagnosticUrl(target.href)}' from origin '${requestOrigin}' has been blocked by CORS policy: `;
+  const prefix = `parawing: Access to fetch at '${diagnosticUrl(target.href)}' from origin '${requestOrigin}' has been blocked by CORS policy: `;
   const aca = (resp.headers.get("access-control-allow-origin") ?? "").trim();
   switch (reason) {
     case "cors-missing-origin":
@@ -1539,7 +1638,7 @@ export function buildForwardRequest({
   const headers = new Headers();
   for (const [k, v] of original.headers.entries()) {
     const lower = k.toLowerCase();
-    if (lower.startsWith("x-kitesurf-")) continue;
+    if (lower.startsWith("x-parawing-")) continue;
     if (pageRealm && isForbiddenRequestHeader(lower, v)) continue;
     headers.set(k, v);
   }
@@ -1554,7 +1653,7 @@ export function buildForwardRequest({
   if (corsMode) headers.set("origin", pageOrigin || "null");
   const policy = parseReferrerPolicy(referrerPolicy);
   const requestReferrer = (() => {
-    const raw = original.headers.get("x-kitesurf-referrer") ?? "";
+    const raw = original.headers.get("x-parawing-referrer") ?? "";
     if (raw === "" || raw === "no-referrer") return raw;
     if (!pageOrigin) return "";
     try {
@@ -1618,7 +1717,7 @@ export function buildForwardRequest({
   for (const [k, v] of Object.entries(wbaHeaders)) {
     headers.set(k, v);
   }
-  return new Request(original.url, {
+  return buildRequestWithOptionalBody(original.url, {
     method: original.method,
     headers,
     body: original.body,
