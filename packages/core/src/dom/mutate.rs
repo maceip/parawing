@@ -153,11 +153,10 @@ fn attr_name_for_key(doc: &BaseDocument, node_id: NodeId, key: &str) -> QualName
 
 #[wasm_bindgen]
 impl DomHandle {
-    #[wasm_bindgen(js_name = "applyOps")]
-    pub fn apply_ops(&self, json: &str) -> Result<u32, JsError> {
+    pub(crate) fn apply_ops_native(&self, json: &str) -> Result<u32, String> {
         let _ks_span = tracing::info_span!("wasm.apply_ops", json_bytes = json.len()).entered();
-        let ops: Vec<Op> = serde_json::from_str(json)
-            .map_err(|e| JsError::new(&format!("apply_ops: bad JSON: {e}")))?;
+        let ops: Vec<Op> =
+            serde_json::from_str(json).map_err(|e| format!("apply_ops: bad JSON: {e}"))?;
         let mut applied: u32 = 0;
         let mut errors: Vec<String> = Vec::new();
 
@@ -183,17 +182,20 @@ impl DomHandle {
                 }
             }
         }
+        drop(doc);
 
         if applied > 0 {
             self.layout_dirty.set(true);
         }
         if applied == 0 && !errors.is_empty() {
-            return Err(JsError::new(&format!(
-                "all ops failed: {}",
-                errors.join("; ")
-            )));
+            return Err(format!("all ops failed: {}", errors.join("; ")));
         }
         Ok(applied)
+    }
+
+    #[wasm_bindgen(js_name = "applyOps")]
+    pub fn apply_ops(&self, json: &str) -> Result<u32, JsError> {
+        self.apply_ops_native(json).map_err(|e| JsError::new(&e))
     }
 
     #[wasm_bindgen(js_name = "setAttribute")]

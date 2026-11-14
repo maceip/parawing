@@ -8,6 +8,17 @@
 pub(crate) mod scene_record;
 pub(crate) mod scene_decode;
 pub(crate) mod scene_replay;
+#[allow(
+    dead_code,
+    reason = "KSC2 codec is shared with scene-host-wasm; renderSceneV2 and host tests use it."
+)]
+pub(crate) mod scene_v2;
+#[allow(
+    dead_code,
+    reason = "CompositorV2 is shared with scene-host-wasm and exercised in host tests."
+)]
+pub(crate) mod compositor_v2;
+pub(crate) mod scene_v2_builder;
 pub(crate) mod font_container;
 pub(crate) mod screenshot;
 pub(crate) mod canvas2d;

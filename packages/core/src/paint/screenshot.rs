@@ -56,15 +56,13 @@ pub(crate) fn paint_document_to_image(
 /// by their negatives. Use `set_viewport_scroll` because `paint_scene_bounded`
 /// offsets move content the other way. Over-budget SVG layers are skipped, not errors.
 #[cfg(feature = "blitz")]
-pub(crate) fn paint_document_to_image_scrolled(
+pub(crate) fn paint_document_rgba_scrolled(
     document: &mut blitz_dom::BaseDocument,
     width: u32,
     height: u32,
-    format: ImageFormat,
-    quality: u8,
     scroll: (u32, u32),
     omit_background: bool,
-) -> Result<Vec<u8>, String> {
+) -> Vec<u8> {
     use anyrender::{ImageRenderer as _, PaintScene as _};
     use anyrender_vello_cpu::VelloCpuImageRenderer;
     use blitz_dom::util::Color;
@@ -82,15 +80,12 @@ pub(crate) fn paint_document_to_image_scrolled(
         y: scroll_y as f64,
     });
 
-    let effective_omit_bg =
-        omit_background && matches!(format, ImageFormat::Png | ImageFormat::Webp);
-
     let buffer_size = (render_w as usize) * (render_h as usize) * 4;
     let mut buffer = vec![0u8; buffer_size];
     let mut renderer = VelloCpuImageRenderer::new(render_w, render_h);
     renderer.render(
         |scene| {
-            if !effective_omit_bg {
+            if !omit_background {
                 scene.fill(
                     Fill::NonZero,
                     Default::default(),
@@ -103,12 +98,29 @@ pub(crate) fn paint_document_to_image_scrolled(
         },
         &mut buffer,
     );
+    buffer
+}
+
+#[cfg(feature = "blitz")]
+pub(crate) fn paint_document_to_image_scrolled(
+    document: &mut blitz_dom::BaseDocument,
+    width: u32,
+    height: u32,
+    format: ImageFormat,
+    quality: u8,
+    scroll: (u32, u32),
+    omit_background: bool,
+) -> Result<Vec<u8>, String> {
+    let effective_omit_bg =
+        omit_background && matches!(format, ImageFormat::Png | ImageFormat::Webp);
+    let mut buffer =
+        paint_document_rgba_scrolled(document, width, height, scroll, effective_omit_bg);
 
     match format {
-        ImageFormat::Png => encode_png(&buffer, render_w, render_h),
-        ImageFormat::Jpeg => encode_jpeg(&mut buffer, render_w, render_h, quality),
-        ImageFormat::Webp => encode_webp(&buffer, render_w, render_h),
-        ImageFormat::Rgba => encode_png(&buffer, render_w, render_h),
+        ImageFormat::Png => encode_png(&buffer, width, height),
+        ImageFormat::Jpeg => encode_jpeg(&mut buffer, width, height, quality),
+        ImageFormat::Webp => encode_webp(&buffer, width, height),
+        ImageFormat::Rgba => encode_png(&buffer, width, height),
     }
 }
 
@@ -122,7 +134,7 @@ pub fn ks_render_html_to_png(html: &str, base_url: &str, width: u32, height: u32
 /// Render HTML to PNG, JPEG, or WebP; unknown formats and RGBA fall back to PNG.
 /// Quality is clamped to 1 to 100 and applies only to JPEG. HTTP resources are
 /// not fetched, so callers must inline their stylesheets and external images.
-/// An unusable base URL uses `https://kitesurf.local/`; failures return empty bytes.
+/// An unusable base URL uses `https://parawing.local/`; failures return empty bytes.
 #[cfg(feature = "blitz")]
 #[wasm_bindgen]
 pub fn ks_render_html_to_image(
@@ -156,10 +168,10 @@ fn try_render(
 
     let resolved_base = match url::Url::parse(base_url) {
         Ok(u) if !u.cannot_be_a_base() => base_url.to_string(),
-        _ => "https://kitesurf.local/".to_string(),
+        _ => "https://parawing.local/".to_string(),
     };
 
-    let net_provider = Arc::new(crate::resources::net::KitesurfNetProvider::new());
+    let net_provider = Arc::new(crate::resources::net::ParawingNetProvider::new());
 
     let mut document = HtmlDocument::from_html(
         html,

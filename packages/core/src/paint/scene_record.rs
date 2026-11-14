@@ -644,7 +644,7 @@ impl RecordingScene {
 
     #[allow(
         clippy::too_many_arguments,
-        reason = "Used by kitesurf-core's ordered KSC0 TextRun writer."
+        reason = "Used by parawing-core's ordered KSC0 TextRun writer."
     )]
     fn try_emit_text_run(
         &mut self,

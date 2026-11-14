@@ -1,16 +1,16 @@
 {
-  "name": "kitesurf-core",
+  "name": "parawing-core",
   "type": "module",
-  "description": "Wasm core for kitesurf: DOM data plane + Stylo + Blitz render.",
+  "description": "Wasm core for parawing: DOM data plane + Stylo + Blitz render.",
   "version": "0.0.1",
   "license": "Apache-2.0",
   "files": [
-    "kitesurf_core_bg.wasm",
-    "kitesurf_core.js",
-    "kitesurf_core.d.ts"
+    "parawing_core_bg.wasm",
+    "parawing_core.js",
+    "parawing_core.d.ts"
   ],
-  "main": "kitesurf_core.js",
-  "types": "kitesurf_core.d.ts",
+  "main": "parawing_core.js",
+  "types": "parawing_core.d.ts",
   "sideEffects": [
     "./snippets/*"
   ]

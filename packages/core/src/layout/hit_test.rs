@@ -86,27 +86,30 @@ impl DomHandle {
         result.unwrap_or(-1)
     }
 
-    #[wasm_bindgen(js_name = "caretFromPoint")]
-    pub fn caret_from_point(&self, x: f32, y: f32) -> JsValue {
+    pub(crate) fn caret_from_point_native(&self, x: f32, y: f32) -> Option<(u32, usize)> {
         if self.layout_mode.get() == LayoutMode::Off {
-            return JsValue::NULL;
+            return None;
         }
         self.ensure_layout();
-        let mut doc = match self.doc.try_borrow_mut() {
-            Ok(d) => d,
-            Err(_) => return JsValue::NULL,
-        };
+        let mut doc = self.doc.try_borrow_mut().ok()?;
         let result = panic::catch_unwind(panic::AssertUnwindSafe(|| {
             input_caret_from_point(&mut doc, x, y).or_else(|| doc.dom_caret_from_point(x, y))
         }));
-        match result {
-            Ok(Some((node, offset))) => {
+        drop(doc);
+        let (node, offset) = result.ok().flatten()?;
+        Some((self.external_node_id(node), offset))
+    }
+
+    #[wasm_bindgen(js_name = "caretFromPoint")]
+    pub fn caret_from_point(&self, x: f32, y: f32) -> JsValue {
+        match self.caret_from_point_native(x, y) {
+            Some((node_id, offset)) => {
                 let arr = js_sys::Array::new();
-                arr.push(&JsValue::from_f64(f64::from(self.external_node_id(node))));
+                arr.push(&JsValue::from_f64(f64::from(node_id)));
                 arr.push(&JsValue::from_f64(offset as f64));
                 arr.into()
             }
-            _ => JsValue::NULL,
+            None => JsValue::NULL,
         }
     }
 

@@ -32,9 +32,9 @@ const OUT_GLUE_DTS = resolve(PKG_DIR, "renderer_core.glue.d.ts");
 const postprocessAt = process.argv.indexOf("--postprocess");
 const postprocessWasm = postprocessAt > 0 ? resolve(process.argv[postprocessAt + 1]) : null;
 
-if (process.env.KITESURF_REUSE_WASM && !postprocessWasm) {
+if (process.env.PARAWING_REUSE_WASM && !postprocessWasm) {
   if ([OUT_WASM, OUT_GLUE, OUT_GLUE_DTS].every((outputPath) => existsSync(outputPath))) {
-    console.log("[renderer-core] KITESURF_REUSE_WASM=1 and pkg/ present; reusing");
+    console.log("[renderer-core] PARAWING_REUSE_WASM=1 and pkg/ present; reusing");
     process.exit(0);
   }
 }

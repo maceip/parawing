@@ -2,7 +2,7 @@
 // Licensed under the Apache 2.0 license found in the LICENSE file or at:
 // https://opensource.org/licenses/Apache-2.0
 
-//! The internals record page-script publishes at `globalThis[Symbol.for("kitesurf.internals")]`
+//! The internals record page-script publishes at `globalThis[Symbol.for("parawing.internals")]`
 //! (internal-state.ts): the hooks the wasm calls back into the page isolate through. Absent in
 //! the parent engine isolate, where every lookup returns `None` and callers fall back.
 
@@ -23,7 +23,7 @@ fn record() -> Option<JsValue> {
     if let Some(found) = RECORD.with(|cell| cell.borrow().clone()) {
         return Some(found);
     }
-    let key = js_sys::Symbol::for_("kitesurf.internals");
+    let key = js_sys::Symbol::for_("parawing.internals");
     let found = js_sys::Reflect::get(&js_sys::global(), &key)
         .ok()
         .filter(JsValue::is_object)?;

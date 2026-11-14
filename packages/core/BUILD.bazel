@@ -1,6 +1,6 @@
 load("@crates//:defs.bzl", "aliases", "all_crate_deps")
 load("@rules_rust//cargo:defs.bzl", "cargo_toml_env_vars")
-load("@rules_rust//rust:defs.bzl", "rust_shared_library", "rust_test")
+load("@rules_rust//rust:defs.bzl", "rust_library", "rust_shared_library", "rust_test")
 load("@bazel_lib//lib:copy_to_bin.bzl", "copy_to_bin")
 load("@bazel_skylib//rules:build_test.bzl", "build_test")
 load("//bazel:executors.bzl", "RUST")
@@ -24,7 +24,7 @@ cargo_toml_env_vars(
         srcs = glob(["src/**/*.rs"]),
         aliases = aliases(),
         crate_features = ["blitz", "console_error_panic_hook", "default", "pdf"],
-        crate_name = "kitesurf_core",
+        crate_name = "parawing_core",
         crate_root = "src/lib.rs",
         edition = "2021",
         platform = platform,
@@ -36,10 +36,30 @@ cargo_toml_env_vars(
         deps = all_crate_deps(normal = True),
     )
     for name, platform in [
-        ("kitesurf_core", "//bazel/rust:wasm32_unwind"),
-        ("kitesurf_core_memprof", "//bazel/rust:wasm32_memprof"),
+        ("parawing_core", "//bazel/rust:wasm32_unwind"),
+        ("parawing_core_memprof", "//bazel/rust:wasm32_memprof"),
     ]
 ]
+
+rust_library(
+    name = "parawing_core_host",
+    srcs = glob(["src/**/*.rs"]),
+    aliases = aliases(),
+    compile_data = ["//packages/engine:fonts"],
+    crate_features = ["blitz", "console_error_panic_hook", "default", "pdf"],
+    crate_name = "parawing_core_host",
+    crate_root = "src/lib.rs",
+    edition = "2021",
+    exec_properties = RUST,
+    proc_macro_deps = all_crate_deps(proc_macro = True),
+    rustc_env = {"CARGO_MANIFEST_DIR": package_name()},
+    rustc_env_files = [":cargo_env"],
+    visibility = [
+        "//packages/core:__pkg__",
+        "//packages/rust-host:__pkg__",
+    ],
+    deps = all_crate_deps(normal = True),
+)
 
 filegroup(
     name = "renderer_shared_srcs",
@@ -66,7 +86,7 @@ rust_test(
     ),
     compile_data = glob(["tests_data/**"]) + ["//packages/engine:fonts"],
     crate_features = ["blitz", "console_error_panic_hook", "default", "pdf"],
-    crate_name = "kitesurf_core",
+    crate_name = "parawing_core",
     crate_root = "src/lib.rs",
     data = [
         "//packages/engine:fixture_assets",
@@ -75,7 +95,7 @@ rust_test(
     ],
     edition = "2021",
     # CARGO_MANIFEST_DIR below resolves only in the main repository; see src/test_assets.rs.
-    env = {"KITESURF_ENGINE_PACKAGE_JSON": "$(rootpath //packages/engine:package.json)"},
+    env = {"PARAWING_ENGINE_PACKAGE_JSON": "$(rootpath //packages/engine:package.json)"},
     exec_properties = RUST,
     proc_macro_deps = all_crate_deps(proc_macro = True, proc_macro_dev = True),
     rustc_env = {"CARGO_MANIFEST_DIR": package_name()},
@@ -119,10 +139,12 @@ test_suite(
 filegroup(
     name = "scene_host_srcs",
     srcs = [
+        "src/paint/compositor_v2.rs",
         "src/paint/font_container.rs",
         "src/paint/scene_decode.rs",
         "src/paint/scene_record.rs",
         "src/paint/scene_replay.rs",
+        "src/paint/scene_v2.rs",
         "src/paint/screenshot.rs",
         "src/tty/grid.rs",
     ],
@@ -146,5 +168,5 @@ rust_comments_test(
 )
 
 rust_lint_tests(
-    targets = ["core_test", "kitesurf_core", "kitesurf_core_memprof"],
+    targets = ["core_test", "parawing_core", "parawing_core_host", "parawing_core_memprof"],
 )

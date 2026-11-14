@@ -14,7 +14,7 @@ use crate::style::cssom::init_style_prefs;
 
 fn specified(property: &str, value: &str) -> String {
     init_style_prefs();
-    let url = UrlExtraData::from(url::Url::parse("about:kitesurf-test").unwrap());
+    let url = UrlExtraData::from(url::Url::parse("about:parawing-test").unwrap());
     let block = parse_style_attribute(
         &format!("{}: {}", property, value),
         &url,
@@ -39,7 +39,7 @@ fn color(value: &str) -> String {
 fn computed_color(value: &str) -> String {
     use style::properties::PropertyDeclaration;
     init_style_prefs();
-    let url = UrlExtraData::from(url::Url::parse("about:kitesurf-test").unwrap());
+    let url = UrlExtraData::from(url::Url::parse("about:parawing-test").unwrap());
     let block = parse_style_attribute(
         &format!("color: {}", value),
         &url,

@@ -308,7 +308,7 @@ fn parse_typed_style_value(
     let property = PropertyId::parse_enabled_for_all_content(property)
         .map_err(|_| "unknown CSS property".to_string())?;
     let property_name = property.to_css_string();
-    let url_data = url::Url::parse("about:kitesurf-inline-style")
+    let url_data = url::Url::parse("about:parawing-inline-style")
         .map(UrlExtraData::from)
         .map_err(|_| "could not create CSS parser URL".to_string())?;
     let block = parse_style_attribute(
@@ -341,7 +341,7 @@ fn parse_typed_style_value(
 }
 
 fn parse_typed_numeric_value(css_text: &str) -> Result<TypedStyleValueDto, String> {
-    let url_data = url::Url::parse("about:kitesurf-typed-numeric")
+    let url_data = url::Url::parse("about:parawing-typed-numeric")
         .map(UrlExtraData::from)
         .map_err(|_| "could not create CSS parser URL".to_string())?;
     let context = ParserContext::new(
@@ -378,7 +378,7 @@ struct CounterStyleRuleDto {
 }
 
 fn parse_counter_style_rule(css: &str) -> Result<CounterStyleRule, String> {
-    let url_data = url::Url::parse("about:kitesurf-counter-style")
+    let url_data = url::Url::parse("about:parawing-counter-style")
         .map(UrlExtraData::from)
         .map_err(|_| "could not create CSS parser URL".to_string())?;
     let context = ParserContext::new(
@@ -459,7 +459,7 @@ pub fn ks_counter_style_rule(css: &str, field: &str, value: &str) -> Result<JsVa
             return counter_style_rule_to_dto(&rule);
         }
 
-        let url_data = url::Url::parse("about:kitesurf-counter-style")
+        let url_data = url::Url::parse("about:parawing-counter-style")
             .map(UrlExtraData::from)
             .map_err(|_| "could not create CSS parser URL".to_string())?;
         let context = ParserContext::new(
@@ -497,7 +497,7 @@ pub fn ks_parse_stylesheet(css: &str) -> String {
     const MAX_STYLESHEET_SAMPLES: usize = 4;
 
     let _ks_span = tracing::info_span!("wasm.parse_stylesheet", css_bytes = css.len()).entered();
-    let url_data = match url::Url::parse("about:kitesurf-stylesheet") {
+    let url_data = match url::Url::parse("about:parawing-stylesheet") {
         Ok(u) => UrlExtraData::from(u),
         Err(e) => {
             return format!(
@@ -597,7 +597,7 @@ pub fn ks_ua_stylesheet() -> String {
 
 #[wasm_bindgen]
 pub fn ks_validate_selector(selector: &str) -> String {
-    let url_data = match url::Url::parse("about:kitesurf-selector") {
+    let url_data = match url::Url::parse("about:parawing-selector") {
         Ok(u) => UrlExtraData::from(u),
         Err(e) => {
             return format!(
@@ -628,7 +628,7 @@ pub fn ks_validate_selector(selector: &str) -> String {
 #[wasm_bindgen]
 pub fn ks_canonicalize_page_selectors(prelude: &str) -> Option<String> {
     panic::catch_unwind(panic::AssertUnwindSafe(|| {
-        let url_data = UrlExtraData::from(url::Url::parse("about:kitesurf-selector").ok()?);
+        let url_data = UrlExtraData::from(url::Url::parse("about:parawing-selector").ok()?);
         let context = parser_context(&url_data, CssRuleType::Page);
         let mut parser = Parser::new(prelude);
         parser.skip_whitespace();
@@ -653,7 +653,7 @@ pub fn ks_canonicalize_page_selectors(prelude: &str) -> Option<String> {
 
 #[wasm_bindgen]
 pub fn ks_parse_inline_style(css: &str) -> Result<JsValue, JsError> {
-    let url_data = match url::Url::parse("about:kitesurf-inline-style") {
+    let url_data = match url::Url::parse("about:parawing-inline-style") {
         Ok(u) => UrlExtraData::from(u),
         Err(_) => {
             return serde_wasm_bindgen::to_value(&Vec::<CdpInlineProp>::new())
@@ -1236,7 +1236,7 @@ pub fn ks_parse_typed_numeric_value(css_text: &str) -> Result<JsValue, JsError> 
 
 #[wasm_bindgen]
 pub fn ks_serialize_inline_style(css: &str) -> String {
-    let url_data = match url::Url::parse("about:kitesurf-inline-style") {
+    let url_data = match url::Url::parse("about:parawing-inline-style") {
         Ok(u) => UrlExtraData::from(u),
         Err(_) => return String::new(),
     };
@@ -1259,7 +1259,7 @@ pub fn ks_serialize_inline_style(css: &str) -> String {
 
 #[wasm_bindgen]
 pub fn ks_get_property_value(css: &str, property: &str) -> String {
-    let url_data = match url::Url::parse("about:kitesurf-inline-style") {
+    let url_data = match url::Url::parse("about:parawing-inline-style") {
         Ok(u) => UrlExtraData::from(u),
         Err(_) => return String::new(),
     };
@@ -1289,7 +1289,7 @@ pub fn ks_parse_stylesheet_structured(css: &str) -> Result<JsValue, JsError> {
     use cssparser::ToCss;
     use style::stylesheets::CssRule;
 
-    let url_data = match url::Url::parse("about:kitesurf-stylesheet") {
+    let url_data = match url::Url::parse("about:parawing-stylesheet") {
         Ok(u) => UrlExtraData::from(u),
         Err(_) => {
             return serde_wasm_bindgen::to_value(&CdpParsedSheet { rules: Vec::new() })

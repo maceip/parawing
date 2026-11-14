@@ -1,4 +1,4 @@
-# Scoped Cargo config for the kitesurf-core crate — and, via the
+# Scoped Cargo config for the parawing-core crate — and, via the
 # symlink at packages/renderer-core/.cargo/config.toml, for the
 # renderer-core slice (same unwind + build-std needs; one source of
 # truth). scene-host-wasm deliberately does NOT share it: build-std +

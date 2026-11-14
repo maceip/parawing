@@ -7,7 +7,7 @@ load("//bazel:paths.bzl", "bin_relative", "exec_path")
 js_run_binary(
     name = "wasm_pkg",
     srcs = [
-        "//packages/core:kitesurf_core",
+        "//packages/core:parawing_core",
     ],
     tools = [
         "//bazel:wasm_bindgen",
@@ -15,16 +15,16 @@ js_run_binary(
         "//bazel:wasm_opt_runtime",
     ],
     outs = [
-        "kitesurf_core.d.ts",
-        "kitesurf_core.glue.d.ts",
-        "kitesurf_core.glue.js",
-        "kitesurf_core.js",
-        "kitesurf_core_bg.wasm",
-        "kitesurf_core_bg.wasm.d.ts",
+        "parawing_core.d.ts",
+        "parawing_core.glue.d.ts",
+        "parawing_core.glue.js",
+        "parawing_core.js",
+        "parawing_core_bg.wasm",
+        "parawing_core_bg.wasm.d.ts",
     ],
     args = [
         "--postprocess",
-        "../../../$(execpath //packages/core:kitesurf_core)",
+        "../../../$(execpath //packages/core:parawing_core)",
     ],
     env = {
         "WASM_BINDGEN_BIN": exec_path("//bazel:wasm_bindgen"),
@@ -32,7 +32,7 @@ js_run_binary(
     },
     exec_properties = RUST,
     mnemonic = "WasmPostprocess",
-    progress_message = "wasm-bindgen + wasm-opt kitesurf_core",
+    progress_message = "wasm-bindgen + wasm-opt parawing_core",
     tool = "//scripts:build_wasm",
 )
 
@@ -40,24 +40,24 @@ js_run_binary(
 js_run_binary(
     name = "wasm_pkg_memprof",
     srcs = [
-        "//packages/core:kitesurf_core_memprof",
+        "//packages/core:parawing_core_memprof",
     ],
     tools = [
         "//bazel:wasm_bindgen",
         "//scripts/memprof-rewriter",
     ],
     outs = ["memprof/" + name for name in [
-        "kitesurf_core.d.ts",
-        "kitesurf_core.glue.d.ts",
-        "kitesurf_core.glue.js",
-        "kitesurf_core.js",
-        "kitesurf_core_bg.wasm",
-        "kitesurf_core_bg.wasm.d.ts",
-        "kitesurf_core_bg.wasm.memprof.json",
+        "parawing_core.d.ts",
+        "parawing_core.glue.d.ts",
+        "parawing_core.glue.js",
+        "parawing_core.js",
+        "parawing_core_bg.wasm",
+        "parawing_core_bg.wasm.d.ts",
+        "parawing_core_bg.wasm.memprof.json",
     ]],
     args = [
         "--postprocess",
-        "../../../$(execpath //packages/core:kitesurf_core_memprof)",
+        "../../../$(execpath //packages/core:parawing_core_memprof)",
         "--out-dir",
         bin_relative("packages/core/pkg/memprof"),
         "--memprof",
@@ -68,7 +68,7 @@ js_run_binary(
     },
     exec_properties = RUST,
     mnemonic = "WasmPostprocess",
-    progress_message = "wasm-bindgen + memprof-rewriter kitesurf_core",
+    progress_message = "wasm-bindgen + memprof-rewriter parawing_core",
     tool = "//scripts:build_wasm",
 )
 

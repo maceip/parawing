@@ -32,7 +32,7 @@ impl DomHandle {
             Ok(d) => d,
             Err(_) => return -2,
         };
-        let rc = doc.kitesurf_set_canvas_image(internal_id, width, height, Arc::new(rgba.to_vec()));
+        let rc = doc.parawing_set_canvas_image(internal_id, width, height, Arc::new(rgba.to_vec()));
         drop(doc);
         if rc == 1 {
             self.layout_dirty.set(true);
@@ -45,7 +45,7 @@ impl DomHandle {
         let internal_id = self.resolve_node_id(node_id);
         if let Ok(mut d) = self.doc.try_borrow_mut() {
             if let Some(internal_id) = internal_id {
-                d.kitesurf_clear_canvas_image(internal_id);
+                d.parawing_clear_canvas_image(internal_id);
                 drop(d);
                 self.layout_dirty.set(true);
             }
@@ -132,7 +132,7 @@ impl DomHandle {
                 };
                 if needs_decode {
                     let mut doc = doc_cell.try_borrow_mut().ok()?;
-                    doc.kitesurf_materialize_node_image(
+                    doc.parawing_materialize_node_image(
                         internal_id,
                         crate::paint::canvas2d::MAX_CANVAS_DIM,
                     );
@@ -186,7 +186,7 @@ impl DomHandle {
             Ok(d) => d,
             Err(_) => return -2,
         };
-        let rc = doc.kitesurf_set_canvas_image(internal_id, w, h, rgba);
+        let rc = doc.parawing_set_canvas_image(internal_id, w, h, rgba);
         drop(doc);
         if rc == 1 {
             self.layout_dirty.set(true);

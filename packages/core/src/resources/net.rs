@@ -6,7 +6,7 @@
 
 use std::sync::Mutex;
 
-use blitz_dom::net::kitesurf_set_pending_image;
+use blitz_dom::net::parawing_set_pending_image;
 use blitz_traits::net::{http, Bytes, NetHandler, NetProvider, Request};
 
 use wasm_bindgen::prelude::*;
@@ -30,12 +30,12 @@ pub(crate) struct PendingRequest {
     kind: &'static str,
 }
 
-pub struct KitesurfNetProvider {
+pub struct ParawingNetProvider {
     next_id: Mutex<u32>,
     pending: Mutex<std::collections::HashMap<u32, PendingRequest>>,
 }
 
-impl Default for KitesurfNetProvider {
+impl Default for ParawingNetProvider {
     fn default() -> Self {
         Self {
             next_id: Mutex::new(1),
@@ -44,7 +44,7 @@ impl Default for KitesurfNetProvider {
     }
 }
 
-impl KitesurfNetProvider {
+impl ParawingNetProvider {
     pub fn new() -> Self {
         Self::default()
     }
@@ -54,7 +54,7 @@ impl KitesurfNetProvider {
     }
 }
 
-impl NetProvider for KitesurfNetProvider {
+impl NetProvider for ParawingNetProvider {
     fn fetch(&self, _doc_id: usize, request: Request, handler: Box<dyn NetHandler>) {
         let url = request.url.to_string();
 
@@ -280,7 +280,7 @@ fn hex_val(b: u8) -> Option<u8> {
 }
 
 pub fn deliver_bytes(
-    provider: &KitesurfNetProvider,
+    provider: &ParawingNetProvider,
     request_id: u32,
     bytes: Vec<u8>,
     resource_key: u64,
@@ -295,13 +295,13 @@ pub fn deliver_bytes(
         bytes
     };
     let (w, h) = dims.unwrap_or((0, 0));
-    kitesurf_set_pending_image(resource_key, w, h);
+    parawing_set_pending_image(resource_key, w, h);
     req.handler.bytes(req.url, Bytes::from(bytes));
-    kitesurf_set_pending_image(0, 0, 0);
+    parawing_set_pending_image(0, 0, 0);
     true
 }
 
-pub fn drop_pending(provider: &KitesurfNetProvider, request_id: u32) -> bool {
+pub fn drop_pending(provider: &ParawingNetProvider, request_id: u32) -> bool {
     let Some(req) = provider.take_pending(request_id) else {
         return false;
     };

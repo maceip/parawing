@@ -84,6 +84,10 @@ impl ResourceStore {
         }
     }
 
+    pub(crate) fn font(&self, key: u64) -> Option<&FontData> {
+        self.fonts.get(&key)
+    }
+
     pub(crate) fn images_iter(&self) -> impl Iterator<Item = (&u64, &ImageData)> {
         self.images.iter()
     }
@@ -186,7 +190,7 @@ impl ResourceStore {
                     if self.broken_images.insert(hash) {
                         let magic: Vec<u8> = body.iter().take(8).copied().collect();
                         crate::console_warn_str(&format!(
-                            "[ks-replay] image decode failed (marked broken): hash={hash} w={w} h={h} format={format} len={} magic={magic:02x?}",
+                            "[pw-replay] image decode failed (marked broken): hash={hash} w={w} h={h} format={format} len={} magic={magic:02x?}",
                             body.len()
                         ));
                     }
@@ -220,7 +224,7 @@ impl ResourceStore {
                     if self.broken_fonts.insert(hash) {
                         let magic: Vec<u8> = processed.iter().take(4).copied().collect();
                         crate::console_warn_str(&format!(
-                            "[ks-replay] font blob is not a parseable face (marked broken): hash={hash} len={} magic={magic:02x?}",
+                            "[pw-replay] font blob is not a parseable face (marked broken): hash={hash} len={} magic={magic:02x?}",
                             processed.len()
                         ));
                     }
@@ -254,7 +258,7 @@ impl ResourceStore {
                 }
                 if self.broken_images.insert(key) {
                     crate::console_warn_str(&format!(
-                        "[ks-replay] engine image decode failed (marked broken): key={key} w={w} h={h} len={}",
+                        "[pw-replay] engine image decode failed (marked broken): key={key} w={w} h={h} len={}",
                         bytes.len()
                     ));
                 }
@@ -281,13 +285,13 @@ impl ResourceStore {
             }
             if processed.is_empty() {
                 crate::console_warn_str(&format!(
-                    "[ks-replay] font asset delivered no bytes (marked broken): path={path}"
+                    "[pw-replay] font asset delivered no bytes (marked broken): path={path}"
                 ));
                 return 0;
             }
             let magic: Vec<u8> = processed.iter().take(4).copied().collect();
             crate::console_warn_str(&format!(
-                "[ks-replay] font asset is not a parseable face (marked broken): path={path} len={} magic={magic:02x?}",
+                "[pw-replay] font asset is not a parseable face (marked broken): path={path} len={} magic={magic:02x?}",
                 processed.len()
             ));
             return 0;
@@ -355,7 +359,7 @@ pub(crate) fn missing_resources(store: &ResourceStore, scene_bytes: &[u8]) -> Ve
                 let (tw, th) = mip_dims(res.width, res.height, hw, hh, REPLAY_DECODE_CEILING);
                 if img.width < tw || img.height < th {
                     crate::console_warn_str(&format!(
-                        "[ks-replay] undersized decode: hash={hash} cached={}x{} target={tw}x{th} header={}x{} hint={hw}x{hh}",
+                        "[pw-replay] undersized decode: hash={hash} cached={}x{} target={tw}x{th} header={}x{} hint={hw}x{hh}",
                         img.width, img.height, res.width, res.height
                     ));
                     missing.push((RBI_RESOURCE_KIND_IMAGE, *hash));
@@ -446,7 +450,7 @@ pub(crate) fn decode_image_payload(
                     Ok(r) => reader = r,
                     Err(e) => {
                         crate::console_warn_str(&format!(
-                            "[ks-replay] format sniff failed ({} bytes): {e}",
+                            "[pw-replay] format sniff failed ({} bytes): {e}",
                             bytes.len()
                         ));
                         return None;
@@ -456,14 +460,14 @@ pub(crate) fn decode_image_payload(
                     Ok((sw, sh)) => {
                         if !decoded_size_ok(sw, sh) {
                             crate::console_warn_str(&format!(
-                                "[ks-replay] decode-bomb reject {sw}x{sh}"
+                                "[pw-replay] decode-bomb reject {sw}x{sh}"
                             ));
                             return None;
                         }
                     }
                     Err(e) => {
                         crate::console_warn_str(&format!(
-                            "[ks-replay] dims sniff failed ({} bytes): {e}",
+                            "[pw-replay] dims sniff failed ({} bytes): {e}",
                             bytes.len()
                         ));
                         return None;
@@ -1278,6 +1282,40 @@ pub(crate) fn replay_to_rgba_with(
     Ok((buffer, w, h, stats))
 }
 
+#[cfg_attr(
+    not(feature = "native-host"),
+    allow(
+        dead_code,
+        reason = "Used by CompositorV2 in parawing-core and scene-host-wasm."
+    )
+)]
+pub(crate) fn ensure_cached_renderer(
+    slot: &mut Option<CachedRenderer>,
+    w: u32,
+    h: u32,
+) -> &mut anyrender_vello_cpu::VelloCpuImageRenderer {
+    use anyrender::ImageRenderer as _;
+    use anyrender_vello_cpu::{ImageCacheConfig, VelloCpuImageRenderer};
+    let w = w.clamp(1, 4096);
+    let h = h.clamp(1, 4096);
+    match slot {
+        Some(c) if c.w == w && c.h == h => c.renderer.reset(),
+        _ => {
+            let config = ImageCacheConfig {
+                max_bytes: RENDERER_IMAGE_CACHE_BYTES,
+                prune_interval: RENDERER_IMAGE_CACHE_PRUNE_FRAMES,
+                ..Default::default()
+            };
+            *slot = Some(CachedRenderer {
+                w,
+                h,
+                renderer: VelloCpuImageRenderer::with_image_cache_config(w, h, config),
+            });
+        }
+    }
+    &mut slot.as_mut().expect("slot filled above").renderer
+}
+
 #[cfg(feature = "pdf")]
 fn split_pdf_envelope(envelope: &[u8]) -> Vec<&[u8]> {
     let mut out = Vec::new();
@@ -1632,6 +1670,24 @@ pub struct SceneRasterizer {
 // Manual RefUnwindSafe is valid in single-threaded Wasm: unwinding drops
 // RefCell guards. A raster panic discards renderer state but keeps resources.
 impl RefUnwindSafe for SceneRasterizer {}
+
+impl SceneRasterizer {
+    #[cfg_attr(
+        not(feature = "native-host"),
+        allow(dead_code, reason = "Used by CompositorV2 ops in scene-host-wasm.")
+    )]
+    pub(crate) fn with_store_and_renderer<R>(
+        &self,
+        f: impl FnOnce(&ResourceStore, &mut Option<CachedRenderer>) -> R,
+    ) -> R {
+        let store = self.store.borrow();
+        let mut renderer = self.renderer.borrow_mut();
+        let out = f(&store, &mut renderer);
+        drop(renderer);
+        drop(store);
+        out
+    }
+}
 
 #[cfg_attr(not(feature = "native-host"), wasm_bindgen)]
 impl SceneRasterizer {

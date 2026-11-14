@@ -6,9 +6,11 @@
 
 mod paint;
 mod tty;
+mod v2_abi;
 
 fn console_warn_str(_msg: &str) {}
 
+use paint::compositor_v2::CompositorV2;
 use paint::scene_replay::SceneRasterizer;
 use std::alloc::{alloc, dealloc, Layout};
 use std::cell::{Cell, RefCell};
@@ -18,6 +20,7 @@ thread_local! {
     static RASTER: RefCell<SceneRasterizer> = RefCell::new(SceneRasterizer::new());
     static TEXT: RefCell<Option<tty::grid::TtyImages>> = const { RefCell::new(None) };
     static RETAINED_SEQ: Cell<Option<u32>> = const { Cell::new(None) };
+    static COMPOSITOR_V2: RefCell<CompositorV2> = RefCell::new(CompositorV2::new());
 }
 
 /// Allocate bytes in guest memory. The host writes input here, calls
@@ -49,7 +52,7 @@ pub extern "C" fn ks_free(ptr: u32, len: u32) {
 }
 
 /// FFI: The CLI consumes this byte ABI; keep operation IDs and payload layouts in sync with
-/// `packages/kitesurf-cli/src/wasm.rs`.
+/// `packages/parawing-cli/src/wasm.rs`.
 /// Returns (output length << 32) | output pointer. The host owns the
 /// returned allocation and must release it with ks_free.
 /// 1=putResources, 2=missingResources, 3=full PNG,
@@ -192,6 +195,12 @@ pub extern "C" fn ks_call(op: u32, ptr: u32, len: u32) -> u64 {
                 OP_RETAIN_FRAME | OP_COMPOSITE_FRAME => {
                     retained_frame(&raster, op == OP_COMPOSITE_FRAME, input)
                 }
+                v2_abi::OP_V2_INGEST_FRAME..=v2_abi::OP_V2_METRICS => COMPOSITOR_V2.with(|slot| {
+                    let mut comp = slot.borrow_mut();
+                    let res = v2_abi::dispatch_v2_op(op, input, &raster, &mut comp);
+                    drop(comp);
+                    res
+                }),
                 _ => vec![],
             }
         })

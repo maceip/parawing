@@ -335,12 +335,51 @@ impl DomHandle {
         )
     }
 
+    pub(crate) fn record_ksc0_tile(
+        &self,
+        clip_x: i32,
+        clip_y: i32,
+        clip_w: u32,
+        clip_h: u32,
+        omit_background: bool,
+    ) -> Vec<u8> {
+        self.render_scene_clip_inner_with_settle(
+            SceneClip {
+                x: clip_x,
+                y: clip_y,
+                width: clip_w,
+                height: clip_h,
+            },
+            omit_background,
+            true,
+            true,
+            false,
+        )
+    }
+
     fn render_scene_clip_inner(
         &self,
         clip: SceneClip,
         omit_background: bool,
         client_wire: bool,
         raw_images: bool,
+    ) -> Vec<u8> {
+        self.render_scene_clip_inner_with_settle(
+            clip,
+            omit_background,
+            client_wire,
+            raw_images,
+            true,
+        )
+    }
+
+    fn render_scene_clip_inner_with_settle(
+        &self,
+        clip: SceneClip,
+        omit_background: bool,
+        client_wire: bool,
+        raw_images: bool,
+        resolve_images: bool,
     ) -> Vec<u8> {
         use anyrender::PaintScene as _;
         let SceneClip {
@@ -355,7 +394,9 @@ impl DomHandle {
         if clip_w == 0 || clip_h == 0 {
             return Vec::new();
         }
-        self.resolve_until_images_settle();
+        if resolve_images {
+            self.resolve_until_images_settle();
+        }
         let mut doc = match self.doc.try_borrow_mut() {
             Ok(d) => d,
             Err(_) => return Vec::new(),
@@ -442,7 +483,7 @@ impl DomHandle {
             Ok(d) => d,
             Err(_) => return -2,
         };
-        let rc = doc.kitesurf_set_iframe_image(internal_id, width, height, Arc::new(rgba.to_vec()));
+        let rc = doc.parawing_set_iframe_image(internal_id, width, height, Arc::new(rgba.to_vec()));
         drop(doc);
         if rc == 1 {
             self.layout_dirty.set(true);
@@ -456,7 +497,7 @@ impl DomHandle {
             return;
         };
         if let Ok(mut d) = self.doc.try_borrow_mut() {
-            d.kitesurf_clear_iframe_image(node_id);
+            d.parawing_clear_iframe_image(node_id);
             drop(d);
             self.layout_dirty.set(true);
         }
@@ -735,6 +776,45 @@ impl DomHandle {
         self.staged_scene.borrow().as_ptr() as u32
     }
 
+    #[wasm_bindgen(js_name = "renderSceneV2")]
+    pub fn render_scene_v2(
+        &self,
+        acked_scroll_seq: u32,
+        acked_input_seq: u32,
+        known_hashes_bytes: &[u8],
+    ) -> Vec<u8> {
+        crate::paint::scene_v2_builder::build_scene_frame_v2(
+            self,
+            acked_scroll_seq,
+            acked_input_seq,
+            known_hashes_bytes,
+            0.0,
+            0.0,
+            "",
+        )
+    }
+
+    #[wasm_bindgen(js_name = "renderSceneV2WithInterest")]
+    pub fn render_scene_v2_with_interest(
+        &self,
+        acked_scroll_seq: u32,
+        acked_input_seq: u32,
+        known_hashes_bytes: &[u8],
+        vel_x: f32,
+        vel_y: f32,
+        handler_regions_json: &str,
+    ) -> Vec<u8> {
+        crate::paint::scene_v2_builder::build_scene_frame_v2(
+            self,
+            acked_scroll_seq,
+            acked_input_seq,
+            known_hashes_bytes,
+            vel_x,
+            vel_y,
+            handler_regions_json,
+        )
+    }
+
     fn render_scene_inner(
         &self,
         scroll: (i32, i32),
@@ -933,7 +1013,7 @@ impl DomHandle {
         for h in &images {
             if image_cache.get(h).is_none() {
                 crate::console_warn_str(&format!(
-                    "[ks-rbi] image hash {h} not in rbi_image_cache ({} entries)",
+                    "[pw-rbi] image hash {h} not in rbi_image_cache ({} entries)",
                     image_cache.len()
                 ));
             }

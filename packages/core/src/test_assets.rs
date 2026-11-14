@@ -7,7 +7,7 @@
 use std::path::PathBuf;
 
 /// Bazel sets this to the runfiles path of `packages/engine/package.json`.
-const ENGINE_PACKAGE_JSON_ENV: &str = "KITESURF_ENGINE_PACKAGE_JSON";
+const ENGINE_PACKAGE_JSON_ENV: &str = "PARAWING_ENGINE_PACKAGE_JSON";
 
 /// Returns the `packages/engine` directory. Bazel compiles `CARGO_MANIFEST_DIR` as `packages/core`,
 /// which resolves only when this is the main repository, so the test target passes a runfiles path

@@ -37,6 +37,8 @@ mod swap_alloc;
 static ALLOCATOR: swap_alloc::SwapAlloc = swap_alloc::SwapAlloc;
 mod ks_tracing;
 mod layout;
+#[cfg(not(target_arch = "wasm32"))]
+pub mod native_host;
 mod paint;
 mod resources;
 mod style;
@@ -358,7 +360,7 @@ pub struct DomHandle {
     layout_epoch: Cell<u32>,
     /// Resolves run so far: `[mutation-driven, animation-only]`. An animation-only resolve
     /// re-cascades every running animation with nothing else to show for it. Reported through
-    /// Kitesurf.getMemoryStats.
+    /// Parawing.getMemoryStats.
     resolve_counts: Cell<[u32; 2]>,
     /// Per-(node, property) transition state as of the last resolve.
     /// Diffed against the next one to synthesise the DOM events;
@@ -388,7 +390,7 @@ pub struct DomHandle {
     /// Resolved top, right, bottom, and left sticky insets per node, for computed style.
     sticky_insets: RefCell<HashMap<NodeId, [Option<f32>; 4]>>,
     /// Queues the document's resource fetches for the host and receives their results.
-    net_provider: Arc<crate::resources::net::KitesurfNetProvider>,
+    net_provider: Arc<crate::resources::net::ParawingNetProvider>,
     /// Backing surfaces for the page's `<canvas>` 2D contexts.
     canvas2d: RefCell<paint::canvas2d::CanvasRegistry>,
     // Resources referenced by recorded scenes, kept so the renderer can fetch the ones it lacks
@@ -442,6 +444,13 @@ fn estimate_node_capacity(html: &str) -> usize {
     (parsed + parsed / 6).min(262_144)
 }
 
+#[wasm_bindgen(js_name = "computeInterestRectV2")]
+pub fn compute_interest_rect_v2(x: f32, y: f32, w: f32, h: f32, vx: f32, vy: f32) -> Vec<f32> {
+    let r =
+        paint::scene_v2::compute_interest_rect(paint::scene_v2::RectV2::new(x, y, w, h), vx, vy);
+    vec![r.x, r.y, r.w, r.h]
+}
+
 #[wasm_bindgen]
 impl DomHandle {
     #[inline]
@@ -460,18 +469,18 @@ impl DomHandle {
     }
 
     /// Parse `html` into a page document and use `base_url` for relative resources.
-    /// Invalid URLs and URLs that cannot serve as a base use `https://kitesurf.local/`.
+    /// Invalid URLs and URLs that cannot serve as a base use `https://parawing.local/`.
     #[wasm_bindgen(constructor)]
     pub fn new(html: &str, base_url: &str) -> DomHandle {
         use blitz_traits::shell::Viewport;
         let _ks_span =
             tracing::info_span!("wasm.parse_document", html_bytes = html.len()).entered();
 
-        let net_provider = Arc::new(crate::resources::net::KitesurfNetProvider::new());
+        let net_provider = Arc::new(crate::resources::net::ParawingNetProvider::new());
 
         let resolved_base = match url::Url::parse(base_url) {
             Ok(u) if !u.cannot_be_a_base() => base_url.to_string(),
-            _ => "https://kitesurf.local/".to_string(),
+            _ => "https://parawing.local/".to_string(),
         };
 
         let config = DocumentConfig {

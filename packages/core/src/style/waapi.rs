@@ -76,7 +76,7 @@ pub(crate) struct ComputedTiming {
 }
 
 pub(crate) fn parse_easing(text: &str) -> Result<ComputedTimingFunction, String> {
-    let url = UrlExtraData::from(url::Url::parse("about:kitesurf-easing").expect("static url"));
+    let url = UrlExtraData::from(url::Url::parse("about:parawing-easing").expect("static url"));
     let context = ParserContext::new(
         Origin::Author,
         &url,

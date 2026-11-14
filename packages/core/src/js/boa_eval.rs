@@ -86,7 +86,7 @@ fn resolve_specifier(specifier: &str, referrer: &Referrer) -> Result<String, Str
         .and_then(|p| p.to_str())
         .map(String::from)
         .or_else(page_base_url)
-        .unwrap_or_else(|| "https://kitesurf.local/".to_string());
+        .unwrap_or_else(|| "https://parawing.local/".to_string());
     if let Some(mapped) = resolve_with_import_map(specifier, &base)? {
         return Ok(mapped);
     }
@@ -442,7 +442,7 @@ impl JobExecutor for WasmJobQueue {
             Job::AsyncJob(job) | Job::FinalizationRegistryCleanupJob(job) => {
                 self.async_jobs.borrow_mut().push_back(job);
             }
-            // Timers belong to boa_runtime, which kitesurf does not install: page
+            // Timers belong to boa_runtime, which parawing does not install: page
             // timers are V8's. Anything else new to boa has no driver here either.
             _ => {}
         }
@@ -548,7 +548,7 @@ async fn eval_to_envelope(src: &str, await_promise: bool) -> String {
                 }
                 PromiseState::Pending => {
                     return throw_env(
-                        "kitesurf boa: awaiting external promises needs the V8 bridge (Phase 4)",
+                        "parawing boa: awaiting external promises needs the V8 bridge (Phase 4)",
                         "Error",
                     );
                 }
@@ -711,7 +711,7 @@ fn ensure_persistent() -> bool {
 pub fn ks_eval_page(src: &str) -> Result<JsValue, JsValue> {
     arm_v8_ran();
     if !ensure_persistent() {
-        return Err(JsValue::from_str("kitesurf boa: context init failed"));
+        return Err(JsValue::from_str("parawing boa: context init failed"));
     }
     with_context(|ctx| match ctx.eval(Source::from_bytes(src.as_bytes())) {
         Ok(v) => {
@@ -722,7 +722,7 @@ pub fn ks_eval_page(src: &str) -> Result<JsValue, JsValue> {
         }
         Err(e) => Err(JsValue::from_str(&format!("{e}"))),
     })
-    .unwrap_or_else(|| Err(JsValue::from_str("kitesurf boa: context unavailable")))
+    .unwrap_or_else(|| Err(JsValue::from_str("parawing boa: context unavailable")))
 }
 
 #[wasm_bindgen]
@@ -909,14 +909,14 @@ fn heal_residual_stack(ctx: &mut Context) {
     let (frames, stack) = ctx.ks_vm_stats();
     if before > frames || cleared > 256 {
         crate::console_warn_str(&format!(
-            "[kitesurf-boa] reclaimed {} stranded frame(s) + {cleared} \
+            "[parawing-boa] reclaimed {} stranded frame(s) + {cleared} \
              value-stack entries at idle",
             before - frames
         ));
     }
     if stack > 8192 || frames > 64 {
         crate::console_warn_str(&format!(
-            "[kitesurf-boa] vm occupancy frames={frames} stack={stack} names={:?}",
+            "[parawing-boa] vm occupancy frames={frames} stack={stack} names={:?}",
             ctx.ks_vm_frame_names()
         ));
     }
@@ -1062,11 +1062,11 @@ pub fn ks_import(specifier: String, referrer_url: String, module_type: Option<St
         let promise = {
             let _boa_guard = acquire_boa_lock().await;
             if !ensure_persistent() {
-                return Err(JsValue::from_str("kitesurf boa: context init failed"));
+                return Err(JsValue::from_str("parawing boa: context init failed"));
             }
             let ptr = context_ptr();
             if ptr.is_null() {
-                return Err(JsValue::from_str("kitesurf boa: no context"));
+                return Err(JsValue::from_str("parawing boa: no context"));
             }
             // SAFETY: single-threaded; the persistent context outlives this.
             let ctx: &mut Context = unsafe { &mut *ptr };
@@ -1285,11 +1285,11 @@ pub fn ks_eval_cdp(src: String, await_promise: bool, return_by_value: bool) -> P
                 let (ptr, value) = {
                     let _boa_guard = acquire_boa_lock().await;
                     if !ensure_persistent() {
-                        return Err(JsValue::from_str("kitesurf boa: context init failed"));
+                        return Err(JsValue::from_str("parawing boa: context init failed"));
                     }
                     let ptr = context_ptr();
                     if ptr.is_null() {
-                        return Err(JsValue::from_str("kitesurf boa: no context"));
+                        return Err(JsValue::from_str("parawing boa: no context"));
                     }
                     // SAFETY: single-threaded; &mut is never held across a yield.
                     // The depth guard makes this borrow visible to the re-entry
@@ -1328,11 +1328,11 @@ pub fn ks_call_cdp(
                 let (ptr, value) = {
                     let _boa_guard = acquire_boa_lock().await;
                     if !ensure_persistent() {
-                        return Err(JsValue::from_str("kitesurf boa: context init failed"));
+                        return Err(JsValue::from_str("parawing boa: context init failed"));
                     }
                     let ptr = context_ptr();
                     if ptr.is_null() {
-                        return Err(JsValue::from_str("kitesurf boa: no context"));
+                        return Err(JsValue::from_str("parawing boa: no context"));
                     }
                     // SAFETY: see ks_eval_cdp. &mut is never held across a yield.
                     let _depth = crate::js::boa_bridge::DepthGuard::enter();
@@ -1345,7 +1345,7 @@ pub fn ks_call_cdp(
                     };
                     let Some(callable) = fn_val.as_object().filter(|o| o.is_callable()) else {
                         return Err(JsValue::from_str(
-                            "kitesurf boa: callFunctionOn target is not a function",
+                            "parawing boa: callFunctionOn target is not a function",
                         ));
                     };
                     let this_boa = crate::js::boa_bridge::v8_to_boa(this_v8, ctx);

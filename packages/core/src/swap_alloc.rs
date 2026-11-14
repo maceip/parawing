@@ -145,7 +145,7 @@ pub fn set_budget(bytes: usize) {
     TRIGGER.store(bytes, Relaxed);
 }
 
-/// The allocator's gauges as JSON, for Kitesurf.getMemoryStats (`bridge.swapAlloc`): live
+/// The allocator's gauges as JSON, for Parawing.getMemoryStats (`bridge.swapAlloc`): live
 /// bytes, the budget (-1 when off), and what the rounds it ran did.
 pub fn stats_json() -> String {
     use core::fmt::Write as _;

@@ -197,7 +197,7 @@ impl SpanProcessor for KsProcessor {
             }
         });
         if !hooked {
-            console_log(&format!("[ks-otel-span] {line}"));
+            console_log(&format!("[pw-otel-span] {line}"));
         }
     }
 
@@ -214,7 +214,7 @@ pub fn init() {
     let provider = SdkTracerProvider::builder()
         .with_span_processor(KsProcessor)
         .build();
-    let tracer = provider.tracer("kitesurf-wasm");
+    let tracer = provider.tracer("parawing-wasm");
     let layer = tracing_opentelemetry::layer()
         .with_tracer(tracer)
         .with_context_activation(false)

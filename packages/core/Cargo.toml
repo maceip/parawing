@@ -1,9 +1,9 @@
 [package]
-name = "kitesurf-core"
+name = "parawing-core"
 version = "0.0.1"
 edition = "2021"
 license = "Apache-2.0"
-description = "Wasm core for kitesurf: DOM data plane + Stylo + Blitz render."
+description = "Wasm core for parawing: DOM data plane + Stylo + Blitz render."
 
 [lib]
 crate-type = ["cdylib", "rlib"]

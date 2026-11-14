@@ -1,5 +1,5 @@
 # Cargo workspace for the repo's wasm crates. Artifacts include
-# kitesurf-core (engine/PageScript), scene-host-wasm (CLI), and
+# parawing-core (engine/PageScript), scene-host-wasm (CLI), and
 # renderer-core (PageRenderer).
 # The slice crates #[path]-include core source files, so
 # [workspace.dependencies] below is what keeps the shared dep versions

@@ -339,20 +339,27 @@ impl DomHandle {
         }
     }
 
-    #[wasm_bindgen(js_name = "querySelector")]
-    pub fn query_selector(&self, selector: &str) -> Result<i32, JsError> {
+    pub(crate) fn query_selector_native(&self, selector: &str) -> Result<i32, String> {
         self.flush_slot_assignments();
         let doc = match self.doc.try_borrow() {
             Ok(d) => d,
             Err(_) => return Ok(-1),
         };
         let result = panic::catch_unwind(panic::AssertUnwindSafe(|| doc.query_selector(selector)));
-        match result {
+        let found = match result {
             Ok(Ok(Some(id))) => Ok(self.external_node_id_i32(id)),
             Ok(Ok(None)) => Ok(-1),
-            Ok(Err(e)) => Err(JsError::new(&format!("{e:?}"))),
+            Ok(Err(e)) => Err(format!("{e:?}")),
             Err(_) => Ok(-1),
-        }
+        };
+        drop(doc);
+        found
+    }
+
+    #[wasm_bindgen(js_name = "querySelector")]
+    pub fn query_selector(&self, selector: &str) -> Result<i32, JsError> {
+        self.query_selector_native(selector)
+            .map_err(|e| JsError::new(&e))
     }
 
     #[wasm_bindgen(js_name = "getElementById")]
@@ -410,8 +417,7 @@ impl DomHandle {
         .flatten()
     }
 
-    #[wasm_bindgen(js_name = "querySelectorAll")]
-    pub fn query_selector_all(&self, selector: &str) -> Result<Vec<i32>, JsError> {
+    pub(crate) fn query_selector_all_native(&self, selector: &str) -> Result<Vec<i32>, String> {
         self.flush_slot_assignments();
         let doc = match self.doc.try_borrow() {
             Ok(d) => d,
@@ -419,14 +425,22 @@ impl DomHandle {
         };
         let result =
             panic::catch_unwind(panic::AssertUnwindSafe(|| doc.query_selector_all(selector)));
-        match result {
+        let found = match result {
             Ok(Ok(ids)) => Ok(ids
                 .into_iter()
                 .map(|id| self.external_node_id_i32(id))
                 .collect()),
-            Ok(Err(e)) => Err(JsError::new(&format!("{e:?}"))),
+            Ok(Err(e)) => Err(format!("{e:?}")),
             Err(_) => Ok(Vec::new()),
-        }
+        };
+        drop(doc);
+        found
+    }
+
+    #[wasm_bindgen(js_name = "querySelectorAll")]
+    pub fn query_selector_all(&self, selector: &str) -> Result<Vec<i32>, JsError> {
+        self.query_selector_all_native(selector)
+            .map_err(|e| JsError::new(&e))
     }
 
     #[wasm_bindgen(js_name = "querySelectorAllInSubtree")]

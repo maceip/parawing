@@ -596,8 +596,8 @@ fn removing_the_first_of_two_animations_keeps_the_survivor_running() {
 <html><head><style>
 @keyframes fade { from { opacity: 0 } to { opacity: 1 } }
 @keyframes spin { from { transform: rotate(0deg) } to { transform: rotate(360deg) } }
-#t { animation: 1s linear 0s 1 normal both fade, 1s linear 0s 1 normal both spin }
-#t.only-spin { animation: 1s linear 0s 1 normal both spin }
+#t { animation: 60s linear 0s 1 normal both fade, 60s linear 0s 1 normal both spin }
+#t.only-spin { animation: 60s linear 0s 1 normal both spin }
 </style></head><body><div id="t">x</div></body></html>"##;
     let dom = DomHandle::new(html, "https://test.example/");
     dom.set_animation_events_requested(true);
@@ -623,8 +623,8 @@ fn inserting_an_animation_before_a_running_one_keeps_the_survivor_running() {
 <html><head><style>
 @keyframes fade { from { opacity: 0 } to { opacity: 1 } }
 @keyframes spin { from { transform: rotate(0deg) } to { transform: rotate(360deg) } }
-#t { animation: 1s linear 0s 1 normal both spin }
-#t.also-fade { animation: 1s linear 0s 1 normal both fade, 1s linear 0s 1 normal both spin }
+#t { animation: 60s linear 0s 1 normal both spin }
+#t.also-fade { animation: 60s linear 0s 1 normal both fade, 60s linear 0s 1 normal both spin }
 </style></head><body><div id="t">x</div></body></html>"##;
     let dom = DomHandle::new(html, "https://test.example/");
     dom.set_animation_events_requested(true);
@@ -662,11 +662,11 @@ fn simultaneous_animation_events_follow_composite_order() {
 @keyframes fade { from { opacity: 0 } to { opacity: 1 } }
 @keyframes spin { from { transform: rotate(0deg) } to { transform: rotate(360deg) } }
 @keyframes grow { from { transform: scale(0) } to { transform: scale(1) } }
-#one { animation: 1s linear 0s 1 normal both fade, 1s linear 0s 1 normal both spin }
-#two { animation: 1s linear 0s 1 normal both fade }
-#two.grow { animation: 1s linear 0s 1 normal both grow, 1s linear 0s 1 normal both fade }
-#one.only-fade { animation: 1s linear 0s 1 normal both fade }
-#one.grow-fade { animation: 1s linear 0s 1 normal both grow, 1s linear 0s 1 normal both fade }
+#one { animation: 60s linear 0s 1 normal both fade, 60s linear 0s 1 normal both spin }
+#two { animation: 60s linear 0s 1 normal both fade }
+#two.grow { animation: 60s linear 0s 1 normal both grow, 60s linear 0s 1 normal both fade }
+#one.only-fade { animation: 60s linear 0s 1 normal both fade }
+#one.grow-fade { animation: 60s linear 0s 1 normal both grow, 60s linear 0s 1 normal both fade }
 </style></head><body>
 <div id="one">x</div><div id="two">y</div>
 </body></html>"##;
@@ -714,8 +714,8 @@ fn canceled_animation_sorts_before_live_start_on_the_same_owner() {
 @keyframes fade { from { opacity: 0 } to { opacity: 1 } }
 @keyframes spin { from { transform: rotate(0deg) } to { transform: rotate(360deg) } }
 @keyframes grow { from { transform: scale(0) } to { transform: scale(1) } }
-#t { animation: 1s linear 0s 1 normal both fade, 1s linear 0s 1 normal both spin }
-#t.grow-fade { animation: 1s linear 0s 1 normal both grow, 1s linear 0s 1 normal both fade }
+#t { animation: 60s linear 0s 1 normal both fade, 60s linear 0s 1 normal both spin }
+#t.grow-fade { animation: 60s linear 0s 1 normal both grow, 60s linear 0s 1 normal both fade }
 </style></head><body><div id="t">x</div></body></html>"##;
     let dom = DomHandle::new(html, "https://test.example/");
     dom.set_animation_events_requested(true);
@@ -746,9 +746,9 @@ fn a_moved_owner_cancels_by_its_current_tree_order() {
 @keyframes fade { from { opacity: 0 } to { opacity: 1 } }
 @keyframes spin { from { transform: rotate(0deg) } to { transform: rotate(360deg) } }
 @keyframes grow { from { transform: scale(0) } to { transform: scale(1) } }
-#one { animation: 1s linear 0s 1 normal both fade, 1s linear 0s 1 normal both spin }
-#two { animation: 1s linear 0s 1 normal both grow }
-#one.only-fade { animation: 1s linear 0s 1 normal both fade }
+#one { animation: 60s linear 0s 1 normal both fade, 60s linear 0s 1 normal both spin }
+#two { animation: 60s linear 0s 1 normal both grow }
+#one.only-fade { animation: 60s linear 0s 1 normal both fade }
 #two.stop { animation: none }
 </style></head><body>
 <div id="one">x</div><div id="two">y</div>
@@ -799,11 +799,15 @@ fn shadow_animation_events_follow_flat_tree_order() {
 
     let first = dom.create_element("div");
     let second = dom.create_element("div");
-    assert!(dom.set_attribute(first, "style", "animation: 1s linear 0s 1 normal both fade"));
+    assert!(dom.set_attribute(
+        first,
+        "style",
+        "animation: 60s linear 0s 1 normal both fade"
+    ));
     assert!(dom.set_attribute(
         second,
         "style",
-        "animation: 1s linear 0s 1 normal both spin"
+        "animation: 60s linear 0s 1 normal both spin"
     ));
     assert!(dom.append_child_node(root, first));
     assert!(dom.append_child_node(root, second));

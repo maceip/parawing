@@ -26,7 +26,7 @@ use boa_engine::{
 fn error_to_v8(e: &JsError, ctx: &mut Context) -> JsValue {
     match e.clone().into_opaque(ctx) {
         Ok(v) => boa_to_v8(&v, ctx),
-        Err(_) => js_sys::Error::new(&format!("kitesurf boa: {e}")).into(),
+        Err(_) => js_sys::Error::new(&format!("parawing boa: {e}")).into(),
     }
 }
 use js_sys::{Array, Function, Object, Promise, Proxy, Reflect, Symbol, WeakMap};
@@ -200,10 +200,10 @@ fn warn_swallowed_ctor_throw(e: &impl std::fmt::Display) {
         n
     });
     if n <= SWALLOWED_CTOR_WARN_LIMIT {
-        crate::console_warn_str(&format!("[ks-bridge] boa ctor threw (swallowed): {e}"));
+        crate::console_warn_str(&format!("[pw-bridge] boa ctor threw (swallowed): {e}"));
     }
     if n == SWALLOWED_CTOR_WARN_LIMIT {
-        crate::console_warn_str("[ks-bridge] further swallowed ctor throws are not logged");
+        crate::console_warn_str("[pw-bridge] further swallowed ctor throws are not logged");
     }
 }
 
@@ -346,7 +346,7 @@ fn log_missing_weak_runtime() {
     let _ = f.call1(
         &console,
         &JsValue::from_str(
-            "[kitesurf] FinalizationRegistry/WeakRef missing — bridge \
+            "[parawing] FinalizationRegistry/WeakRef missing — bridge \
              pin eviction DISABLED; long-dwelling boa pages will leak \
              to the isolate memory cap",
         ),

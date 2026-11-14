@@ -3,7 +3,7 @@ name = "renderer-core"
 version = "0.0.1"
 edition = "2021"
 license = "Apache-2.0"
-description = "PageRenderer isolate wasm: the SceneRasterizer replay/raster/PDF slice of kitesurf-core."
+description = "PageRenderer isolate wasm: the SceneRasterizer replay/raster/PDF slice of parawing-core."
 
 [lib]
 crate-type = ["cdylib"]

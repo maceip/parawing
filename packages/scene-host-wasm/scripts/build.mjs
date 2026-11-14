@@ -25,7 +25,7 @@ const SCENE_HOST_ABI = 4;
 const wasm = resolve(assets, "scene_host.wasm");
 const manifest = resolve(assets, "scene_host.json");
 if (
-  process.env.KITESURF_REUSE_WASM &&
+  process.env.PARAWING_REUSE_WASM &&
   !postprocessWasm &&
   existsSync(wasm) &&
   existsSync(manifest)

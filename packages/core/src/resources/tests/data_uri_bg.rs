@@ -82,7 +82,7 @@ fn data_uri_bg_step_by_step() {
        background-image: url(data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAAQAAAAECAIAAAAmkwkpAAAAFElEQVR4nGM8ISfHAANMDEgANwcANHYBDK9qubUAAAAASUVORK5CYII=);
        background-size: cover; }
 </style></head><body><div class="d"></div></body></html>"##;
-    let net_provider = Arc::new(crate::resources::net::KitesurfNetProvider::new());
+    let net_provider = Arc::new(crate::resources::net::ParawingNetProvider::new());
     let mut document = HtmlDocument::from_html(
         html,
         DocumentConfig {
