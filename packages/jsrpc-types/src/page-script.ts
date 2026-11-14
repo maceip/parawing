@@ -4,6 +4,7 @@
 
 // Defines PageScript session methods, wire shapes, and upstream events.
 
+import type { RemoteFetcher, RpcStub, RpcTargetBranded, WorkerEntrypointBranded } from "./rpc.ts";
 import type {
   ConsoleEntry,
   ExceptionEntry,
@@ -11,11 +12,18 @@ import type {
   PackedException,
   PackedResult,
 } from "./shared.ts";
-import type { QueryDomArgs, QueryDomMethod, QueryDomResult } from "./query-dom.ts";
+import type {
+  HandlerRegionInfo,
+  QueryDomArgs,
+  QueryDomMethod,
+  QueryDomResult,
+} from "./query-dom.ts";
 import type { RenderPort } from "./page-renderer.ts";
 import type { WorkerEventParams, WorkerNavigatorInfo } from "./dedicated-worker.ts";
 import type { SandboxRestrictions } from "./sandbox.ts";
 import type { CommittedOrigin } from "./frame-origin.ts";
+
+export type { HandlerRegionInfo };
 
 export interface ModulePreloadPin {
   url: string;
@@ -25,8 +33,14 @@ export interface ModulePreloadPin {
 export type { SandboxRestrictions } from "./sandbox.ts";
 export type { CommittedOrigin } from "./frame-origin.ts";
 
+export interface WebStorageEntries {
+  localStorage?: Record<string, string>;
+  sessionStorage?: Record<string, string>;
+}
+
 export interface NavigateOptions {
   cookies?: string;
+  initialWebStorage?: WebStorageEntries;
   connectionId?: string;
   mainFrameId?: string;
   cookieKey?: string;
@@ -82,6 +96,10 @@ export interface OkReply {
 export interface UnloadReply extends OkReply {
   console?: ConsoleEntry[];
   cookieWrites?: string[];
+  webStorage?: {
+    localStorage: Record<string, string>;
+    sessionStorage: Record<string, string>;
+  };
 }
 
 export interface DrainConsoleReply extends JsWindowDrain {
@@ -92,6 +110,7 @@ export interface DrainConsoleReply extends JsWindowDrain {
 export interface EvalOptions {
   returnByValue?: boolean;
   awaitPromise?: boolean;
+  objectGroup?: string;
 }
 
 export interface CallFunctionOnOptions extends EvalOptions {
@@ -201,10 +220,33 @@ export interface NavigatePost {
   postContentType?: string;
 }
 
+export interface JournalInputField {
+  origin: string;
+  documentUrl: string;
+  formId?: string;
+  formAction?: string;
+  fieldName?: string;
+  fieldId?: string;
+  tagName: string;
+  inputType?: string;
+  autocomplete?: string;
+  domPath?: string;
+  nodeId?: number;
+}
+
+export interface JournalInputCapture {
+  field: JournalInputField;
+  value: string;
+  selectionStart?: number;
+  selectionEnd?: number;
+  submitTriggered?: boolean;
+}
+
 export interface KeyDispatchReply extends JsWindowDrain {
   defaultPrevented?: boolean;
   navigateTo?: string | null;
   navigatePost?: NavigatePost | null;
+  journalInput?: JournalInputCapture | null;
 }
 
 export interface MouseDispatchReply extends KeyDispatchReply {
@@ -237,6 +279,7 @@ export interface PageScriptSession {
     opts: CallFunctionOnOptions,
   ): Promise<EvalResult>;
   releaseObject(objectId: string): Promise<OkReply>;
+  releaseObjectGroup(objectGroup: string): Promise<OkReply>;
   getProperties(
     objectId: string,
     opts: { ownProperties?: boolean },
@@ -251,6 +294,7 @@ export interface PageScriptSession {
   queryDom<M extends QueryDomMethod>(method: M, args: QueryDomArgs<M>): Promise<QueryDomResult<M>>;
   dispatchMouseEvent(type: string, init: MouseEventInit): Promise<MouseDispatchReply>;
   dispatchKeyEvent(type: string, init: KeyEventInit): Promise<KeyDispatchReply>;
+  getHandlerRegions(): Promise<HandlerRegionInfo[]>;
 }
 
 export type PageScriptMethod = keyof PageScriptSession;
@@ -279,12 +323,14 @@ export interface PageScriptWireParams {
     opts?: CallFunctionOnOptions;
   };
   releaseObject: { objectId: string };
+  releaseObjectGroup: { objectGroup: string };
   getProperties: { objectId: string; opts?: { ownProperties?: boolean } };
   compileScript: { expression: string; sourceURL: string; persistScript: boolean };
   runScript: { scriptId: string; opts?: EvalOptions };
   queryDom: { method: QueryDomMethod; args?: QueryDomArgs<QueryDomMethod> };
   dispatchMouseEvent: { type: string; init: MouseEventInit };
   dispatchKeyEvent: { type: string; init: KeyEventInit };
+  getHandlerRegions: NoParams;
 }
 
 export type PageScriptArgBuilders = {
@@ -304,32 +350,32 @@ export interface RetainedPageScriptSession {
     meta: WireMeta,
   ): Promise<PageScriptReply<M>>;
   /** Mints a renderer pull port attached to this retained PageScript generation. */
-  makeRenderPort(): RenderPort & Rpc.RpcTargetBranded;
+  makeRenderPort(): RenderPort & RpcTargetBranded;
   close(): Promise<void>;
 }
 
-export type RetainedPageScriptSessionTarget = RetainedPageScriptSession & Rpc.RpcTargetBranded;
-export type RetainedPageScriptSessionStub = Rpc.Stub<RetainedPageScriptSessionTarget>;
+export type RetainedPageScriptSessionTarget = RetainedPageScriptSession & RpcTargetBranded;
+export type RetainedPageScriptSessionStub = RpcStub<RetainedPageScriptSessionTarget>;
 
 export interface ReceivedSessionInit {
-  upstream?: Rpc.Stub<OpenSessionInit["upstream"]>;
-  outbound?: Rpc.Stub<NonNullable<OpenSessionInit["outbound"]>>;
+  upstream?: RpcStub<OpenSessionInit["upstream"]>;
+  outbound?: RpcStub<NonNullable<OpenSessionInit["outbound"]>>;
 }
 
 export type PageScriptEntrypoint = PageScriptSession & {
   // Use the retained-session form for live DOM; entrypoint calls can hit a cold sibling isolate.
-  makeRenderPort(): RenderPort & Rpc.RpcTargetBranded;
+  makeRenderPort(): RenderPort & RpcTargetBranded;
   openSession(init: OpenSessionInit): RetainedPageScriptSessionTarget;
   killIsolate(reason?: string): void;
-} & Rpc.WorkerEntrypointBranded;
+} & WorkerEntrypointBranded;
 
-export type PageScriptEntrypointStub = Fetcher<PageScriptEntrypoint>;
+export type PageScriptEntrypointStub = RemoteFetcher<PageScriptEntrypoint>;
 
 export interface UpstreamEvents {
-  "kitesurf.bindingCalled": { name: string; payload: string };
-  "kitesurf.diag": { ev: "start" | "end"; op: string; t: number };
-  "kitesurf.formSubmitNavigate": NavigatePost;
-  "kitesurf.frameAttached": {
+  "parawing.bindingCalled": { name: string; payload: string };
+  "parawing.diag": { ev: "start" | "end"; op: string; t: number };
+  "parawing.formSubmitNavigate": NavigatePost;
+  "parawing.frameAttached": {
     frameId: string;
     ownerBackendNodeId: number;
     url: string;
@@ -339,23 +385,23 @@ export interface UpstreamEvents {
     // The iframe's sandbox attribute at the navigation start; absent means no attribute.
     sandbox?: string | null;
   };
-  "kitesurf.frameDetached": { frameId: string };
-  "kitesurf.frameLifecycle": { frameId: string; name: "DOMContentLoaded" | "load" };
-  "kitesurf.frameNavigated": { frameId: string; url: string; sandbox?: string | null };
-  "kitesurf.frameStoppedLoading": { frameId: string };
-  "kitesurf.insertedScriptRan": { url: string; bytes: number; run: "baked" | "stale" | "boa" };
-  "kitesurf.modelContextToolsAdded": { tools: WebMcpTool[] };
-  "kitesurf.modelContextToolsRemoved": { names: string[] };
-  "kitesurf.navigatedWithinDocument": {
+  "parawing.frameDetached": { frameId: string };
+  "parawing.frameLifecycle": { frameId: string; name: "DOMContentLoaded" | "load" };
+  "parawing.frameNavigated": { frameId: string; url: string; sandbox?: string | null };
+  "parawing.frameStoppedLoading": { frameId: string };
+  "parawing.insertedScriptRan": { url: string; bytes: number; run: "baked" | "stale" | "boa" };
+  "parawing.modelContextToolsAdded": { tools: WebMcpTool[] };
+  "parawing.modelContextToolsRemoved": { names: string[] };
+  "parawing.navigatedWithinDocument": {
     url: string;
     navigationType: "fragment" | "historyApi" | "other";
     kind: string;
     previousUrl: string;
   };
-  "kitesurf.paintDirty": Record<never, never>;
+  "parawing.paintDirty": Record<never, never>;
   // The wasm module trapped and is poisoned; `message` is the trap's.
-  "kitesurf.wasmTerminated": { message: string };
-  "kitesurf.postMessage": {
+  "parawing.wasmTerminated": { message: string };
+  "parawing.postMessage": {
     toFrameOwnerId?: number;
     toParent?: true;
     dataJson: string;
@@ -364,15 +410,15 @@ export interface UpstreamEvents {
     // committed URL; page script never supplies it.
     sourceOrigin?: string;
   };
-  "kitesurf.workerCreate": {
+  "parawing.workerCreate": {
     workerId: number;
     url: string;
     name: string;
     source: string;
     navigator: WorkerNavigatorInfo;
   };
-  "kitesurf.workerPostMessage": { workerId: number; data: unknown };
-  "kitesurf.workerTerminate": { workerId: number };
+  "parawing.workerPostMessage": { workerId: number; data: unknown };
+  "parawing.workerTerminate": { workerId: number };
 }
 
 export type UpstreamEventName = keyof UpstreamEvents;

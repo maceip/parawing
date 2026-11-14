@@ -1,0 +1,25 @@
+{
+  "name": "@parawing/rpc-transport",
+  "version": "0.0.1",
+  "private": true,
+  "license": "Apache-2.0",
+  "type": "module",
+  "description": "Framed binary RPC transport over readable/writable byte streams with capability passing, credit backpressure, cancellation, and freeze/replug replay.",
+  "exports": {
+    ".": "./src/index.ts",
+    "./framing": "./src/framing.ts",
+    "./capabilities": "./src/capabilities.ts",
+    "./session": "./src/session.ts"
+  },
+  "scripts": {
+    "test": "node --test test/*.test.ts",
+    "types": "tsc --noEmit"
+  },
+  "dependencies": {
+    "@parawing/jsrpc-types": "workspace:*"
+  },
+  "devDependencies": {
+    "@types/node": "^25.6.2",
+    "typescript": "^5.6.0"
+  }
+}

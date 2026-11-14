@@ -1,0 +1,35 @@
+load("@aspect_rules_js//js:defs.bzl", "js_library")
+load("@npm//:defs.bzl", "npm_link_all_packages")
+load("@npm//packages/rpc-transport:typescript/package_json.bzl", tsc = "bin")
+load("//bazel:checks.bzl", "node_test", "tsc_test", "workspace_configs")
+
+npm_link_all_packages(name = "node_modules")
+
+js_library(
+    name = "pkg",
+    srcs = ["package.json", "tsconfig.json"] + glob(["src/**"]),
+    deps = [":node_modules/@parawing/jsrpc-types"],
+    visibility = ["//visibility:public"],
+)
+
+tsc_test(
+    name = "types",
+    bin = tsc,
+    data = [
+        ":node_modules/@types/node",
+        ":node_modules/@parawing/jsrpc-types",
+        "//:node_modules/@cloudflare/workers-types",
+        ":pkg",
+    ] + glob(["test/**"]),
+)
+
+node_test(
+    name = "test",
+    args = ["test/*.test.ts"],
+    data = [
+        ":node_modules/@parawing/jsrpc-types",
+        ":pkg",
+    ] + glob(["test/**"]),
+)
+
+workspace_configs()

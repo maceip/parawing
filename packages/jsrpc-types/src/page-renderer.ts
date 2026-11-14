@@ -5,6 +5,7 @@
 // Defines PageRenderer RPC calls and its pull port into a PageScript generation.
 
 import type { QueryDomArgs, QueryDomResult } from "./query-dom.ts";
+import type { RpcStub, RpcTargetBranded, WorkerEntrypointBranded } from "./rpc.ts";
 
 export type RenderStage = "record" | "resources" | "raster";
 
@@ -74,7 +75,7 @@ export type RenderPort = {
 };
 
 /** The engine owns this stub and disposes it with the retained PageScript session. */
-export type RenderPortStub = Rpc.Stub<RenderPort & Rpc.RpcTargetBranded>;
+export type RenderPortStub = RpcStub<RenderPort & RpcTargetBranded>;
 
 export type FetchAsset = (path: string) => Promise<Uint8Array | ArrayBuffer>;
 export type FetchImage = (key: string) => Promise<Uint8Array | ArrayBuffer>;
@@ -100,4 +101,4 @@ export interface PageRendererRpc {
   killIsolate(reason?: string): void;
 }
 
-export type PageRendererEntrypoint = PageRendererRpc & Rpc.WorkerEntrypointBranded;
+export type PageRendererEntrypoint = PageRendererRpc & WorkerEntrypointBranded;

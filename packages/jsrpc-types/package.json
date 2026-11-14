@@ -1,11 +1,12 @@
 {
-  "name": "@kitesurf/jsrpc-types",
+  "name": "@parawing/jsrpc-types",
   "version": "0.0.1",
   "private": true,
   "license": "Apache-2.0",
   "type": "module",
   "description": "Type-only JSRPC contracts between the engine and its loaded-worker isolates: PageScript session methods, queryDom and upstream events, the PageRenderer methods and the render port. Source-exported so both ends of each call check against one copy.",
   "exports": {
+    "./rpc": "./src/rpc.ts",
     "./shared": "./src/shared.ts",
     "./sandbox": "./src/sandbox.ts",
     "./frame-origin": "./src/frame-origin.ts",

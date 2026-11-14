@@ -6,9 +6,9 @@
 
 import type { Protocol } from "devtools-protocol";
 
-// Prefix of the `[ks-kill] <tail token> <reason>` line logged before `killIsolate`
-// aborts. workerd reports the cancelled RPC as hung; the tail treats it as the kill.
-export type IsolateKillMarker = "[ks-kill]";
+// Prefix of the `[pw-kill] <tail token> <reason>` line logged before `killIsolate`
+// aborts. The host reports the cancelled RPC as hung; the tail treats it as the kill.
+export type IsolateKillMarker = "[pw-kill]";
 
 export type PackedResultType =
   | "object"

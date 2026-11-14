@@ -1,0 +1,104 @@
+load("@aspect_rules_js//js:defs.bzl", "js_binary", "js_library", "js_run_binary")
+load("@bazel_skylib//rules:build_test.bzl", "build_test")
+load("@npm//:defs.bzl", "npm_link_all_packages")
+load("@npm//packages/deno-host:typescript/package_json.bzl", tsc = "bin")
+load("//bazel:checks.bzl", "node_test", "tsc_test", "workspace_configs")
+
+npm_link_all_packages(name = "node_modules")
+
+js_library(
+    name = "srcs",
+    srcs = [
+        "package.json",
+        "tsconfig.bundle.json",
+        "tsconfig.json",
+    ] + glob(["src/**"]),
+    deps = [
+        ":node_modules/@parawing/engine",
+        ":node_modules/@parawing/jsrpc-types",
+        ":node_modules/@parawing/rpc-transport",
+        ":node_modules/@types/node",
+        ":node_modules/devtools-protocol",
+        ":node_modules/es-module-lexer",
+        ":node_modules/hono",
+        ":node_modules/zod",
+    ],
+)
+
+js_binary(
+    name = "build_tool",
+    data = [
+        ":node_modules/esbuild",
+    ],
+    entry_point = "scripts/build.mjs",
+)
+
+js_run_binary(
+    name = "dist",
+    srcs = [
+        ":srcs",
+        "//packages/core/pkg:pkg",
+        "//packages/engine:embed",
+        "//packages/renderer-core:wasm_pkg",
+    ],
+    out_dirs = ["dist"],
+    chdir = package_name(),
+    mnemonic = "DenoHostBuild",
+    progress_message = "Bundling deno-host engine and child bootstrap",
+    tool = ":build_tool",
+)
+
+js_library(
+    name = "pkg",
+    srcs = [":dist"],
+    deps = [":srcs"],
+    visibility = ["//visibility:public"],
+)
+
+_TYPES_DATA = [
+    ":dist",
+    ":srcs",
+]
+
+tsc_test(
+    name = "types",
+    bin = tsc,
+    data = _TYPES_DATA + glob(
+        ["test/**"],
+        allow_empty = True,
+    ),
+)
+
+tsc_test(
+    name = "types_bundle",
+    bin = tsc,
+    data = _TYPES_DATA + [
+        ":node_modules/es-module-lexer",
+        "//:node_modules/@cloudflare/workers-types",
+        "//packages/core/pkg:pkg",
+        "//packages/engine:embed",
+        "//packages/engine:worker_configuration",
+        "//packages/renderer-core:wasm_pkg",
+    ],
+    project = "tsconfig.bundle.json",
+)
+
+node_test(
+    name = "test",
+    args = ["test/*.test.ts"],
+    data = [
+        ":dist",
+        ":srcs",
+        "//packages/engine:assets",
+    ] + glob(
+        ["test/**"],
+        allow_empty = True,
+    ),
+)
+
+build_test(
+    name = "build",
+    targets = [":dist"],
+)
+
+workspace_configs()

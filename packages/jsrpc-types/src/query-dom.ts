@@ -491,12 +491,80 @@ export interface QueryDomMethods {
     args: { invocationId: string };
     result: { aborted?: boolean };
   };
+  recordSceneV2: {
+    args: {
+      ackedScrollSeq?: number;
+      ackedInputSeq?: number;
+      knownHashes?: Uint8Array;
+      velX?: number;
+      velY?: number;
+      pumpRaf?: boolean;
+      frameIntervalMs?: number;
+    };
+    result: {
+      frame?: Uint8Array;
+      seq?: number;
+      scrollX?: number;
+      scrollY?: number;
+      origin?: string;
+      documentUrl?: string;
+      handlerRegions?: HandlerRegionInfo[];
+      error?: string;
+    };
+  };
+  applyScrollDeltaV2: {
+    args: {
+      scrollNodeId?: number;
+      x: number;
+      y: number;
+    };
+    result: {
+      ok: boolean;
+      scrollNodeId: number;
+      x: number;
+      y: number;
+    };
+  };
+  restoreEditableField: {
+    args: {
+      nodeId?: number;
+      origin?: string;
+      documentUrl?: string;
+      formId?: string;
+      formAction?: string;
+      tagName?: string;
+      inputType?: string;
+      autocomplete?: string;
+      domPath?: string;
+      fieldName?: string;
+      fieldId?: string;
+      value: string;
+      selectionStart?: number;
+      selectionEnd?: number;
+    };
+    result: {
+      restored: boolean;
+      nodeId?: number;
+    };
+  };
 }
 
 type EmptyArgs = Record<string, never>;
 
 // Read stamps bracket snapshots with mutationSeq to expose concurrent DOM changes.
 type ReadStampArgs = { includeReadStamp?: boolean };
+
+export interface HandlerRegionInfo {
+  targetNodeId: number;
+  scrollNodeId: number;
+  x: number;
+  y: number;
+  width: number;
+  height: number;
+  eventMask: number;
+  nonPassive: boolean;
+  coversScrollNode: boolean;
+}
 
 export interface PendingImageDrain {
   waited: boolean;

@@ -5,6 +5,7 @@
 // Defines the session, message, and fetch contracts shared by worker RPC callers.
 
 import type { SessionOutbound } from "./page-script.ts";
+import type { WorkerEntrypointBranded } from "./rpc.ts";
 
 export interface WorkerStartParams {
   url: string;
@@ -68,7 +69,7 @@ export interface DedicatedWorkerEntrypoint {
   killIsolate(reason?: string): void;
 }
 
-export type DedicatedWorkerEntrypointStub = DedicatedWorkerEntrypoint & Rpc.WorkerEntrypointBranded;
+export type DedicatedWorkerEntrypointStub = DedicatedWorkerEntrypoint & WorkerEntrypointBranded;
 
 export type WorkerEventParams =
   | { workerId: number; type: "message"; data: unknown }

@@ -1,0 +1,30 @@
+{
+  "compilerOptions": {
+    "target": "es2022",
+    "module": "es2022",
+    "moduleResolution": "bundler",
+    "lib": ["es2022"],
+    "types": ["@types/node", "@cloudflare/workers-types"],
+    "strict": true,
+    "noUnusedLocals": true,
+    "noUnusedParameters": true,
+    "noUncheckedIndexedAccess": true,
+    "noImplicitReturns": false,
+    "noFallthroughCasesInSwitch": true,
+    "isolatedModules": true,
+    "verbatimModuleSyntax": true,
+    "esModuleInterop": true,
+    "allowImportingTsExtensions": true,
+    "skipLibCheck": true,
+    "noEmit": true
+  },
+  "include": [
+    "src/engine-bundle-entry.ts",
+    "src/wasm-bytes-registry.ts",
+    "src/workers-compat-shim.ts",
+    "../engine/src/runtime.ts",
+    "../engine/src/host-bindings.ts",
+    "../engine/src/cdp/protocol-extensions.ts",
+    "../engine/worker-configuration.d.ts"
+  ]
+}
