@@ -2496,10 +2496,11 @@ async fn serve_http_route(
         .await;
     }
     if method == "GET" && (path == "/json/version" || path == "/json/version/") {
+        let product = format!("Parawing-Rust-Host/{}", crate::RELEASE_VERSION);
         let out = json!({
-            "Browser": "Parawing-Rust-Host/0.1.0",
+            "Browser": product,
             "Protocol-Version": "1.3",
-            "User-Agent": "Parawing-Rust-Host/0.1.0",
+            "User-Agent": format!("Parawing-Rust-Host/{}", crate::RELEASE_VERSION),
             "webSocketDebuggerUrl": format!("ws://{host}/devtools/browser"),
         });
         return write_json_response(&mut stream, 200, &out).await;
@@ -2608,6 +2609,24 @@ async fn write_http_response(
     Ok(())
 }
 
+fn target_for_cdp_session<'a>(default_target: &'a str, session_id: Option<&'a str>) -> &'a str {
+    let Some(sid) = session_id else {
+        return default_target;
+    };
+    sid.strip_prefix("session-").unwrap_or(default_target)
+}
+
+fn build_cdp_reply(id: u64, session_id: Option<&str>, reply: Result<Value, HostError>) -> Value {
+    let mut payload = match reply {
+        Ok(result) => json!({ "id": id, "result": result }),
+        Err(err) => json!({ "id": id, "error": { "code": -32000, "message": err.to_string() } }),
+    };
+    if let (Some(sid), Some(obj)) = (session_id, payload.as_object_mut()) {
+        obj.insert("sessionId".to_string(), Value::String(sid.to_string()));
+    }
+    payload
+}
+
 async fn serve_cdp_ws(
     handle: EngineHostHandle,
     target_id: String,
@@ -2624,15 +2643,12 @@ async fn serve_cdp_ws(
         };
         let req: Value = serde_json::from_str(&text).unwrap_or(Value::Null);
         let id = req.get("id").and_then(Value::as_u64).unwrap_or(0);
+        let session_id = req.get("sessionId").and_then(Value::as_str);
         let method = req.get("method").and_then(Value::as_str).unwrap_or("");
         let params = req.get("params").cloned().unwrap_or_else(|| json!({}));
-        let reply = dispatch_cdp_method(&handle, &target_id, &caller, method, &params).await;
-        let payload = match reply {
-            Ok(result) => json!({ "id": id, "result": result }),
-            Err(err) => {
-                json!({ "id": id, "error": { "code": -32000, "message": err.to_string() } })
-            }
-        };
+        let effective_target = target_for_cdp_session(&target_id, session_id);
+        let reply = dispatch_cdp_method(&handle, effective_target, &caller, method, &params).await;
+        let payload = build_cdp_reply(id, session_id, reply);
         if ws
             .send(Message::Text(payload.to_string().into()))
             .await
@@ -2906,6 +2922,82 @@ fn dispatch_parawing_readonly_cdp(
     }
 }
 
+fn push_non_empty_env_dir(dirs: &mut Vec<PathBuf>, var_name: &str) {
+    let Ok(raw) = std::env::var(var_name) else {
+        return;
+    };
+    if !raw.trim().is_empty() {
+        dirs.push(PathBuf::from(raw));
+    }
+}
+
+fn scene_host_candidate_dirs() -> Vec<PathBuf> {
+    let mut dirs = Vec::new();
+    push_non_empty_env_dir(&mut dirs, "PARAWING_SCENE_HOST_DIR");
+    if let Some(parent) = std::env::current_exe()
+        .ok()
+        .and_then(|p| p.parent().map(PathBuf::from))
+    {
+        dirs.push(parent.join("rbi"));
+    }
+    if let Ok(cwd) = std::env::current_dir() {
+        dirs.push(cwd.join("rbi"));
+        dirs.push(cwd.join("packages/engine/public/rbi"));
+    }
+    dirs.push(PathBuf::from(env!("CARGO_MANIFEST_DIR")).join("../engine/public/rbi"));
+    dirs
+}
+
+fn find_scene_host_dir() -> Result<PathBuf, HostError> {
+    for dir in scene_host_candidate_dirs() {
+        if dir.join("scene_host.json").is_file() && dir.join("scene_host.wasm").is_file() {
+            return Ok(dir);
+        }
+    }
+    Err(HostError::Http(
+        "scene_host.json and scene_host.wasm not found; set PARAWING_SCENE_HOST_DIR".to_string(),
+    ))
+}
+
+fn dispatch_parawing_get_scene_host_manifest() -> Result<Value, HostError> {
+    let dir = find_scene_host_dir()?;
+    let raw = std::fs::read(dir.join("scene_host.json"))
+        .map_err(|e| HostError::Io(format!("read scene_host.json: {e}")))?;
+    serde_json::from_slice(&raw).map_err(|e| HostError::Http(format!("parse scene_host.json: {e}")))
+}
+
+fn dispatch_parawing_read_scene_host(params: &Value) -> Result<Value, HostError> {
+    let dir = find_scene_host_dir()?;
+    let bytes = std::fs::read(dir.join("scene_host.wasm"))
+        .map_err(|e| HostError::Io(format!("read scene_host.wasm: {e}")))?;
+    let actual_sha = sha256_hex(&bytes);
+    let requested = params.get("sha256").and_then(Value::as_str);
+    if requested.is_some_and(|req_sha| req_sha != actual_sha) {
+        return Err(HostError::Http(format!(
+            "scene_host.wasm sha256 mismatch (actual {actual_sha})"
+        )));
+    }
+    let total = bytes.len();
+    let offset = params
+        .get("offset")
+        .and_then(Value::as_u64)
+        .unwrap_or(0)
+        .min(total as u64) as usize;
+    let max_chunk: u64 = 4 * 1024 * 1024;
+    let length = params
+        .get("length")
+        .and_then(Value::as_u64)
+        .unwrap_or(max_chunk)
+        .min(max_chunk) as usize;
+    let end = offset.saturating_add(length).min(total);
+    Ok(json!({
+        "sha256": actual_sha,
+        "offset": offset,
+        "totalBytes": total,
+        "dataB64": BASE64_STANDARD.encode(&bytes[offset..end]),
+    }))
+}
+
 async fn dispatch_parawing_cdp_method(
     handle: &EngineHostHandle,
     target_id: &str,
@@ -2919,6 +3011,11 @@ async fn dispatch_parawing_cdp_method(
     ) {
         return dispatch_parawing_readonly_cdp(handle, method, params);
     }
+    match method {
+        "Parawing.getSceneHostManifest" => return dispatch_parawing_get_scene_host_manifest(),
+        "Parawing.readSceneHost" => return dispatch_parawing_read_scene_host(params),
+        _ => {}
+    }
     handle.authorize_mutation(caller.0, &caller.1)?;
     match method {
         "Parawing.signCapsuleAttestation"
@@ -2929,6 +3026,13 @@ async fn dispatch_parawing_cdp_method(
         "Parawing.freezeSession" | "Parawing.thawSession" => {
             dispatch_parawing_freeze_cdp(handle, target_id, method, params).await
         }
+        "Parawing.startSceneStreamV2" => {
+            let w = params.get("width").and_then(Value::as_u64).unwrap_or(800) as u32;
+            let h = params.get("height").and_then(Value::as_u64).unwrap_or(600) as u32;
+            handle.inner.render.set_viewport(target_id, w, h).await?;
+            Ok(json!({ "wsPath": format!("/viewer/{target_id}"), "wireVersion": 2 }))
+        }
+        "Parawing.stopSceneStreamV2" => Ok(json!({})),
         _ => dispatch_parawing_roam_mut_cdp(handle, method, params),
     }
 }
@@ -2944,6 +3048,40 @@ async fn dispatch_cdp_method(
         return dispatch_parawing_cdp_method(handle, target_id, caller, method, params).await;
     }
     match method {
+        "Browser.getVersion" => Ok(json!({
+            "protocolVersion": "1.3",
+            "product": format!("Parawing-Rust-Host/{}", crate::RELEASE_VERSION),
+            "jsVersion": "Deno-V8",
+        })),
+        "Target.getTargets" => {
+            let _ = handle.ensure_target(target_id).await?;
+            let info = handle.inner.render.get_info(target_id).await?;
+            Ok(
+                json!({ "targetInfos": [{ "targetId": info.target_id, "type": "page", "title": info.title, "url": info.url, "attached": false }] }),
+            )
+        }
+        "Target.createTarget" => {
+            let tid = params
+                .get("targetId")
+                .and_then(Value::as_str)
+                .filter(|s| !s.is_empty())
+                .unwrap_or(target_id);
+            let _ = handle.ensure_target(tid).await?;
+            let url = params.get("url").and_then(Value::as_str).unwrap_or("");
+            if !url.is_empty() && url != "about:blank" {
+                handle.navigate(tid, url, None).await?;
+            }
+            Ok(json!({ "targetId": tid }))
+        }
+        "Target.attachToTarget" => {
+            let tid = params
+                .get("targetId")
+                .and_then(Value::as_str)
+                .filter(|s| !s.is_empty())
+                .unwrap_or(target_id);
+            let _ = handle.ensure_target(tid).await?;
+            Ok(json!({ "sessionId": format!("session-{tid}") }))
+        }
         "Target.getTargetInfo" => {
             let info = handle.inner.render.get_info(target_id).await?;
             Ok(
@@ -3897,5 +4035,89 @@ mod tests {
 
         let _ = cdp_b.close(None).await;
         host_b.shutdown().await;
+    }
+
+    #[tokio::test]
+    async fn browser_targets_session_routing_and_scene_host_cdp_roundtrip() {
+        let host = start_engine_host(EngineHostConfig {
+            bind_addr: "127.0.0.1:0".to_string(),
+            capsule_manifest: CapsuleManifest::new(
+                CpuBaseline::host_default(),
+                "parawing-test:v2-cdp",
+                "deno-v8:1",
+                false,
+            ),
+            ..EngineHostConfig::default()
+        })
+        .await
+        .expect("start host");
+
+        let ws_url = format!("ws://{}/devtools/browser", host.addr());
+        let (mut cdp, _) = connect_async(&ws_url).await.expect("connect browser cdp");
+
+        let ver = send_cdp_rpc(&mut cdp, 1, "Browser.getVersion", json!({})).await;
+        assert!(ver["result"]["product"]
+            .as_str()
+            .unwrap_or("")
+            .contains(crate::RELEASE_VERSION));
+
+        let targets = send_cdp_rpc(&mut cdp, 2, "Target.getTargets", json!({})).await;
+        assert_eq!(targets["result"]["targetInfos"][0]["targetId"], "parawing");
+
+        let attach = send_cdp_rpc(
+            &mut cdp,
+            3,
+            "Target.attachToTarget",
+            json!({ "targetId": "parawing", "flatten": true }),
+        )
+        .await;
+        let sid = attach["result"]["sessionId"]
+            .as_str()
+            .expect("sessionId")
+            .to_string();
+        assert_eq!(sid, "session-parawing");
+
+        let manifest = send_cdp_rpc(&mut cdp, 4, "Parawing.getSceneHostManifest", json!({})).await;
+        let expected_sha = manifest["result"]["sha256"]
+            .as_str()
+            .expect("scene_host sha256")
+            .to_string();
+        let expected_bytes = manifest["result"]["bytes"].as_u64().expect("bytes") as usize;
+        assert!(expected_bytes > 0);
+
+        let chunk = send_cdp_rpc(
+            &mut cdp,
+            5,
+            "Parawing.readSceneHost",
+            json!({ "sha256": expected_sha, "offset": 0, "length": 16 }),
+        )
+        .await;
+        assert_eq!(chunk["result"]["totalBytes"], expected_bytes);
+        let decoded = BASE64_STANDARD
+            .decode(chunk["result"]["dataB64"].as_str().expect("dataB64"))
+            .expect("decode chunk");
+        assert_eq!(&decoded[..4], b"\0asm");
+
+        let req = json!({
+            "id": 6,
+            "sessionId": sid,
+            "method": "Parawing.startSceneStreamV2",
+            "params": { "width": 800, "height": 600, "fps": 60 },
+        });
+        cdp.send(Message::Text(req.to_string().into()))
+            .await
+            .expect("send startSceneStreamV2");
+        let msg = tokio::time::timeout(Duration::from_secs(5), cdp.next())
+            .await
+            .expect("reply timeout")
+            .expect("reply item")
+            .expect("reply msg");
+        let reply: Value = serde_json::from_str(&msg.into_text().expect("text")).expect("json");
+        assert_eq!(reply["id"], 6);
+        assert_eq!(reply["sessionId"], "session-parawing");
+        assert_eq!(reply["result"]["wsPath"], "/viewer/parawing");
+
+        let _ = cdp.close(None).await;
+        host.shutdown().await;
     }
 }

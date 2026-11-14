@@ -7,13 +7,25 @@
 use parawing_rust_host::capsule::{CapsuleManifest, CpuBaseline};
 use parawing_rust_host::engine_host::{start_engine_host, EngineHostConfig};
 
-fn parse_cli_args() -> (String, u16, String) {
+enum CliAction {
+    Run {
+        host: String,
+        port: u16,
+        capsule_id: String,
+    },
+    PrintVersion,
+    PrintHelp,
+}
+
+fn parse_cli_args() -> CliAction {
     let mut host = "127.0.0.1".to_string();
     let mut port: u16 = 8788;
-    let mut capsule_id = "parawing-rust-host:0.1.0".to_string();
+    let mut capsule_id = format!("parawing-rust-host:{}", parawing_rust_host::RELEASE_VERSION);
     let mut args = std::env::args().skip(1);
     while let Some(arg) = args.next() {
         match arg.as_str() {
+            "--version" | "-V" => return CliAction::PrintVersion,
+            "--help" | "-h" => return CliAction::PrintHelp,
             "--host" => {
                 if let Some(v) = args.next() {
                     host = v;
@@ -32,12 +44,30 @@ fn parse_cli_args() -> (String, u16, String) {
             _ => {}
         }
     }
-    (host, port, capsule_id)
+    CliAction::Run {
+        host,
+        port,
+        capsule_id,
+    }
 }
 
 #[tokio::main]
 async fn main() {
-    let (host, port, capsule_id) = parse_cli_args();
+    let (host, port, capsule_id) = match parse_cli_args() {
+        CliAction::PrintVersion => {
+            println!("parawing-rust-host {}", parawing_rust_host::RELEASE_VERSION);
+            return;
+        }
+        CliAction::PrintHelp => {
+            println!("Usage: parawing-rust-host [--host IP] [--port PORT] [--capsule-id ID]");
+            return;
+        }
+        CliAction::Run {
+            host,
+            port,
+            capsule_id,
+        } => (host, port, capsule_id),
+    };
     let manifest = CapsuleManifest::from_env(
         CpuBaseline::host_default(),
         capsule_id,

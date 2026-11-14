@@ -71,6 +71,8 @@ fn user_error(error: &(dyn Error + 'static)) -> String {
     error.to_string()
 }
 
+const RELEASE_VERSION: &str = include_str!("../../../VERSION").trim_ascii();
+
 #[tokio::main(flavor = "current_thread")]
 async fn main() {
     if let Err(error) = run().await {
@@ -82,7 +84,7 @@ async fn main() {
 async fn run() -> Result<()> {
     let args: Vec<String> = std::env::args().skip(1).collect();
     if args.iter().any(|arg| arg == "--version") {
-        println!("parawing {}", env!("CARGO_PKG_VERSION"));
+        println!("parawing {RELEASE_VERSION}");
         return Ok(());
     }
     if args
@@ -164,5 +166,16 @@ mod tests {
         let refused =
             tungstenite::Error::Io(std::io::Error::from(std::io::ErrorKind::ConnectionRefused));
         assert!(user_error(&refused).contains("Could not reach the Parawing server"));
+    }
+
+    #[test]
+    fn release_version_is_valid_semver() {
+        let parts: Vec<&str> = RELEASE_VERSION.split('.').collect();
+        assert_eq!(
+            parts.len(),
+            3,
+            "unexpected RELEASE_VERSION: {RELEASE_VERSION}"
+        );
+        assert!(parts.iter().all(|part| part.parse::<u64>().is_ok()));
     }
 }

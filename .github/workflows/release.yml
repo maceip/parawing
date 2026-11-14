@@ -1,15 +1,98 @@
-name: Release CLI
+name: Release
 
 on:
   push:
-    tags: ["v*"]
+    branches: [main]
   workflow_dispatch:
+    inputs:
+      bump:
+        description: Semantic version bump kind
+        required: false
+        default: patch
+        type: choice
+        options:
+          - patch
+          - minor
+          - major
+          - none
 
 permissions:
   contents: read
 
+concurrency:
+  group: release-${{ github.ref }}
+  cancel-in-progress: false
+
 jobs:
-  build:
+  prepare:
+    if: github.event_name == 'workflow_dispatch' || !contains(github.event.head_commit.message, '[skip release]')
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    permissions:
+      contents: write
+    outputs:
+      version: ${{ steps.bump.outputs.version }}
+      tag: ${{ steps.bump.outputs.tag }}
+      commit_sha: ${{ steps.bump.outputs.commit_sha }}
+      should_release: ${{ steps.bump.outputs.should_release }}
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: main
+          fetch-depth: 0
+      - uses: ./.github/actions/setup
+        with:
+          rust: "true"
+          deno: "false"
+      - id: bump
+        shell: bash
+        run: |
+          set -euo pipefail
+          HEAD_SUBJECT="$(git log -1 --format=%s)"
+          if [ "${{ github.event_name }}" = "push" ] && [[ "$HEAD_SUBJECT" == chore\(release\):\ bump\ version\ to\ * ]]; then
+            echo "should_release=false" >> "$GITHUB_OUTPUT"
+            exit 0
+          fi
+
+          BUMP_KIND="${{ github.event.inputs.bump || 'patch' }}"
+          node scripts/bump-version.mjs --bump "$BUMP_KIND" --github-output "$GITHUB_OUTPUT"
+          VERSION="$(tr -d ' \n\r' < VERSION)"
+          TAG="v${VERSION}"
+
+          if [ -n "$(git status --porcelain VERSION package.json)" ]; then
+            git add VERSION package.json
+            git commit -s -m "chore(release): bump version to ${TAG} [skip release]"
+            git tag -a "${TAG}" -m "Parawing ${TAG}"
+            git push origin HEAD:main "refs/tags/${TAG}"
+          elif ! git rev-parse -q --verify "refs/tags/${TAG}" >/dev/null; then
+            git tag -a "${TAG}" -m "Parawing ${TAG}"
+            git push origin "refs/tags/${TAG}"
+          fi
+
+          {
+            echo "version=${VERSION}"
+            echo "tag=${TAG}"
+            echo "commit_sha=$(git rev-parse HEAD)"
+            echo "should_release=true"
+          } >> "$GITHUB_OUTPUT"
+      - if: steps.bump.outputs.should_release == 'true'
+        name: Build scene_host.wasm and manifest
+        run: |
+          set -euo pipefail
+          rustup target add wasm32-unknown-unknown
+          node packages/scene-host-wasm/scripts/build.mjs
+      - if: steps.bump.outputs.should_release == 'true'
+        uses: actions/upload-artifact@v4
+        with:
+          name: rbi-scene-host
+          path: |
+            packages/engine/public/rbi/scene_host.wasm
+            packages/engine/public/rbi/scene_host.json
+          if-no-files-found: error
+
+  build-and-verify:
+    needs: prepare
+    if: needs.prepare.outputs.should_release == 'true'
     strategy:
       fail-fast: true
       matrix:
@@ -21,53 +104,148 @@ jobs:
           - runner: macos-14
             target: aarch64-apple-darwin
     runs-on: ${{ matrix.runner }}
-    timeout-minutes: 45
+    timeout-minutes: 60
+    permissions:
+      contents: read
     steps:
       - uses: actions/checkout@v4
+        with:
+          ref: ${{ needs.prepare.outputs.commit_sha }}
+      - name: Ensure build prerequisites and rustup
+        shell: bash
+        run: |
+          if [ "$RUNNER_OS" = "Linux" ]; then
+            if ! command -v cc >/dev/null 2>&1 || ! command -v make >/dev/null 2>&1 || ! command -v cmake >/dev/null 2>&1 || ! command -v perl >/dev/null 2>&1 || ! command -v pkg-config >/dev/null 2>&1; then
+              sudo apt-get update
+              sudo apt-get install -y --no-install-recommends build-essential cmake pkg-config perl
+            fi
+          fi
+          if ! command -v rustup >/dev/null 2>&1; then
+            curl --proto '=https' --tlsv1.2 -sSf https://sh.rustup.rs | sh -s -- -y --default-toolchain none
+            echo "$HOME/.cargo/bin" >> "$GITHUB_PATH"
+          fi
       - uses: ./.github/actions/setup
         with:
           rust: "true"
+          deno: "true"
       - run: rustup target add ${{ matrix.target }}
-      - name: Build the Parawing CLI
-        run: cargo build --release --locked --manifest-path packages/parawing-cli/Cargo.toml --target ${{ matrix.target }}
-      - name: Install notice collector
-        run: cargo install cargo-about --version 0.9.2 --locked --features cli
-      - name: Package and checksum
+      - uses: taiki-e/install-action@v2
+        with:
+          tool: cargo-about@0.9.2
+      - uses: actions/download-artifact@v4
+        with:
+          name: rbi-scene-host
+          path: packages/engine/public/rbi
+      - name: Materialize patched vendor crates
+        run: node scripts/get-patched-vendor-crates.mjs
+      - name: Build Parawing CLI and native Rust host
         run: |
           set -euo pipefail
-          NAME="parawing-${GITHUB_REF_NAME}-${{ matrix.target }}"
+          cargo build --release --locked --manifest-path packages/parawing-cli/Cargo.toml --target ${{ matrix.target }}
+          cargo build --release --locked --manifest-path packages/rust-host/Cargo.toml --target ${{ matrix.target }}
+      - name: Stage release bundle
+        run: |
+          set -euo pipefail
+          TAG="${{ needs.prepare.outputs.tag }}"
+          NAME="parawing-${TAG}-${{ matrix.target }}"
           PACKAGE="$RUNNER_TEMP/$NAME"
-          mkdir -p dist
-          mkdir -p "$PACKAGE/packages/engine/public/fonts" "$PACKAGE/scripts/lint" "$PACKAGE/vendor/wasm-memprof"
-          cp "packages/parawing-cli/target/${{ matrix.target }}/release/parawing" LICENSE NOTICE "$PACKAGE/"
+          rm -rf "$PACKAGE" dist
+          mkdir -p dist "$PACKAGE/rbi" "$PACKAGE/packages/engine/public/fonts" "$PACKAGE/scripts/lint" "$PACKAGE/vendor/wasm-memprof"
+
+          cp "packages/parawing-cli/target/${{ matrix.target }}/release/parawing" "$PACKAGE/parawing"
+          cp "packages/rust-host/target/${{ matrix.target }}/release/parawing-rust-host" "$PACKAGE/parawing-rust-host"
+          chmod +x "$PACKAGE/parawing" "$PACKAGE/parawing-rust-host"
+          cp packages/engine/public/rbi/scene_host.wasm packages/engine/public/rbi/scene_host.json "$PACKAGE/rbi/"
+
+          cp VERSION LICENSE NOTICE "$PACKAGE/"
           cp packages/parawing-cli/Cargo.lock "$PACKAGE/Cargo.lock"
+          cp packages/rust-host/Cargo.lock "$PACKAGE/rust-host.Cargo.lock"
           cp -R licenses "$PACKAGE/licenses"
           cp packages/engine/public/fonts/OFL.txt packages/engine/public/fonts/Inter-OFL.txt "$PACKAGE/packages/engine/public/fonts/"
           cp scripts/lint/ANTI_SLOP_LICENSE.txt "$PACKAGE/scripts/lint/"
           cp vendor/wasm-memprof/LICENSE "$PACKAGE/vendor/wasm-memprof/"
           cargo about generate --locked --fail --config .config/about.toml --manifest-path packages/parawing-cli/Cargo.toml --target "${{ matrix.target }}" --output-file "$PACKAGE/THIRD_PARTY_NOTICES.md" scripts/rust-notices.hbs
+
           tar -czf "dist/$NAME.tar.gz" -C "$PACKAGE" .
+      - name: Verify extracted binaries perform live browser, Deno, render, and CLI work
+        run: |
+          set -euo pipefail
+          TAG="${{ needs.prepare.outputs.tag }}"
+          VERSION="${{ needs.prepare.outputs.version }}"
+          NAME="parawing-${TAG}-${{ matrix.target }}"
+          node scripts/verify-release-binaries.mjs --archive "dist/$NAME.tar.gz" --expected-version "$VERSION"
+      - name: Generate checksum and tagged SPDX 2.3 SBOM
+        run: |
+          set -euo pipefail
+          TAG="${{ needs.prepare.outputs.tag }}"
+          VERSION="${{ needs.prepare.outputs.version }}"
+          NAME="parawing-${TAG}-${{ matrix.target }}"
           (cd dist && shasum -a 256 "$NAME.tar.gz" > "$NAME.tar.gz.sha256")
+          node scripts/generate-sbom.mjs \
+            --archive "dist/$NAME.tar.gz" \
+            --version "$VERSION" \
+            --target "${{ matrix.target }}" \
+            --repo "${{ github.repository }}" \
+            --output "dist/$NAME.spdx.json"
       - uses: actions/upload-artifact@v4
         with:
-          name: cli-${{ matrix.target }}
+          name: release-${{ matrix.target }}
           path: dist/*
           if-no-files-found: error
 
-  release:
-    needs: build
+  attest-and-release:
+    needs: [prepare, build-and-verify]
+    if: needs.prepare.outputs.should_release == 'true'
     runs-on: ubuntu-latest
-    timeout-minutes: 15
+    timeout-minutes: 20
     permissions:
       contents: write
+      id-token: write
+      attestations: write
     steps:
       - uses: actions/download-artifact@v4
         with:
-          pattern: cli-*
+          pattern: release-*
           merge-multiple: true
           path: dist
-      - uses: softprops/action-gh-release@v2
+      - name: Verify binary archive SHA-256 checksums
+        run: (cd dist && shasum -a 256 -c *.sha256)
+      - name: Attest build provenance for release archives
+        uses: actions/attest-build-provenance@v2
         with:
-          draft: true
+          subject-path: dist/*.tar.gz
+      - name: Attest SPDX SBOM (x86_64-unknown-linux-gnu)
+        uses: actions/attest-sbom@v2
+        with:
+          subject-path: dist/parawing-${{ needs.prepare.outputs.tag }}-x86_64-unknown-linux-gnu.tar.gz
+          sbom-path: dist/parawing-${{ needs.prepare.outputs.tag }}-x86_64-unknown-linux-gnu.spdx.json
+      - name: Attest SPDX SBOM (aarch64-unknown-linux-gnu)
+        uses: actions/attest-sbom@v2
+        with:
+          subject-path: dist/parawing-${{ needs.prepare.outputs.tag }}-aarch64-unknown-linux-gnu.tar.gz
+          sbom-path: dist/parawing-${{ needs.prepare.outputs.tag }}-aarch64-unknown-linux-gnu.spdx.json
+      - name: Attest SPDX SBOM (aarch64-apple-darwin)
+        uses: actions/attest-sbom@v2
+        with:
+          subject-path: dist/parawing-${{ needs.prepare.outputs.tag }}-aarch64-apple-darwin.tar.gz
+          sbom-path: dist/parawing-${{ needs.prepare.outputs.tag }}-aarch64-apple-darwin.spdx.json
+      - name: Cut non-draft GitHub Release with binaries, checksums, and SBOMs
+        uses: softprops/action-gh-release@v2
+        with:
+          tag_name: ${{ needs.prepare.outputs.tag }}
+          name: Parawing ${{ needs.prepare.outputs.tag }}
+          draft: false
+          prerelease: false
+          make_latest: true
           generate_release_notes: true
           files: dist/*
+      - name: Verify live GitHub Release and artifact attestations
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          set -euo pipefail
+          gh release view "${{ needs.prepare.outputs.tag }}" --repo "$GITHUB_REPOSITORY" --json tagName,isDraft,url,assets
+          for archive in dist/*.tar.gz; do
+            gh attestation verify "$archive" --repo "$GITHUB_REPOSITORY"
+            gh attestation verify "$archive" --repo "$GITHUB_REPOSITORY" --predicate-type https://spdx.dev/Document
+          done

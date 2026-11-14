@@ -18,6 +18,7 @@ rust_library(
     name = "parawing_playback",
     srcs = glob(["src/**/*.rs"]),
     aliases = aliases(normal = True, proc_macro = True),
+    compile_data = ["//:VERSION"],
     crate_name = "parawing_playback",
     crate_root = "src/lib.rs",
     edition = "2021",
@@ -36,6 +37,7 @@ rust_test(
         proc_macro = True,
         proc_macro_dev = True,
     ),
+    compile_data = ["//:VERSION"],
     crate_name = "parawing_playback",
     crate_root = "src/lib.rs",
     data = [
@@ -65,6 +67,7 @@ rust_test(
         proc_macro = True,
         proc_macro_dev = True,
     ),
+    compile_data = ["//:VERSION"],
     crate_name = "parawing",
     crate_root = "src/main.rs",
     edition = "2021",

@@ -17,6 +17,7 @@ jobs:
   # One job, so the Rust crates compile once: the tests and the dev build share one Bazel output
   # tree, and the checks, the lint tests, the Rust host tests, vitest, and CLI tests one invocation.
   ci:
+    if: github.event_name != 'push' || !contains(github.event.head_commit.message, '[skip release]')
     runs-on: ubuntu-latest
     timeout-minutes: 120
     permissions:

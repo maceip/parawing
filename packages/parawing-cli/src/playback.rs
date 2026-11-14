@@ -1912,6 +1912,12 @@ async fn play_v2(
         Some(&session),
     )
     .await;
+    if !state.display && args.seconds.is_some() {
+        println!(
+            "parawing-v2: frames={} wire_bytes={} width={} height={}",
+            state.frames, state.wire_bytes, state.w, state.h
+        );
+    }
     Ok(())
 }
 

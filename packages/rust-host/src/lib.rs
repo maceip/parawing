@@ -4,6 +4,8 @@
 
 //! Native Rust Parawing browser host, capsule identity, freeze/thaw, roaming, and attestation.
 
+pub const RELEASE_VERSION: &str = include_str!("../../../VERSION").trim_ascii();
+
 pub mod attestation;
 pub mod authority_backend;
 pub mod capsule;
