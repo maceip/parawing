@@ -38,7 +38,7 @@ CARGO="$PWD/$4"
 CRATES="$5"
 PROFILE="$6"
 RUSTFLAGS_TOML="$7"
-B=/tmp/kitesurf-wasm-std
+B=/tmp/parawing-wasm-std
 exec 9>"$B.lock"
 if command -v flock >/dev/null 2>&1; then
     flock 9

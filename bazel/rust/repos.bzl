@@ -126,7 +126,7 @@ def _wasm_std_repo_impl(rctx):
         ),
         "",
     ]))
-    rctx.file("BUILD.bazel", """load("@kitesurf//bazel/rust:std.bzl", "wasm_std")
+    rctx.file("BUILD.bazel", """load("@parawing//bazel/rust:std.bzl", "wasm_std")
 load("@rules_rust//rust:toolchain.bzl", "rust_stdlib_filegroup")
 
 exports_files(["flags.bzl"])

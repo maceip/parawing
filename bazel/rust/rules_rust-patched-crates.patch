@@ -6,14 +6,14 @@ index 36bcbce..0abc366 100644
  
      return config
  
-+# Kitesurf resolves patched crates from pinned registry sources instead of local paths.
-+def _kitesurf_patched_crates(module_ctx, cfg):
++# Parawing resolves patched crates from pinned registry sources instead of local paths.
++def _parawing_patched_crates(module_ctx, cfg):
 +    if not getattr(cfg, "manifests", None):
 +        return {}
 +    spec = module_ctx.path(cfg.manifests[0]).dirname.get_child("patched.json")
 +    return json.decode(module_ctx.read(spec)) if spec.exists else {}
 +
-+def _kitesurf_registry_lock(module_ctx, lock, patched):
++def _parawing_registry_lock(module_ctx, lock, patched):
 +    lines, in_package, name = [], False, None
 +    for line in module_ctx.read(lock).splitlines():
 +        lines.append(line)
@@ -35,9 +35,9 @@ index 36bcbce..0abc366 100644
              repository_name = cfg.name,
          )
  
-+        patched_crates = _kitesurf_patched_crates(module_ctx, cfg)
++        patched_crates = _parawing_patched_crates(module_ctx, cfg)
 +        if patched_crates:
-+            _kitesurf_registry_lock(module_ctx, splice_outputs.metadata.dirname.get_child("Cargo.lock"), patched_crates)
++            _parawing_registry_lock(module_ctx, splice_outputs.metadata.dirname.get_child("Cargo.lock"), patched_crates)
 +
          # If a cargo lockfile was not provided, use the splicing lockfile.
          if cargo_lockfile == None:
@@ -46,7 +46,7 @@ index 36bcbce..0abc366 100644
      )
  
      contents = json.decode(module_ctx.read(lockfile))
-+    patched_crates = _kitesurf_patched_crates(module_ctx, cfg)
++    patched_crates = _parawing_patched_crates(module_ctx, cfg)
  
      for crate in contents["crates"].values():
          repo = crate["repository"]

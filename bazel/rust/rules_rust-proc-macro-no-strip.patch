@@ -1,0 +1,22 @@
+# Stripping a proc-macro only strips a host build tool, and on macOS 27.2
+# with ld-27106.1 rustc's strip step leaves the __LINKEDIT string pool
+# mis-aligned. dlopen then fails, so rustc reports "can't find crate" for
+# every derive and no Rust target builds. Reproduced in isolation: the
+# same rustc invocation without `strip=debuginfo` links a loadable dylib,
+# and a post-hoc `strip -S` of a good dylib is also fine, so the bug is
+# in the compile-time strip path only.
+diff --git a/rust/private/rustc.bzl b/rust/private/rustc.bzl
+--- a/rust/private/rustc.bzl
++++ b/rust/private/rustc.bzl
+@@ -1264,6 +1264,10 @@
+     compilation_mode = get_compilation_mode_opts(ctx, toolchain)
+     rustc_flags.add(compilation_mode.opt_level, format = "--codegen=opt-level=%s")
+     rustc_flags.add(compilation_mode.debug_info, format = "--codegen=debuginfo=%s")
+-    rustc_flags.add(compilation_mode.strip_level, format = "--codegen=strip=%s")
++    # Stripping a proc-macro only strips a host build tool, and on macOS
++    # rustc's strip step leaves the __LINKEDIT string pool mis-aligned so
++    # dlopen fails. Skip it: proc-macros are never shipped.
++    if not _is_proc_macro(crate_info):
++        rustc_flags.add(compilation_mode.strip_level, format = "--codegen=strip=%s")
+ 
+     # For determinism to help with build distribution and such

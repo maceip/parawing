@@ -202,22 +202,169 @@ _cargo_vendor = repository_rule(
     },
 )
 
-def _without_dev_dependencies(manifest):
-    lines, skip = [], False
+def _strip_member_manifest(manifest, strip_deps, strip_patches):
+    lines, section, skip = [], "", False
     for line in manifest.splitlines():
         stripped = line.strip()
         if stripped.startswith("["):
-            skip = stripped.startswith("[dev-dependencies") or (stripped.startswith("[target.") and ".dev-dependencies" in stripped)
-        if not skip:
-            lines.append(line)
+            section = stripped
+            skip = (
+                stripped == "[workspace]"
+                or stripped.startswith("[workspace.")
+                or stripped.startswith("[dev-dependencies")
+                or (stripped.startswith("[target.") and ".dev-dependencies" in stripped)
+                or (strip_patches and stripped == "[patch.crates-io]")
+            )
+            if not skip:
+                lines.append(line)
+            continue
+        if skip:
+            continue
+        in_dep_table = (
+            section in ("[dependencies]", "[build-dependencies]")
+            or (section.startswith("[target.") and section.endswith(".dependencies]"))
+        )
+        if strip_deps and in_dep_table and "=" in stripped:
+            dep_key = stripped.partition("=")[0].strip()
+            if dep_key in strip_deps:
+                continue
+        lines.append(line)
     return "\n".join(lines) + "\n"
 
+def _package_name_from_manifest(manifest):
+    in_pkg = False
+    for line in manifest.splitlines():
+        stripped = line.strip()
+        if stripped.startswith("["):
+            in_pkg = stripped == "[package]"
+        elif in_pkg and stripped.startswith("name") and "=" in stripped:
+            return stripped.partition("=")[2].strip().strip('"').strip("'")
+    return None
+
+def _parse_lock_stanzas(lock_text):
+    header = []
+    stanzas = []
+    cur = None
+    in_deps = False
+    for line in lock_text.splitlines():
+        stripped = line.strip()
+        if stripped == "[[package]]":
+            if cur != None:
+                stanzas.append(cur)
+            cur = {"head": [line], "tail": [], "deps": [], "name": "", "version": ""}
+            in_deps = False
+            continue
+        if cur == None:
+            header.append(line)
+            continue
+        if stripped == "dependencies = [":
+            in_deps = True
+            continue
+        if in_deps:
+            if stripped == "]":
+                in_deps = False
+                continue
+            raw = stripped.strip('", ')
+            parts = raw.split(" ")
+            cur["deps"].append((parts[0], parts[1] if len(parts) > 1 else None))
+            continue
+        if stripped == "":
+            continue
+        cur["tail"].append(line)
+        key, sep, val = line.partition(" = ")
+        if sep and key in ("name", "version"):
+            cur[key] = val.strip('"')
+    if cur != None:
+        stanzas.append(cur)
+    return header, stanzas
+
+def _prune_standalone_lockfile(lock_text, root_names, drop_pkg_names):
+    header, stanzas = _parse_lock_stanzas(lock_text)
+    by_nv, by_name = {}, {}
+    for idx, s in enumerate(stanzas):
+        by_nv[(s["name"], s["version"])] = idx
+        if s["name"] not in by_name:
+            by_name[s["name"]] = []
+        by_name[s["name"]].append(idx)
+
+    seen = {}
+    frontier = [idx for idx, s in enumerate(stanzas) if s["name"] in root_names]
+    for _ in range(len(stanzas)):
+        if not frontier:
+            break
+        next_frontier = []
+        for idx in frontier:
+            if idx in seen:
+                continue
+            seen[idx] = True
+            is_root = stanzas[idx]["name"] in root_names
+            for dep_name, dep_ver in stanzas[idx]["deps"]:
+                if is_root and dep_name in drop_pkg_names:
+                    continue
+                if dep_ver != None and (dep_name, dep_ver) in by_nv:
+                    target = by_nv[(dep_name, dep_ver)]
+                    if target not in seen:
+                        next_frontier.append(target)
+                elif dep_ver == None:
+                    for target in by_name.get(dep_name, []):
+                        if target not in seen:
+                            next_frontier.append(target)
+        frontier = next_frontier
+
+    kept = [stanzas[i] for i in range(len(stanzas)) if i in seen]
+    name_counts = {}
+    for s in kept:
+        name_counts[s["name"]] = name_counts.get(s["name"], 0) + 1
+
+    out_lines = list(header)
+    for s in kept:
+        if out_lines and out_lines[-1] != "":
+            out_lines.append("")
+        out_lines.extend(s["head"])
+        out_lines.extend(s["tail"])
+        is_root = s["name"] in root_names
+        deps = [
+            d for d in s["deps"]
+            if not (is_root and d[0] in drop_pkg_names)
+        ]
+        if deps:
+            out_lines.append("dependencies = [")
+            for dep_name, dep_ver in deps:
+                if dep_ver == None or name_counts.get(dep_name, 0) <= 1:
+                    out_lines.append(' "%s",' % dep_name)
+                else:
+                    out_lines.append(' "%s %s",' % (dep_name, dep_ver))
+            out_lines.append("]")
+    return "\n".join(out_lines) + "\n"
+
 def _standalone_workspace_impl(rctx):
+    root_names = {}
+    strip_deps = {k: True for k in rctx.attr.strip_deps}
+    drop_pkgs = {v: True for v in rctx.attr.strip_deps.values()}
     for path, label in rctx.attr.members.items():
         _manifest_stub(rctx, rctx.path(label).dirname, path)
-        rctx.file(path + "/Cargo.toml", _without_dev_dependencies(rctx.read(label)), executable = False)
+        raw_manifest = rctx.read(label)
+        pkg_name = _package_name_from_manifest(raw_manifest)
+        if pkg_name:
+            root_names[pkg_name] = True
+        filtered = _strip_member_manifest(raw_manifest, strip_deps, rctx.attr.strip_patches)
+        rctx.file(path + "/Cargo.toml", filtered, executable = False)
     rctx.file("Cargo.toml", "[workspace]\nresolver = \"2\"\nmembers = %s\n" % json.encode(sorted(rctx.attr.members.keys())), executable = False)
-    rctx.file("Cargo.lock", rctx.read(rctx.attr.lockfile), executable = False)
+    lock_text = rctx.read(rctx.attr.lockfile)
+    if drop_pkgs or rctx.attr.strip_patches:
+        lock_text = _prune_standalone_lockfile(lock_text, root_names, drop_pkgs)
+    rctx.file("Cargo.lock", lock_text, executable = False)
+    if drop_pkgs or rctx.attr.strip_patches:
+        result = rctx.execute(
+            [rctx.path(rctx.attr._cargo), "update", "--workspace", "--quiet"],
+            environment = {
+                "CARGO_HOME": str(rctx.path(".cargo-home")),
+                "RUSTC": str(rctx.path(rctx.attr._rustc)),
+            },
+        )
+        if result.return_code != 0:
+            fail("cargo update --workspace failed: " + result.stderr)
+        rctx.delete(".cargo-home")
     rctx.file("BUILD.bazel", 'exports_files(["Cargo.toml", "Cargo.lock"])\n')
 
 _standalone_workspace = repository_rule(
@@ -225,6 +372,10 @@ _standalone_workspace = repository_rule(
     attrs = {
         "lockfile": attr.label(mandatory = True, allow_single_file = True),
         "members": attr.string_keyed_label_dict(mandatory = True),
+        "strip_deps": attr.string_dict(default = {}),
+        "strip_patches": attr.bool(default = False),
+        "_cargo": attr.label(default = "@rust_tools//:bin/cargo"),
+        "_rustc": attr.label(default = "@rust_tools//:bin/rustc"),
     },
 )
 
@@ -274,7 +425,13 @@ def _cargo_workspaces_impl(mctx):
     # against the same patched sources.
     for mod in mctx.modules:
         for ws in mod.tags.standalone:
-            _standalone_workspace(name = ws.name, lockfile = ws.lockfile, members = ws.members)
+            _standalone_workspace(
+                name = ws.name,
+                lockfile = ws.lockfile,
+                members = ws.members,
+                strip_deps = ws.strip_deps,
+                strip_patches = ws.strip_patches,
+            )
         if not tags:
             continue
         for vendor in mod.tags.vendor:
@@ -307,6 +464,8 @@ cargo_workspaces = module_extension(
             "lockfile": attr.label(mandatory = True),
             "members": attr.string_keyed_label_dict(mandatory = True),
             "name": attr.string(mandatory = True),
+            "strip_deps": attr.string_dict(default = {}),
+            "strip_patches": attr.bool(default = False),
         }),
         "vendor": tag_class(attrs = {
             "lockfile": attr.label(mandatory = True),
