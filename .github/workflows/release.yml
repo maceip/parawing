@@ -40,10 +40,14 @@ jobs:
         with:
           ref: main
           fetch-depth: 0
-      - uses: ./.github/actions/setup
+      - name: Configure git release bot identity
+        run: |
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+      - uses: actions/setup-node@v4
         with:
-          rust: "true"
-          deno: "false"
+          node-version: 22
+      - run: rustup show
       - id: bump
         shell: bash
         run: |
@@ -124,10 +128,26 @@ jobs:
             curl --proto '=https' --tlsv1.2 -sSf https://sh.rustup.rs | sh -s -- -y --default-toolchain none
             echo "$HOME/.cargo/bin" >> "$GITHUB_PATH"
           fi
-      - uses: ./.github/actions/setup
+      - uses: actions/setup-node@v4
         with:
-          rust: "true"
-          deno: "true"
+          node-version: 22
+      - uses: denoland/setup-deno@v2
+        with:
+          deno-version: v2.x
+      - name: Ensure /usr/local/bin/deno symlink
+        shell: bash
+        run: |
+          DENO_BIN="$(command -v deno || true)"
+          if [ -n "$DENO_BIN" ] && [ ! -e /usr/local/bin/deno ]; then
+            ln -sf "$DENO_BIN" /usr/local/bin/deno 2>/dev/null \
+              || sudo ln -sf "$DENO_BIN" /usr/local/bin/deno \
+              || true
+          fi
+      - run: rustup show
+      - uses: Swatinem/rust-cache@v2
+        with:
+          save-if: ${{ github.ref == 'refs/heads/main' }}
+          cache-on-failure: "true"
       - run: rustup target add ${{ matrix.target }}
       - uses: taiki-e/install-action@v2
         with:
