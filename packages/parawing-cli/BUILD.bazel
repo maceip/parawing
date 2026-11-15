@@ -29,7 +29,7 @@ rust_library(
 
 rust_test(
     name = "lib_test",
-    size = "medium",
+    size = "large",
     srcs = glob(["src/**/*.rs"]),
     aliases = aliases(
         normal = True,

@@ -5,12 +5,13 @@
 //! Calls the scene-host Wasm ABI through Wasmtime.
 //! Copies request and response bytes through guest memory.
 
+use sha2::{Digest, Sha256};
 use std::error::Error;
 #[cfg(test)]
 use std::fs;
 use std::sync::{
-    atomic::{AtomicBool, Ordering},
-    Arc,
+    atomic::{AtomicUsize, Ordering},
+    Mutex, OnceLock,
 };
 use std::time::Duration;
 use wasmtime::{Config, Engine, Instance, Memory, Module, OptLevel, Store, TypedFunc};
@@ -20,26 +21,63 @@ use wasmtime::{Config, Engine, Instance, Memory, Module, OptLevel, Store, TypedF
 const EPOCH_TICK: Duration = Duration::from_millis(100);
 const CALL_DEADLINE_TICKS: u64 = 50;
 
-/// Advances the engine epoch until dropped.
-struct EpochTicker(Arc<AtomicBool>);
+static ACTIVE_RASTERS: AtomicUsize = AtomicUsize::new(0);
+static SHARED_ENGINE: OnceLock<Result<Engine, String>> = OnceLock::new();
+static CACHED_MODULES: Mutex<Vec<([u8; 32], Module)>> = Mutex::new(Vec::new());
 
-impl EpochTicker {
-    fn start(engine: &Engine) -> Self {
-        let stop = Arc::new(AtomicBool::new(false));
-        let (engine, stopped) = (engine.clone(), stop.clone());
-        std::thread::spawn(move || {
-            while !stopped.load(Ordering::Relaxed) {
-                std::thread::sleep(EPOCH_TICK);
-                engine.increment_epoch();
-            }
-        });
-        Self(stop)
+fn init_shared_engine() -> Result<Engine, String> {
+    let engine = Engine::new(
+        Config::new()
+            .cranelift_opt_level(OptLevel::Speed)
+            .epoch_interruption(true),
+    )
+    .map_err(|err| err.to_string())?;
+    let ticker = engine.clone();
+    std::thread::spawn(move || loop {
+        std::thread::sleep(EPOCH_TICK);
+        if ACTIVE_RASTERS.load(Ordering::Relaxed) > 0 {
+            ticker.increment_epoch();
+        }
+    });
+    Ok(engine)
+}
+
+fn shared_engine() -> Result<&'static Engine, Box<dyn Error>> {
+    match SHARED_ENGINE.get_or_init(init_shared_engine) {
+        Ok(engine) => Ok(engine),
+        Err(msg) => Err(msg.clone().into()),
     }
 }
 
-impl Drop for EpochTicker {
+fn compile_or_reuse_module(engine: &Engine, bytes: &[u8]) -> Result<Module, Box<dyn Error>> {
+    let digest: [u8; 32] = Sha256::digest(bytes).into();
+    let mut guard = CACHED_MODULES
+        .lock()
+        .unwrap_or_else(|poisoned| poisoned.into_inner());
+    if let Some((_, module)) = guard.iter().find(|(d, _)| *d == digest) {
+        return Ok(module.clone());
+    }
+    let module = Module::from_binary(engine, bytes)?;
+    if guard.len() >= 4 {
+        guard.remove(0);
+    }
+    guard.push((digest, module.clone()));
+    Ok(module)
+}
+
+/// Keeps the shared Wasmtime epoch ticker active while at least one `Raster` is live.
+struct EpochGuard;
+
+impl EpochGuard {
+    fn acquire() -> Self {
+        ACTIVE_RASTERS.fetch_add(1, Ordering::Relaxed);
+        Self
+    }
+}
+
+impl Drop for EpochGuard {
     fn drop(&mut self) {
-        self.0.store(true, Ordering::Relaxed);
+        ACTIVE_RASTERS.fetch_sub(1, Ordering::Relaxed);
     }
 }
 
@@ -50,24 +88,21 @@ pub struct Raster {
     alloc: TypedFunc<u32, u32>,
     free: TypedFunc<(u32, u32), ()>,
     call: TypedFunc<(u32, u32, u32), u64>,
-    _ticker: EpochTicker,
+    _ticker: EpochGuard,
 }
 
 impl Raster {
     /// Compile and instantiate a scene-host module from its Wasm bytes.
     /// Returns an error if compilation, instantiation, or required-export lookup fails.
     pub fn new(bytes: &[u8]) -> Result<Self, Box<dyn Error>> {
-        let engine = Engine::new(
-            Config::new()
-                .cranelift_opt_level(OptLevel::Speed)
-                .epoch_interruption(true),
-        )?;
-        let module = Module::from_binary(&engine, bytes)?;
-        let mut store = Store::new(&engine, ());
+        let engine = shared_engine()?;
+        let module = compile_or_reuse_module(engine, bytes)?;
+        let ticker = EpochGuard::acquire();
+        let mut store = Store::new(engine, ());
         store.set_epoch_deadline(CALL_DEADLINE_TICKS);
         let instance = Instance::new(&mut store, &module, &[])?;
         Ok(Self {
-            _ticker: EpochTicker::start(&engine),
+            _ticker: ticker,
             memory: instance
                 .get_memory(&mut store, "memory")
                 .ok_or("missing memory")?,

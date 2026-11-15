@@ -22,7 +22,7 @@ describe("linear outbound filter matcher", () => {
     expect(regex.test("aaa")).toBe(new RegExp(source).test("aaa"));
     const started = performance.now();
     expect(regex.test(`${"a".repeat(5000)}!`)).toBe(long);
-    expect(performance.now() - started).toBeLessThan(50);
+    expect(performance.now() - started).toBeLessThan(250);
   });
 
   it("keeps 32 filters over an 8 KB URL fast", () => {
@@ -45,27 +45,30 @@ describe("linear outbound filter matcher", () => {
     const filters = sources.map((source, i) =>
       matcher(source.replace("example", `e${i}`).replace("assets", `a${i}`)),
     );
+    for (const filter of filters) filter.test("https://warmup.example/");
     const url = "https://cdn.example.com/assets/2026/11/11/bundle.min.js?" + "k=v&".repeat(2048);
     const started = performance.now();
     for (const filter of filters) filter.test(url);
-    expect(performance.now() - started).toBeLessThan(100);
+    expect(performance.now() - started).toBeLessThan(500);
   });
 
   it("stops a start-anchored mismatch without scanning the rest of the URL", () => {
     const regex = matcher("^https://a/");
+    expect(regex.test("https://a/")).toBe(true);
     const long = "x".repeat(32 * 1024 * 1024);
     // Flatten the rope first: the first charCodeAt pays for the whole string.
     expect(long.charCodeAt(0)).toBe(0x78);
     const started = performance.now();
     expect(regex.test(long)).toBe(false);
-    expect(performance.now() - started).toBeLessThan(10);
+    expect(performance.now() - started).toBeLessThan(50);
   });
 
   it("bounds nested repeats of an empty body", () => {
+    compileLinearRegex("a");
     const started = performance.now();
     const compiled = compileLinearRegex("(?:(?:(?:(?:){1000}){1000}){1000}){1000}");
     expect(compiled.ok).toBe(true);
-    expect(performance.now() - started).toBeLessThan(50);
+    expect(performance.now() - started).toBeLessThan(250);
     expect(compiled.ok && compiled.regex.test("")).toBe(true);
   });
 

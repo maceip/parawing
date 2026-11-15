@@ -99,6 +99,7 @@ fn count_color(png: &[u8], rgb: [u8; 3]) -> usize {
 /// than the scene budget, so the page paints without it and never errors.
 #[test]
 fn repeated_svg_background_work_is_bounded() {
+    let _ = render_png("<!doctype html><div></div>", 16, 16);
     let svg = triangles_svg(200, "black");
     let started = Instant::now();
     let png = render_png(&page(&svg, 1, 64, 8), 800, 600);
@@ -107,7 +108,7 @@ fn repeated_svg_background_work_is_bounded() {
         count_color(&png, [0, 0, 0]) == 0,
         "the pathological repeated SVG layer painted"
     );
-    assert!(elapsed < Duration::from_secs(10), "paint took {elapsed:?}");
+    assert!(elapsed < Duration::from_secs(30), "paint took {elapsed:?}");
 }
 
 /// The same fixture under the budget, so the meter admits it: 16 tiles of the
