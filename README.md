@@ -1,4 +1,4 @@
-<img width="160" src=".github/assets/parawing_logo.svg" alt="Parawing" />
+<img width="200" src=".github/assets/parawing_logo.png" alt="Parawing" />
 
 # Parawing
 
