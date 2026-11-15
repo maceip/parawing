@@ -17,7 +17,9 @@ jobs:
   # One job, so the Rust crates compile once: the tests and the dev build share one Bazel output
   # tree, and the checks, the lint tests, the Rust host tests, vitest, and CLI tests one invocation.
   ci:
-    if: github.event_name != 'push' || !contains(github.event.head_commit.message, '[skip release]')
+    if: >-
+      github.event_name != 'push'
+      || !startsWith(github.event.head_commit.message, 'chore(release): bump version to ')
     runs-on: ubuntu-latest
     timeout-minutes: 120
     permissions:
@@ -39,9 +41,10 @@ jobs:
       - name: Verify Tier 2 CRIU 4.1.1 capsule freeze and thaw
         run: >
           bazel test --strategy=TestRunner=local
+          --test_timeout=900
           --test_env=HOME --test_env=PATH --test_env=PARAWING_REQUIRE_CAPSULE_CRIU=1
           --nocache_test_results --test_output=errors
-          //packages/rust-host:host_test --test_arg=capsule
+          //packages/rust-host:host_test --test_arg=capsule --test_arg=--test-threads=1
       - run: pnpm run build
       - name: Fail on generated drift
         run: git diff --exit-code

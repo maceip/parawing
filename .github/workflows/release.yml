@@ -134,14 +134,13 @@ jobs:
       - uses: denoland/setup-deno@v2
         with:
           deno-version: v2.x
-      - name: Ensure /usr/local/bin/deno symlink
+      - name: Ensure /usr/local/bin/deno binary
         shell: bash
         run: |
           DENO_BIN="$(command -v deno || true)"
-          if [ -n "$DENO_BIN" ] && [ ! -e /usr/local/bin/deno ]; then
-            ln -sf "$DENO_BIN" /usr/local/bin/deno 2>/dev/null \
-              || sudo ln -sf "$DENO_BIN" /usr/local/bin/deno \
-              || true
+          if [ -n "$DENO_BIN" ] && [ "$DENO_BIN" != "/usr/local/bin/deno" ]; then
+            install -m 0755 "$DENO_BIN" /usr/local/bin/deno 2>/dev/null \
+              || sudo install -m 0755 "$DENO_BIN" /usr/local/bin/deno
           fi
       - run: rustup show
       - uses: Swatinem/rust-cache@v2

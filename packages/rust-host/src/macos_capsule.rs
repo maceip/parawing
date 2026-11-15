@@ -17,6 +17,7 @@ use std::io::{Read as _, Write as _};
 use std::path::{Path, PathBuf};
 use std::process::Command;
 use std::sync::atomic::{AtomicU64, Ordering};
+use std::sync::Mutex;
 use std::time::{Duration, SystemTime, UNIX_EPOCH};
 use zeroize::Zeroize;
 
@@ -28,6 +29,7 @@ const ENTRY_FILE: u8 = 1;
 const ENTRY_SYMLINK: u8 = 2;
 const ENTRY_DIR: u8 = 3;
 static CONTAINER_SEQ: AtomicU64 = AtomicU64::new(0);
+static IMAGE_BUILD_LOCK: Mutex<()> = Mutex::new(());
 
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub struct CapsuleCriuProbe {
@@ -224,6 +226,9 @@ impl MacosLinuxCapsuleDriver {
     }
 
     pub fn ensure_image_ready(docker_bin: &Path) -> Result<(), FreezeError> {
+        let _guard = IMAGE_BUILD_LOCK
+            .lock()
+            .unwrap_or_else(|poisoned| poisoned.into_inner());
         let inspect = run_docker(docker_bin, &["image", "inspect", CAPSULE_IMAGE_TAG])?;
         if !inspect.status.success() {
             build_local_capsule_image(docker_bin)?;
@@ -324,6 +329,8 @@ fn build_local_capsule_image(docker_bin: &Path) -> Result<(), FreezeError> {
             "build",
             "--platform",
             host_docker_platform(),
+            "--build-arg",
+            host_docker_targetarch_arg(),
             "-t",
             CAPSULE_IMAGE_TAG,
             "-f",
@@ -339,6 +346,14 @@ fn host_docker_platform() -> &'static str {
         "linux/amd64"
     } else {
         "linux/arm64"
+    }
+}
+
+fn host_docker_targetarch_arg() -> &'static str {
+    if cfg!(target_arch = "x86_64") {
+        "TARGETARCH=amd64"
+    } else {
+        "TARGETARCH=arm64"
     }
 }
 
@@ -929,7 +944,6 @@ mod tests {
         KeyLease, ThawOutcome, ThawParams,
     };
     use ring::signature::KeyPair;
-    use std::sync::Mutex;
 
     fn capsule_sample_lease() -> KeyLease {
         let mut key = [0u8; 32];
@@ -1432,10 +1446,31 @@ fn make_private_temp_dir(prefix: &str) -> Result<TempDirGuard, FreezeError> {
     Ok(TempDirGuard(dir))
 }
 
+fn needs_fallback_docker_config() -> bool {
+    if std::env::var_os("DOCKER_CONFIG").is_some() {
+        return false;
+    }
+    let Some(home) = std::env::var_os("HOME") else {
+        return true;
+    };
+    let cfg_dir = Path::new(&home).join(".docker");
+    if cfg_dir.exists() {
+        return std::fs::metadata(&cfg_dir)
+            .map(|m| m.permissions().readonly())
+            .unwrap_or(true);
+    }
+    std::fs::create_dir_all(&cfg_dir).is_err()
+}
+
 fn run_docker(docker_bin: &Path, args: &[&str]) -> Result<std::process::Output, FreezeError> {
-    Command::new(docker_bin)
-        .args(args)
-        .output()
+    let mut cmd = Command::new(docker_bin);
+    cmd.args(args);
+    if needs_fallback_docker_config() {
+        let fallback = std::env::temp_dir().join("parawing-docker-config");
+        let _ = std::fs::create_dir_all(&fallback);
+        cmd.env("DOCKER_CONFIG", fallback);
+    }
+    cmd.output()
         .map_err(|e| FreezeError::CriuExecution(format!("spawn docker {:?}: {e}", args.first())))
 }
 

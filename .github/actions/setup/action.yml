@@ -65,14 +65,13 @@ runs:
       with:
         deno-version: v2.x
     - if: inputs.deno == 'true'
-      name: Ensure /usr/local/bin/deno symlink
+      name: Ensure /usr/local/bin/deno binary
       shell: bash
       run: |
         DENO_BIN="$(command -v deno || true)"
-        if [ -n "$DENO_BIN" ] && [ ! -e /usr/local/bin/deno ]; then
-          ln -sf "$DENO_BIN" /usr/local/bin/deno 2>/dev/null \
-            || sudo ln -sf "$DENO_BIN" /usr/local/bin/deno \
-            || true
+        if [ -n "$DENO_BIN" ] && [ "$DENO_BIN" != "/usr/local/bin/deno" ]; then
+          install -m 0755 "$DENO_BIN" /usr/local/bin/deno 2>/dev/null \
+            || sudo install -m 0755 "$DENO_BIN" /usr/local/bin/deno
         fi
     - if: inputs.rust == 'true'
       shell: bash
@@ -91,10 +90,10 @@ runs:
       shell: bash
       run: |
         {
-          echo "common --local_ram_resources=HOST_RAM*.85"
+          echo "build --local_resources=memory=HOST_RAM*.85"
           echo "common --lockfile_mode=error"
           echo "common --repository_cache=$HOME/.cache/bazel-repo"
-          echo "common --disk_cache=$HOME/.cache/bazel-disk"
+          echo "build --disk_cache=$HOME/.cache/bazel-disk"
         } >> .bazelrc.user
     # Restore only: the job saves at its end, from main only (see ci.yml).
     - if: inputs.bazel-cache == 'true'
