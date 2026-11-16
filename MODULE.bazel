@@ -119,6 +119,7 @@ cargo_workspaces.patched(
         "boa_interner-0.22.0": "317c631e791f5cb7d0017e43c0a758b0eaffd40c34c4c360e2a6be7752b78cd1",
         "boa_parser-0.22.0": "641e81b3c8cbb7a2140547fb3ea534e9edf210b4e8c920b5fa864a919e11fbcf",
         "jpeg-encoder-0.7.0": "0b0b36cbb4e6704f12f5b5d7b01dac593982c6550859ebd5a66fb15c9ea27fd5",
+        "lru-0.12.5": "234cf4f4a04dc1f57e24b96cc0cd600cf2af460d4161ac5ecdd0af8e1f3b2a38",
         "parley-0.12.0": "61bd0c0c1737f0b3d3726dc06b225083af213b61913e4fbae1670613a106c6ce",
         "parley_engine-0.12.0": "b74c0d373e462e504ad4436710a39f099e18e848e1ee711f70cd2dcd5a69b290",
         "ratatui-image-8.1.1": "3ecc67e9f7d0ac69e0f712f58b1a9d5a04d8daeeb3628f4d6b67580abb88b7cb",

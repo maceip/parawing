@@ -45,6 +45,7 @@ const CRATES = [
   { name: "vello_cpu", version: "0.3.0" },
   { name: "ratatui-image", version: "8.1.1" },
   { name: "jpeg-encoder", version: "0.7.0" },
+  { name: "lru", version: "0.12.5" },
 ];
 
 // Keep generated nested-repo commits independent of user/global Git configuration.

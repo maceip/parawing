@@ -1,0 +1,111 @@
+From 0000000000000000000000000000000000000000 Mon Sep 17 00:00:00 2001
+From: maceip <mac@secure.build>
+Date: Mon, 16 Nov 2026 09:56:09 -0800
+Subject: [PATCH] Fix IterMut Stacked Borrows and panic-safe LruCache::pop
+
+Backport RUSTSEC-2026-0002 (GHSA-rhfx-m35p-ff5j, lru-rs#224) so IterMut::next and next_back project shared key pointers via as_ptr() instead of creating &mut K, and RUSTSEC-2026-0253 (lru-rs#238) so LruCache::pop delegates to pop_entry and detaches the node before dropping K.
+---
+ src/lib.rs | 69 ++++++++++++++++++++++++++++++++++++++----------------
+ 1 file changed, 49 insertions(+), 20 deletions(-)
+
+diff --git a/src/lib.rs b/src/lib.rs
+index 5ab978e..e0b92e2 100644
+--- a/src/lib.rs
++++ b/src/lib.rs
+@@ -1111,22 +1111,7 @@ impl<K: Hash + Eq, V, S: BuildHasher> LruCache<K, V, S> {
+         K: Borrow<Q>,
+         Q: Hash + Eq + ?Sized,
+     {
+-        match self.map.remove(KeyWrapper::from_ref(k)) {
+-            None => None,
+-            Some(old_node) => {
+-                let mut old_node = unsafe {
+-                    let mut old_node = *Box::from_raw(old_node.as_ptr());
+-                    ptr::drop_in_place(old_node.key.as_mut_ptr());
+-
+-                    old_node
+-                };
+-
+-                self.detach(&mut old_node);
+-
+-                let LruEntry { key: _, val, .. } = old_node;
+-                unsafe { Some(val.assume_init()) }
+-            }
+-        }
++        self.pop_entry(k).map(|(_, v)| v)
+     }
+
+     /// Removes and returns the key and the value corresponding to the key from the cache or
+@@ -1633,8 +1618,8 @@ impl<'a, K, V> Iterator for IterMut<'a, K, V> {
+             return None;
+         }
+
+-        let key = unsafe { &mut (*(*self.ptr).key.as_mut_ptr()) as &mut K };
+-        let val = unsafe { &mut (*(*self.ptr).val.as_mut_ptr()) as &mut V };
++        let key = unsafe { &*(*self.ptr).key.as_ptr() };
++        let val = unsafe { &mut *(*self.ptr).val.as_mut_ptr() };
+
+         self.len -= 1;
+         self.ptr = unsafe { (*self.ptr).next };
+@@ -1657,8 +1642,8 @@ impl<'a, K, V> DoubleEndedIterator for IterMut<'a, K, V> {
+             return None;
+         }
+
+-        let key = unsafe { &mut (*(*self.end).key.as_mut_ptr()) as &mut K };
+-        let val = unsafe { &mut (*(*self.end).val.as_mut_ptr()) as &mut V };
++        let key = unsafe { &*(*self.end).key.as_ptr() };
++        let val = unsafe { &mut *(*self.end).val.as_mut_ptr() };
+
+         self.len -= 1;
+         self.end = unsafe { (*self.end).prev };
+@@ -2676,6 +2661,50 @@ mod tests {
+         assert_eq!(cache.pop_lru(), None);
+         assert_eq!(cloned.pop_lru(), None);
+     }
++
++    #[test]
++    fn test_pop_panic_safe_key_drop_and_iter_mut_shared_keys() {
++        struct PanicKey(u32, bool);
++        impl PartialEq for PanicKey {
++            fn eq(&self, other: &Self) -> bool {
++                self.0 == other.0
++            }
++        }
++        impl Eq for PanicKey {}
++        impl core::hash::Hash for PanicKey {
++            fn hash<H: core::hash::Hasher>(&self, state: &mut H) {
++                self.0.hash(state);
++            }
++        }
++        impl core::borrow::Borrow<u32> for PanicKey {
++            fn borrow(&self) -> &u32 {
++                &self.0
++            }
++        }
++        impl Drop for PanicKey {
++            fn drop(&mut self) {
++                if self.1 {
++                    panic!("key drop panic");
++                }
++            }
++        }
++
++        let mut cache = LruCache::new(NonZeroUsize::new(2).unwrap());
++        cache.put(PanicKey(1, false), 10);
++        cache.put(PanicKey(2, true), 20);
++        for (k, v) in cache.iter_mut() {
++            *v += k.0;
++        }
++        let res = std::panic::catch_unwind(std::panic::AssertUnwindSafe(|| {
++            let _ = cache.pop(&2);
++        }));
++        assert!(res.is_err());
++        assert_eq!(cache.len(), 1);
++        cache.put(PanicKey(3, false), 30);
++        cache.put(PanicKey(4, false), 40);
++        assert_eq!(cache.len(), 2);
++        assert_eq!(cache.get(&4), Some(&40));
++    }
+ }
+
+ /// Doctests for what should *not* compile

@@ -91,6 +91,7 @@ All plumbing git invocations run with `GIT_CONFIG_GLOBAL=/dev/null` /
 | `vello_cpu`           | `0.3.0`        | `linebender/vello`, path `vello_cpu/`            | registry tarball |
 | `ratatui-image`       | `8.1.1`        | `benjajaja/ratatui-image`                        | registry tarball |
 | `jpeg-encoder`        | `0.7.0`        | `vstroebel/jpeg-encoder`                         | registry tarball |
+| `lru`                 | `0.12.5`       | `jeromefroe/lru-rs`                              | registry tarball |
 
 fontique is no longer patched: 0.12 offers every face with the best match's
 attributes, which is what our unicode-range-subset patch did.
@@ -161,6 +162,10 @@ One-line orientation (see each series' patches for the full why):
 - **vello_common** — consecutive fills of one gradient share one colour
   lookup table, so the thousands of tiles blitz-paint draws for a
   repeating gradient do not each allocate their own.
+- **lru** — security/soundness backports for `RUSTSEC-2026-0002`
+  (`GHSA-rhfx-m35p-ff5j`: shared `as_ptr()` key projection in `IterMut`)
+  and `RUSTSEC-2026-0253` (detach node before dropping `K` in `pop()`
+  so unwinding key `Drop` cannot leave freed pointers in the LRU list).
 
 ## Editing vendor source and regenerating the series
 

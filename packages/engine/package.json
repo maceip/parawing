@@ -55,7 +55,7 @@
     "@parawing/page-script": "workspace:*",
     "@parawing/script-gate": "workspace:*",
     "es-module-lexer": "^2.1.0",
-    "hono": "^4.13.12",
+    "hono": "^4.13.19",
     "parawing-core": "workspace:*",
     "nanoid": "^6.0.1",
     "web-bot-auth": "^0.1.3",

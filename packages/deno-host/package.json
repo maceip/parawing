@@ -23,12 +23,12 @@
     "@parawing/rpc-transport": "workspace:*",
     "devtools-protocol": "^0.0.1669207",
     "es-module-lexer": "^2.1.0",
-    "hono": "^4.13.12",
+    "hono": "^4.13.19",
     "zod": "^4.6.6"
   },
   "devDependencies": {
     "@types/node": "^25.6.2",
-    "esbuild": "^0.27.0",
+    "esbuild": "^0.28.2",
     "typescript": "^5.6.0"
   }
 }

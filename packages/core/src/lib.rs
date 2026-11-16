@@ -830,3 +830,60 @@ fn clear_unstyled_cascade(doc: &mut BaseDocument) -> u32 {
     });
     count.get()
 }
+
+#[cfg(test)]
+mod lru_patch_tests {
+    use std::borrow::Borrow;
+    use std::hash::{Hash, Hasher};
+    use std::num::NonZeroUsize;
+    use std::panic::{catch_unwind, AssertUnwindSafe};
+
+    struct PanicKey(u32, bool);
+
+    impl PartialEq for PanicKey {
+        fn eq(&self, other: &Self) -> bool {
+            self.0 == other.0
+        }
+    }
+
+    impl Eq for PanicKey {}
+
+    impl Hash for PanicKey {
+        fn hash<H: Hasher>(&self, state: &mut H) {
+            self.0.hash(state);
+        }
+    }
+
+    impl Borrow<u32> for PanicKey {
+        fn borrow(&self) -> &u32 {
+            &self.0
+        }
+    }
+
+    impl Drop for PanicKey {
+        fn drop(&mut self) {
+            if self.1 {
+                panic!("simulated unwinding key drop");
+            }
+        }
+    }
+
+    #[test]
+    fn patched_lru_survives_unwinding_key_drop_and_iter_mut() {
+        let cap = NonZeroUsize::new(2).expect("nonzero cap");
+        let mut cache = lru::LruCache::new(cap);
+        cache.put(PanicKey(1, false), 10u32);
+        cache.put(PanicKey(2, true), 20u32);
+        for (k, v) in cache.iter_mut() {
+            *v += k.0;
+        }
+        let unwind = catch_unwind(AssertUnwindSafe(|| {
+            let _ = cache.pop(&2);
+        }));
+        assert!(unwind.is_err());
+        assert_eq!(cache.len(), 1);
+        cache.put(PanicKey(3, false), 30);
+        cache.put(PanicKey(4, false), 40);
+        assert_eq!(cache.get(&4), Some(&40));
+    }
+}

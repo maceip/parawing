@@ -156,6 +156,7 @@ pdf = ["blitz"]
 
 [dev-dependencies]
 crc32fast = "1"
+lru = "0.12"
 
 # [profile.*] lives in the workspace root Cargo.toml — cargo only
 # honors profiles there. Note: this crate's panic=unwind (so the DOM survives a panic) now

@@ -97,6 +97,8 @@ boa_parser = { path = "packages/core/target/vendor-patched/boa_parser-0.22.0" }
 usvg = { path = "packages/core/target/vendor-patched/usvg-0.48.1" }
 ratatui-image = { path = "packages/core/target/vendor-patched/ratatui-image-8.1.1" }
 jpeg-encoder = { path = "packages/core/target/vendor-patched/jpeg-encoder-0.7.0" }
+# Patched for RUSTSEC-2026-0002 (IterMut Stacked Borrows) and RUSTSEC-2026-0253 (panic-safe pop).
+lru = { path = "packages/core/target/vendor-patched/lru-0.12.5" }
 
 [profile.release]
 opt-level = 3

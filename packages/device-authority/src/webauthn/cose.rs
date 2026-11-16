@@ -6,9 +6,9 @@
 
 use p256::ecdsa::signature::{Signer, Verifier};
 use p256::ecdsa::{Signature, SigningKey, VerifyingKey};
-use p256::elliptic_curve::sec1::{FromEncodedPoint, ToEncodedPoint};
+use p256::elliptic_curve::sec1::ToSec1Point;
 use p256::pkcs8::{DecodePrivateKey, DecodePublicKey, EncodePrivateKey, EncodePublicKey, LineEnding};
-use p256::{EncodedPoint, PublicKey, SecretKey};
+use p256::{PublicKey, SecretKey};
 
 use crate::webauthn::cbor::Cbor;
 
@@ -34,7 +34,7 @@ pub fn cose_ec2_p256(x: &[u8; 32], y: &[u8; 32]) -> Cbor {
 pub fn public_key_xy_from_pem(pem: &str) -> Result<([u8; 32], [u8; 32]), String> {
     let public_key =
         PublicKey::from_public_key_pem(pem).map_err(|e| format!("parse public key: {e}"))?;
-    let point = public_key.to_encoded_point(false);
+    let point = public_key.to_sec1_point(false);
     let x_slice = point
         .x()
         .ok_or_else(|| "missing P-256 x coordinate".to_string())?;
@@ -87,9 +87,12 @@ pub fn validate_p256_public_pem(pem: &str) -> Result<(), String> {
 
 /// Reconstructs and validates a P-256 `PublicKey` from affine `(x, y)` coordinates.
 pub fn public_key_from_xy(x: &[u8; 32], y: &[u8; 32]) -> Result<PublicKey, String> {
-    let encoded = EncodedPoint::from_affine_coordinates(x.into(), y.into(), false);
-    Option::from(PublicKey::from_encoded_point(&encoded))
-        .ok_or_else(|| "public key point is not on the P-256 curve".to_string())
+    let mut sec1 = [0u8; 65];
+    sec1[0] = 0x04;
+    sec1[1..33].copy_from_slice(x);
+    sec1[33..65].copy_from_slice(y);
+    PublicKey::from_sec1_bytes(&sec1)
+        .map_err(|_| "public key point is not on the P-256 curve".to_string())
 }
 
 /// Signs `payload` with a PKCS#8 PEM P-256 private key, returning DER-encoded ES256 bytes.
