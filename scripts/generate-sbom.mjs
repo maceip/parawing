@@ -15,6 +15,8 @@ const CARGO_LOCKFILES = [
   "packages/parawing-cli/Cargo.lock",
   "packages/rust-host/Cargo.lock",
   "packages/device-authority/Cargo.lock",
+  "scripts/memprof-rewriter/Cargo.lock",
+  "scripts/lint/rust-check/Cargo.lock",
   "Cargo.lock",
 ];
 
@@ -107,6 +109,17 @@ function readVendorPatches(rootDir) {
     patchMap.set(entry.name, files);
   }
   return patchMap;
+}
+
+function readPatchManifestMeta(rootDir) {
+  const manifestPath = join(rootDir, "deps/patches-manifest.json");
+  const metaMap = new Map();
+  if (!existsSync(manifestPath)) return metaMap;
+  const parsed = JSON.parse(readFileSync(manifestPath, "utf8"));
+  for (const entry of parsed.cargoPatches || []) {
+    metaMap.set(`${entry.crate}-${entry.version}`, entry);
+  }
+  return metaMap;
 }
 
 /** Parses a Cargo.lock string into package metadata and dependency names.
@@ -405,6 +418,7 @@ export function generateSbom({
   const nextSpdxId = makeSpdxIdAllocator();
   const localLicenses = readLocalCargoLicenses(absRoot);
   const vendorPatches = readVendorPatches(absRoot);
+  const patchMetaMap = readPatchManifestMeta(absRoot);
 
   const cargoPackages = new Map();
   const cargoKeysByName = new Map();
@@ -502,6 +516,14 @@ export function generateSbom({
     if (patchFiles.length > 0) {
       commentParts.push(`vendor_patches=${patchFiles.join(",")}`);
     }
+    const patchMeta = patchMetaMap.get(patchKey);
+    if (patchMeta?.seriesSha8) {
+      commentParts.push(`patch_series_sha8=${patchMeta.seriesSha8}`);
+    }
+    if (patchMeta?.mitigates?.length > 0) {
+      commentParts.push(`mitigates=${patchMeta.mitigates.join(",")}`);
+    }
+    const resolvedSha = pkg.checksum || patchMeta?.tarballSha256 || "";
     const entry = {
       name: pkg.name,
       SPDXID: pkg.spdxId,
@@ -520,8 +542,8 @@ export function generateSbom({
       ],
       comment: commentParts.join("; "),
     };
-    if (/^[a-f0-9]{64}$/.test(pkg.checksum)) {
-      entry.checksums = [{ algorithm: "SHA256", checksumValue: pkg.checksum }];
+    if (/^[a-f0-9]{64}$/.test(resolvedSha)) {
+      entry.checksums = [{ algorithm: "SHA256", checksumValue: resolvedSha }];
     }
     spdxPackages.push(entry);
 

@@ -7,7 +7,7 @@ load("//bazel:executors.bzl", "RUST")
 load("//bazel:rust_checks.bzl", "rust_comments_test", "rust_lint_tests", "rust_nesting_test")
 
 exports_files(
-    ["Cargo.toml"],
+    ["BUILD.bazel", "Cargo.toml"],
     visibility = ["//:__pkg__"],
 )
 exports_files([".cargo/config.toml"])

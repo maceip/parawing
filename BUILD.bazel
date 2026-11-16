@@ -167,10 +167,39 @@ js_test(
     },
 )
 
+js_test(
+    name = "deps_check",
+    size = "small",
+    args = ["verify"],
+    copy_data_to_bin = False,
+    data = [
+        "Cargo.lock",
+        "Cargo.toml",
+        "MODULE.bazel",
+        "VERSION",
+        "package.json",
+        "pnpm-lock.yaml",
+        "//bazel/rust:rules_rust-patched-crates.patch",
+        "//bazel/rust:rules_rust-proc-macro-no-strip.patch",
+        "//packages/core:BUILD.bazel",
+        "//packages/device-authority:Cargo.lock",
+        "//packages/parawing-cli:Cargo.lock",
+        "//packages/rust-host:BUILD.bazel",
+        "//packages/rust-host:Cargo.lock",
+        "//packages/rust-host:Cargo.toml",
+        "//scripts:deps_lib",
+        "//scripts:patches_tree",
+        "//scripts/lint/rust-check:Cargo.lock",
+        "//scripts/memprof-rewriter:Cargo.lock",
+    ] + glob(["deps/*.json"]),
+    entry_point = "//scripts:deps_check_entry",
+)
+
 test_suite(
     name = "check",
     tests = [
         ":cargo_lock_test",
+        ":deps_check",
         ":lockfile_test",
         ":no_dts_test",
         ":ts_coverage_test",

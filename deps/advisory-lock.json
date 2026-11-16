@@ -1,0 +1,118 @@
+{
+  "schemaVersion": 1,
+  "source": "https://api.osv.dev/v1/querybatch",
+  "inventoryDigest": "8be7b9b779e5c84f98709fb8e7bfbd9a5f863ac6346ec48e41335223105bc07b",
+  "counts": {
+    "total": 1079,
+    "cargo": 782,
+    "npm": 280,
+    "bazelAndToolchains": 17,
+    "osvQueryable": 1062
+  },
+  "advisories": [
+    {
+      "id": "GHSA-rhfx-m35p-ff5j",
+      "aliases": ["RUSTSEC-2026-0002"],
+      "packageKey": "crates.io:lru@0.12.5",
+      "ecosystem": "crates.io",
+      "packageName": "lru",
+      "packageVersion": "0.12.5",
+      "purl": "pkg:cargo/lru@0.12.5",
+      "lockfiles": ["Cargo.lock", "packages/rust-host/Cargo.lock"],
+      "kind": "vulnerability",
+      "summary": "`IterMut` violates Stacked Borrows by invalidating internal pointer",
+      "fixedVersions": ["0.16.3"]
+    },
+    {
+      "id": "RUSTSEC-2026-0253",
+      "aliases": [],
+      "packageKey": "crates.io:lru@0.12.5",
+      "ecosystem": "crates.io",
+      "packageName": "lru",
+      "packageVersion": "0.12.5",
+      "purl": "pkg:cargo/lru@0.12.5",
+      "lockfiles": ["Cargo.lock", "packages/rust-host/Cargo.lock"],
+      "kind": "unsound",
+      "summary": "Potential use-after-free due to lack of panic safety in `LruCache::pop()`",
+      "fixedVersions": ["0.18.2"]
+    },
+    {
+      "id": "RUSTSEC-2024-0436",
+      "aliases": [],
+      "packageKey": "crates.io:paste@1.0.15",
+      "ecosystem": "crates.io",
+      "packageName": "paste",
+      "packageVersion": "1.0.15",
+      "purl": "pkg:cargo/paste@1.0.15",
+      "lockfiles": ["Cargo.lock", "packages/rust-host/Cargo.lock"],
+      "kind": "unmaintained",
+      "summary": "paste - no longer maintained",
+      "fixedVersions": []
+    },
+    {
+      "id": "RUSTSEC-2026-0206",
+      "aliases": [],
+      "packageKey": "crates.io:rustybuzz@0.20.1",
+      "ecosystem": "crates.io",
+      "packageName": "rustybuzz",
+      "packageVersion": "0.20.1",
+      "purl": "pkg:cargo/rustybuzz@0.20.1",
+      "lockfiles": ["Cargo.lock", "packages/rust-host/Cargo.lock"],
+      "kind": "unmaintained",
+      "summary": "`rustybuzz` is unmaintained",
+      "fixedVersions": []
+    },
+    {
+      "id": "RUSTSEC-2026-0192",
+      "aliases": [],
+      "packageKey": "crates.io:ttf-parser@0.25.1",
+      "ecosystem": "crates.io",
+      "packageName": "ttf-parser",
+      "packageVersion": "0.25.1",
+      "purl": "pkg:cargo/ttf-parser@0.25.1",
+      "lockfiles": ["Cargo.lock", "packages/rust-host/Cargo.lock"],
+      "kind": "unmaintained",
+      "summary": "`ttf-parser` is unmaintained",
+      "fixedVersions": []
+    },
+    {
+      "id": "RUSTSEC-2026-0371",
+      "aliases": [],
+      "packageKey": "crates.io:zbus_names@3.0.0",
+      "ecosystem": "crates.io",
+      "packageName": "zbus_names",
+      "packageVersion": "3.0.0",
+      "purl": "pkg:cargo/zbus_names@3.0.0",
+      "lockfiles": ["packages/parawing-cli/Cargo.lock"],
+      "kind": "unmaintained",
+      "summary": "`zbus_names` is unmaintained",
+      "fixedVersions": []
+    },
+    {
+      "id": "RUSTSEC-2026-0372",
+      "aliases": [],
+      "packageKey": "crates.io:zvariant_derive@4.2.0",
+      "ecosystem": "crates.io",
+      "packageName": "zvariant_derive",
+      "packageVersion": "4.2.0",
+      "purl": "pkg:cargo/zvariant_derive@4.2.0",
+      "lockfiles": ["packages/parawing-cli/Cargo.lock"],
+      "kind": "unmaintained",
+      "summary": "`zvariant_derive` is unmaintained",
+      "fixedVersions": []
+    },
+    {
+      "id": "RUSTSEC-2026-0370",
+      "aliases": [],
+      "packageKey": "crates.io:zvariant@4.2.0",
+      "ecosystem": "crates.io",
+      "packageName": "zvariant",
+      "packageVersion": "4.2.0",
+      "purl": "pkg:cargo/zvariant@4.2.0",
+      "lockfiles": ["packages/parawing-cli/Cargo.lock"],
+      "kind": "unmaintained",
+      "summary": "`zvariant` is unmaintained",
+      "fixedVersions": []
+    }
+  ]
+}

@@ -193,7 +193,7 @@ jobs:
           VERSION="${{ needs.prepare.outputs.version }}"
           NAME="parawing-${TAG}-${{ matrix.target }}"
           node scripts/verify-release-binaries.mjs --archive "dist/$NAME.tar.gz" --expected-version "$VERSION"
-      - name: Generate checksum and tagged SPDX 2.3 SBOM
+      - name: Generate checksum, tagged SPDX 2.3 SBOM, and OpenVEX advisory report
         run: |
           set -euo pipefail
           TAG="${{ needs.prepare.outputs.tag }}"
@@ -206,6 +206,7 @@ jobs:
             --target "${{ matrix.target }}" \
             --repo "${{ github.repository }}" \
             --output "dist/$NAME.spdx.json"
+          node scripts/deps/cli.mjs verify --online --vex-out "dist/$NAME.openvex.json"
       - uses: actions/upload-artifact@v4
         with:
           name: release-${{ matrix.target }}

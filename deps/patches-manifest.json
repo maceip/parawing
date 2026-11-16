@@ -1,0 +1,1320 @@
+{
+  "schemaVersion": 1,
+  "cargoPatches": [
+    {
+      "crate": "parley",
+      "version": "0.12.0",
+      "upstreamRepo": "https://github.com/linebender/parley",
+      "tarballSha256": "61bd0c0c1737f0b3d3726dc06b225083af213b61913e4fbae1670613a106c6ce",
+      "seriesSha8": "778eef33",
+      "mitigates": [],
+      "verificationTargets": ["//packages/core:core_test"],
+      "patches": [
+        {
+          "file": "0001-Add-inline-span-box-decorations-to-text-layout.patch",
+          "sha256": "0cb463a97c61d968811c1f7f30693d018736367ea2d41cacaf2b78e1f6815b50",
+          "subject": "Add inline-span box decorations to text layout"
+        },
+        {
+          "file": "0002-Add-per-paragraph-auto-base-direction-and-first-stro.patch",
+          "sha256": "05cab784ebb0815007f744de973a96a3c62436573cd0cf082893a766775ecbbf",
+          "subject": "Add per-paragraph auto base direction and first-strong lookup"
+        },
+        {
+          "file": "0003-Expose-current_text_len-on-TreeBuilder-for-source-ra.patch",
+          "sha256": "24813c95a392624f142978128640d3fee5c7fed6f5a427a921b7f0900abe2b2a",
+          "subject": "Expose current_text_len on TreeBuilder for source-range"
+        },
+        {
+          "file": "0004-Add-Layout-truncate_lines-for-CSS-line-clamp.patch",
+          "sha256": "f2e2ecccc714e5031897ca203f9affdcb620e23374bc2759505c308a160e38b3",
+          "subject": "Add Layout::truncate_lines for CSS line-clamp"
+        },
+        {
+          "file": "0005-Fix-line-breaks-around-out-of-flow-and-atomic-inline.patch",
+          "sha256": "a218dfaf68aeeee5d749454f142a78726bea275f377504327e6667a436648b1f",
+          "subject": "Fix line breaks around out-of-flow and atomic inline boxes"
+        },
+        {
+          "file": "0006-Expand-horizontal-tabs-to-CSS-tab-size-stops.patch",
+          "sha256": "d27c92052dbc1bb0034ca8eb086bc383072e67917bc20b5b2dc4cc019faf1466",
+          "subject": "Expand horizontal tabs to CSS tab-size stops"
+        },
+        {
+          "file": "0007-Add-Blink-s-extra-pixel-to-sub-and-super-shifts.patch",
+          "sha256": "4d0b45c309f51d9f3c30b0e5117b5b784bab7278c82dadb27971904fc5b81605",
+          "subject": "Add Blink's extra pixel to sub and super shifts"
+        }
+      ]
+    },
+    {
+      "crate": "parley_engine",
+      "version": "0.12.0",
+      "upstreamRepo": "https://github.com/linebender/parley",
+      "tarballSha256": "b74c0d373e462e504ad4436710a39f099e18e848e1ee711f70cd2dcd5a69b290",
+      "seriesSha8": "da0cfe17",
+      "mitigates": [],
+      "verificationTargets": ["//packages/core:core_test"],
+      "patches": [
+        {
+          "file": "0001-Add-per-paragraph-auto-base-direction-and-first-stro.patch",
+          "sha256": "295766f0fd02ed2507db904941ff928a09c129fae211e648c8fd4e28225df19d",
+          "subject": "Add per-paragraph auto base direction and first-strong lookup"
+        },
+        {
+          "file": "0002-Expand-horizontal-tabs-to-CSS-tab-size-stops.patch",
+          "sha256": "3369cd40259fe9778e1415ee427d57482456e2676f8e1045eaf6694fa49a6783",
+          "subject": "Expand horizontal tabs to CSS tab-size stops"
+        }
+      ]
+    },
+    {
+      "crate": "blitz-dom",
+      "version": "0.3.0-beta.4",
+      "upstreamRepo": "https://github.com/DioxusLabs/blitz",
+      "tarballSha256": "a814bfd3ad19e6d8d26f99c75188062baca499564f9abe44250230962427d183",
+      "seriesSha8": "3ff76e68",
+      "mitigates": [],
+      "verificationTargets": ["//packages/core:core_test"],
+      "patches": [
+        {
+          "file": "0001-Baseline-inline-decorations-layout-and-robustness-fi.patch",
+          "sha256": "0b23e11b24cfa687bdd8aaca92ebd810de2fd0917833232a1ef72cabb120083a",
+          "subject": "Baseline: inline decorations, layout and robustness fixes"
+        },
+        {
+          "file": "0002-Add-a-shadow-DOM-node-model-and-flat-tree-traversal.patch",
+          "sha256": "a4ae37662a1da30d5f92f927071c524dc3fee3dc75820d57fa337effe4b6ba78",
+          "subject": "Add a shadow DOM node model and flat-tree traversal"
+        },
+        {
+          "file": "0003-Only-shrink-natural-size-replaced-content-into-the-a.patch",
+          "sha256": "ac18fdf4586e2ca187a9a40ced8627c12ece69d61864190da79a0e90d6e06a14",
+          "subject": "Only shrink natural-size replaced content into the available"
+        },
+        {
+          "file": "0004-Treat-canvas-and-iframe-as-replaced-elements-fed-by-.patch",
+          "sha256": "fbe38da2c8bcdcefbf53314b5c28946024c24cb83e1e7e813fa79a2e54d6cc54",
+          "subject": "Treat <canvas> and <iframe> as replaced elements fed by the"
+        },
+        {
+          "file": "0005-Route-layout-construction-through-the-flat-tree-shad.patch",
+          "sha256": "f05b7ba738ee7067c2dc13c5bf89b0332a5167be9fb8ab36475f5f1428a7adc4",
+          "subject": "Route layout construction through the flat tree (shadow"
+        },
+        {
+          "file": "0006-Scope-shadow-tree-stylesheets-via-per-root-AuthorSty.patch",
+          "sha256": "de4e2f0b8c8b4e36b5a457042b83969fc87e8b5d3752ed71ab8dadf6c5635be8",
+          "subject": "Scope shadow-tree stylesheets via per-root AuthorStyles"
+        },
+        {
+          "file": "0007-Implement-slot-assignment-named-slots-fallback-slott.patch",
+          "sha256": "3daed9a0c4a52aeceb8a737d730d45ab1c40505ea3bf1c1a4004280dbc163f45",
+          "subject": "Implement slot assignment (named slots, fallback, ::slotted)"
+        },
+        {
+          "file": "0008-Add-dims-only-image-loads-for-out-of-process-renderi.patch",
+          "sha256": "bcbba1a63e234e2ca6cc84562685e56b7365096c7b9a15ccf316247ef1ea0bf6",
+          "subject": "Add dims-only image loads for out-of-process rendering"
+        },
+        {
+          "file": "0009-Lazy-font-face-loading-fetch-only-faces-whose-family.patch",
+          "sha256": "b5c0b4606d35ef0ba61510e1d789a16978044faa9759bd1689a3682dc5822d58",
+          "subject": "Lazy @font-face loading: fetch only faces whose family is"
+        },
+        {
+          "file": "0010-Track-which-request-an-img-is-waiting-on.patch",
+          "sha256": "12fd3bcc6ca17418b577ba5f12948b03e7c4da4b65ec82cf7261d5488fbfce62",
+          "subject": "Track which request an <img> is waiting on"
+        },
+        {
+          "file": "0011-Let-the-embedder-drive-text-input-values-and-selecti.patch",
+          "sha256": "3cab4590daee6af4cba5ca2fb0bd0bc2dc3d3f6e1f7d6bd654391f0868e58024",
+          "subject": "Let the embedder drive text input values and selection"
+        },
+        {
+          "file": "0012-Support-range-input-values-UA-style-and-thumb-colour.patch",
+          "sha256": "99b56c373d944a87414b45ba7ed4e060a763d4459d6e13ea18d1235e962e754c",
+          "subject": "Support range input values, UA style and thumb colours"
+        },
+        {
+          "file": "0013-Flush-nested-inline-pseudo-elements-child-display-no.patch",
+          "sha256": "d6842bbe99687e4bbd0198b5a6056c37877c7a31562115aac11f03ada3aeecec",
+          "subject": "Flush nested inline pseudo-elements (child display, not"
+        },
+        {
+          "file": "0014-Honor-the-media-attribute-on-style-elements.patch",
+          "sha256": "5d02c579ca0ea6f688c6411d3f81e08a19da977fe71bc66f5c7fb15bb86d96da",
+          "subject": "Honor the media attribute on <style> elements"
+        },
+        {
+          "file": "0015-Resolve-use-href-id-against-the-whole-document-for-i.patch",
+          "sha256": "ff01af7f3a9d8fc003e0cb9c1955c45916ce0d2357efc1a4ddc4b76bd7074019",
+          "subject": "Resolve <use href=\"#id\"> against the whole document for"
+        },
+        {
+          "file": "0016-Resolve-CSS-into-serialized-inline-SVG.patch",
+          "sha256": "7f626e35effd4944adf148ba8456da4a8b9e74d4c55bbab1e724aa84ecc36e61",
+          "subject": "Resolve CSS into serialized inline SVG"
+        },
+        {
+          "file": "0017-Honour-SVG-view-fragments-on-image-loads-img.svg-vie.patch",
+          "sha256": "cbd2c1e8ed33fd2b8ca6ab436cc92f394cec4b4080a8b8ae90a24c4ec69a9a99",
+          "subject": "Honour SVG view fragments on image loads (img.svg#viewname)"
+        },
+        {
+          "file": "0018-Implement-HTML-directionality-and-bidi-isolation.patch",
+          "sha256": "69dd1fb55d852eb7bd9e9b53d290e3e08d532247ec8a02502d9c4ee41b24f0c6",
+          "subject": "Implement HTML directionality and bidi isolation"
+        },
+        {
+          "file": "0019-Map-DOM-selections-and-carets-onto-text-layout.patch",
+          "sha256": "d5c40b5bdd3dc68f896aecc91b82c233f3b223935638957456c23fcf5476ce81",
+          "subject": "Map DOM selections and carets onto text layout"
+        },
+        {
+          "file": "0020-Implement-query_container_size-from-the-last-taffy-l.patch",
+          "sha256": "900cf6786c0a690ad40908f01d2d3f2d6dc1247207063952c70d0f626c86d0c8",
+          "subject": "Implement query_container_size from the last taffy layout"
+        },
+        {
+          "file": "0021-Size-SVG-images-from-their-CSS-natural-dimensions.patch",
+          "sha256": "4f9e2f98f6338d131794b0dde8bb13c3c9d38a3168ebe0f0f305cd56769339b7",
+          "subject": "Size SVG images from their CSS natural dimensions"
+        },
+        {
+          "file": "0022-webkit-box-flex-emulated-layout-line-clamp-line-trun.patch",
+          "sha256": "548f85466e7aef78f0072d2b209cb1b9f9b03d459a43d5a53969023323c065b2",
+          "subject": "-webkit-box: flex-emulated layout + line-clamp line"
+        },
+        {
+          "file": "0023-Capture-taffy-s-DetailedGridInfo-per-grid-container.patch",
+          "sha256": "9556ebf5468beb4cd35b087e5ad8689a32a29302d5b47c2cc7ff97c6da42a2f7",
+          "subject": "Capture taffy's DetailedGridInfo per grid container"
+        },
+        {
+          "file": "0024-Give-usvg-the-embedder-s-fonts-and-parse-each-SVG-on.patch",
+          "sha256": "115b60a2f0c38ff712d56553417b4a4112c6a12f84362703ee6931311659992d",
+          "subject": "Give usvg the embedder's fonts and parse each SVG once"
+        },
+        {
+          "file": "0025-Paint-re-anchored-abspos-boxes-at-their-DOM-position.patch",
+          "sha256": "63fe32438cd55f43f25cae8959d578189af0ad3a942f34f29fefe58aa25be0f0",
+          "subject": "Paint re-anchored abspos boxes at their DOM position"
+        },
+        {
+          "file": "0026-compare_document_order-pseudo-elements-order-by-box-.patch",
+          "sha256": "e28c9d713c17cd602bbedc6b7986ec1030b9bc8af4ed46771a9954cf7cbd2c85",
+          "subject": "compare_document_order: pseudo-elements order by box position"
+        },
+        {
+          "file": "0027-Implement-CSS-counters-resolution-pass-counter-conte.patch",
+          "sha256": "c0054bcc02ea10ef35de02ad87ad1ac9dfb609d7a63ef8770c872e9fc04143c3",
+          "subject": "Implement CSS counters: resolution pass + counter() content +"
+        },
+        {
+          "file": "0028-Anonymous-table-objects-CSS-2.2-17.2.1-both-directio.patch",
+          "sha256": "92ae329094690caeff4a006372245dcc7ae4d8ff8a237dc3894255fb5d87cc09",
+          "subject": "=?UTF-8?q?Anonymous=20table=20objects=20(CSS=202.2=20?="
+        },
+        {
+          "file": "0029-Add-a-cross-resolve-damage-summary-for-partial-frame.patch",
+          "sha256": "a96cf352685bcb830a9bf58474488dfaa20343c06b09de71414aa7b3c0aa7bfe",
+          "subject": "Add a cross-resolve damage summary for partial-frame gating"
+        },
+        {
+          "file": "0030-Namespace-aware-selector-parsing-for-CSSOM-selectorT.patch",
+          "sha256": "15529d21653a664c7befddd93c0dcdf9bb7ce16646ee9dd41db18c405132ee09",
+          "subject": "Namespace-aware selector parsing for CSSOM selectorText"
+        },
+        {
+          "file": "0031-Support-swapping-author-font-blobs-after-registratio.patch",
+          "sha256": "a1fcb9e4880c00bdec20da961b0e6486a828a69b9ba9c5de606f811f8ee0a2e8",
+          "subject": "Support swapping author font blobs after registration"
+        },
+        {
+          "file": "0032-Fix-stylesheet-fetch-typing-decoding-and-stale-deliv.patch",
+          "sha256": "6e2854c6452549bae31b469525d0d789917407f19e0f697555128ad6be3c9da7",
+          "subject": "Fix stylesheet fetch typing, decoding and stale deliveries"
+        },
+        {
+          "file": "0033-Keep-fixed-boxes-of-the-root-pinned-to-the-viewport.patch",
+          "sha256": "05c95886f5390dd8143120576fd44026152f3eb430a55cbc85bff999f9261be8",
+          "subject": "Keep fixed boxes of the root pinned to the viewport"
+        },
+        {
+          "file": "0034-Narrow-animation-restyles-and-expose-animation-state.patch",
+          "sha256": "83cd198b6a4dc5643bd48a656b5349db1b3e9f958209ddb356c38ae7c38d76f1",
+          "subject": "Narrow animation restyles and expose animation state"
+        },
+        {
+          "file": "0035-Scope-linked-stylesheets-to-their-media-attribute.patch",
+          "sha256": "52d3d672d7c0ec4ebdce3059707e85275cc520e97652ed9f6d162519ed5937ca",
+          "subject": "Scope linked stylesheets to their media attribute"
+        },
+        {
+          "file": "0036-Keep-font-fallback-correct-while-faces-load.patch",
+          "sha256": "262a6ba7dfb48fa411dad5074b02054b2e7efa8a2a62e6ae5c4210cdf216c08c",
+          "subject": "Keep font fallback correct while faces load"
+        },
+        {
+          "file": "0037-Drive-stylo-s-relative-selector-invalidator-so-has-i.patch",
+          "sha256": "85ccad95b6eb467017f0cc55c7e12ab68607d7d01def8f223a182e34437e1f2d",
+          "subject": "Drive stylo's relative-selector invalidator so :has()"
+        },
+        {
+          "file": "0038-Keep-incremental-layout-from-losing-content.patch",
+          "sha256": "39d2c9dc04d791e0b8beec81075b917fcbb0aadd0a45c2c4972d31a82ad1f54a",
+          "subject": "Keep incremental layout from losing content"
+        },
+        {
+          "file": "0039-Give-display-flow-root-its-own-block-formatting-cont.patch",
+          "sha256": "14b0c03d98296ad571f1096942a2be1050fcf31b13c933dd6e6bb66e578e4c55",
+          "subject": "Give display:flow-root its own block formatting context"
+        },
+        {
+          "file": "0040-Fix-missed-damage-and-stale-caches-under-incremental.patch",
+          "sha256": "d6a25d2c3067cce8308493b476bd08c0250bede560cd2fc95ab38bbc24295d48",
+          "subject": "Fix missed damage and stale caches under incremental layout"
+        },
+        {
+          "file": "0041-Damage-the-nodes-whose-counters-moved-since-the-last.patch",
+          "sha256": "ee14e09a7d659bc8183717a7aae0d305b7b6d2b2206f6590b045696e008fbbb1",
+          "subject": "Damage the nodes whose counters moved since the last resolve"
+        },
+        {
+          "file": "0042-Cut-the-cost-of-an-attribute-write.patch",
+          "sha256": "c498fe16427d66ce73896aaf4ef245b11e6115c41c09165f2322e8162e9ab175",
+          "subject": "Cut the cost of an attribute write"
+        },
+        {
+          "file": "0043-Time-the-fontface-counters-and-damage-summary-phases.patch",
+          "sha256": "b03d124426421cf5e73063b92afca3849767d896d26dfaafe13b5aa1f8279da1",
+          "subject": "Time the fontface, counters and damage-summary phases"
+        },
+        {
+          "file": "0044-Gate-per-resolve-work-on-damage.patch",
+          "sha256": "5cc15aef51b1698d916aff31520e5d469f5dfc197c0b24083bafc61fb707084a",
+          "subject": "Gate per-resolve work on damage"
+        },
+        {
+          "file": "0045-Propagate-damage-through-shadow-roots.patch",
+          "sha256": "83fd6555fb3a25b44e5c88213fa90983b7d5cf3a36b30fdc03095b516d8b5712",
+          "subject": "Propagate damage through shadow roots"
+        },
+        {
+          "file": "0046-Fix-table-caption-spans-rowspan-occupancy-and-cached.patch",
+          "sha256": "b18757a87406313fe4617bce2b5f00d16846d0fab6923450455f2795585193fe",
+          "subject": "Fix table caption spans, rowspan occupancy and cached styles"
+        },
+        {
+          "file": "0047-Tag-iframe-document-requests-as-HTML.patch",
+          "sha256": "9e5a19b9bfa4e7f3b822727f66347f169fc42a16553576e13f910c0a266f1c23",
+          "subject": "Tag iframe document requests as HTML"
+        },
+        {
+          "file": "0048-Restyle-container-queries-against-laid-out-container.patch",
+          "sha256": "1cefab596bacd5e7bdaffc7866289526c3048ae4f91966fe8981fc0a2ff658aa",
+          "subject": "Restyle container queries against laid-out container sizes"
+        },
+        {
+          "file": "0049-Fix-intrinsic-heights-and-relative-insets-of-inline-.patch",
+          "sha256": "7bbcfc730753a2b93c7aea7107809aeef36e97f2eee324de0818ab6cfe63740e",
+          "subject": "Fix intrinsic heights and relative insets of inline-level"
+        },
+        {
+          "file": "0050-Let-the-embedder-manage-author-sheet-and-node-lifeti.patch",
+          "sha256": "1dd1f649940cfddb85f22291a28702a33a736717015f66f74bcca3eca719f19e",
+          "subject": "Let the embedder manage author sheet and node lifetimes"
+        },
+        {
+          "file": "0051-Map-more-stylo-text-properties-onto-parley.patch",
+          "sha256": "ed65aba51d936764fcf133cd3bb57ca9bdac896e5cd201f828e4bb61db8af65d",
+          "subject": "Map more stylo text properties onto parley"
+        },
+        {
+          "file": "0052-Fix-hit-testing-for-padded-inline-roots-overflow-and.patch",
+          "sha256": "116799f9bf30426eb4608dc964d78b8d48b451b17091275f9331b3503ce22c56",
+          "subject": "Fix hit testing for padded inline roots, overflow and flat"
+        },
+        {
+          "file": "0053-Fetch-each-font-face-once-and-only-for-text-it-cover.patch",
+          "sha256": "789cb122cd0743eccd9be9785304bf9171b067d80b3efc54607ca007360f838b",
+          "subject": "Fetch each @font-face once, and only for text it covers"
+        },
+        {
+          "file": "0054-a-replaced-element-with-display-table-stays-a-replac.patch",
+          "sha256": "da441e11a6d6b95078323b09a93922d6156d081391c6cb51ab5e7866bc08fc30",
+          "subject": "a replaced element with display:table stays a replaced box"
+        },
+        {
+          "file": "0055-reparse-replaced-style-sheets-once-per-resolve.patch",
+          "sha256": "ae2157d75f8bd69ff17f50852759899f8dc4c9b187263a483fde23dfd2ffc2fa",
+          "subject": "reparse replaced <style> sheets once per resolve"
+        },
+        {
+          "file": "0056-Recover-from-panics-in-inline-layout-and-message-han.patch",
+          "sha256": "3e085fe82a6d263c32b6be5eba682db0f9568a5703ee9bb146f25ab2d501656a",
+          "subject": "Recover from panics in inline layout and message handling"
+        },
+        {
+          "file": "0057-stamp-element-indices-on-the-svg-snapshot.patch",
+          "sha256": "7517382a7db8a7afa9b62c893ee3145de730e46f3188804655b6183ff8d2c0d4",
+          "subject": "stamp element indices on the svg snapshot"
+        },
+        {
+          "file": "0058-Support-a-layout-rounding-step-other-than-one-pixel.patch",
+          "sha256": "7c091cc9f4465c30a7031997b4a2a15ee366fcd43340cbab744351c27f8ccee6",
+          "subject": "Support a layout rounding step other than one pixel"
+        },
+        {
+          "file": "0059-Give-an-inline-of-only-bidi-controls-no-line-box.patch",
+          "sha256": "56cf27bc952b5bf4f4eb91de15f07d520e0e0fa79bfc13caa4e8e3103612f1b4",
+          "subject": "Give an inline of only bidi controls no line box"
+        },
+        {
+          "file": "0060-Classify-transform-only-damage-as-ink-damage.patch",
+          "sha256": "47eb312e04bc58bcb23315a2f15edb51230e2ea011f44ff5b3f7f1bc4870d06c",
+          "subject": "Classify transform-only damage as ink damage"
+        },
+        {
+          "file": "0061-Follow-the-flat-tree-when-marking-changes-in-slotted.patch",
+          "sha256": "cfb5d9057dbbc810e407798107f33b4040ae8389210cbd1149cde3cfae4cf045",
+          "subject": "Follow the flat tree when marking changes in slotted content"
+        },
+        {
+          "file": "0062-Clear-layout_parent-on-nodes-that-outlive-their-layo.patch",
+          "sha256": "ab8ffcdc21f6091cf7c58f41107e09e7cf4ea030fe70635efa0463031f13a08f",
+          "subject": "Clear layout_parent on nodes that outlive their layout parent"
+        },
+        {
+          "file": "0063-resolve-stylo-OpaqueNodes-through-the-slot-index.patch",
+          "sha256": "b1dd0ad3db6e4b966c313549461ae8cab9c9f363f342865ba68f7d5721be463d",
+          "subject": "resolve stylo OpaqueNodes through the slot index"
+        },
+        {
+          "file": "0064-map-re-homed-paint-reach-through-each-box-s-transfor.patch",
+          "sha256": "d29ca3b6a148e0e94a8735e69549de08730beec798b978458a1b49d7f954d2bc",
+          "subject": "map re-homed paint reach through each box's transform"
+        },
+        {
+          "file": "0065-report-when-body-s-overflow-belongs-to-the-viewport.patch",
+          "sha256": "2137f33075cb42914877210f5456b36373f5d169a26986d0859535d8f0740825",
+          "subject": "report when body's overflow belongs to the viewport"
+        },
+        {
+          "file": "0066-Paint-z-index-auto-positioned-boxes-in-tree-order.patch",
+          "sha256": "f2be67af1cf7e218dd5265fb99f1ee577f42de573e0bbbab041d4e21a1e4aca6",
+          "subject": "Paint z-index:auto positioned boxes in tree order"
+        },
+        {
+          "file": "0067-Fix-span-backgrounds-select-labels-and-image-source-.patch",
+          "sha256": "4301178328bd68118bf1df19e89b4d5abee21f9167821ebef53d7b057f0fc69e",
+          "subject": "Fix span backgrounds, select labels and image source"
+        },
+        {
+          "file": "0068-Keep-template-contents-out-of-the-document.patch",
+          "sha256": "54cd93230364154775b468072d50a6b568764106fa6d23a969f97685971749fd",
+          "subject": "Keep template contents out of the document"
+        },
+        {
+          "file": "0069-restyle-inherited-dir-and-lang-selectors-on-write.patch",
+          "sha256": "3a44b77abe6ac71dc39be9ae7e22593d2c2ac250832f572d16de27c730892fb4",
+          "subject": "restyle inherited dir and lang selectors on write"
+        },
+        {
+          "file": "0070-layout-rebuild-inline-backgrounds-when-fragment-pres.patch",
+          "sha256": "71e5d466dfea7faecac3ee2a5d5538f5ce0a87c61854d004273cddbef630ca2c",
+          "subject": "layout: rebuild inline backgrounds when fragment presence"
+        },
+        {
+          "file": "0071-Resolve-placeholder-style-for-text-controls.patch",
+          "sha256": "505227ab06f75e8573e15068699880ccc7086227d9efbb99e630aeb7f72b45a2",
+          "subject": "Resolve ::placeholder style for text controls"
+        },
+        {
+          "file": "0072-Stamp-CSS-opacity-and-blend-mode-on-inner-SVG-elemen.patch",
+          "sha256": "01bea53386dec88a3937e59cc39e438f9d91faff9a59d0d0b06d606dfda729fe",
+          "subject": "Stamp CSS opacity and blend mode on inner SVG elements"
+        },
+        {
+          "file": "0073-Rebuild-a-text-control-when-its-placeholder-look-cha.patch",
+          "sha256": "39a011a2c8b8be8e8b3284f44bc25f5b1feebd2a76e7cef620250e35020210ec",
+          "subject": "Rebuild a text control when its ::placeholder look changes"
+        }
+      ]
+    },
+    {
+      "crate": "blitz-paint",
+      "version": "0.3.0-beta.4",
+      "upstreamRepo": "https://github.com/DioxusLabs/blitz",
+      "tarballSha256": "28803328124d7b7ea5f8f41501513ccb005559e9f6baf33fa0c1fb7612654a93",
+      "seriesSha8": "cf9394c0",
+      "mitigates": [],
+      "verificationTargets": ["//packages/core:core_test"],
+      "patches": [
+        {
+          "file": "0001-Baseline-span-decorations-canvas-background-SVG-tili.patch",
+          "sha256": "38716813f6fc56ec7b0e5707021310a39eab202cb276b2a4f02f5e232f3ac887",
+          "subject": "Baseline: span decorations, canvas background, SVG tiling"
+        },
+        {
+          "file": "0002-Skip-shadow-root-nodes-in-render_node-new-NodeData-v.patch",
+          "sha256": "2954106d2a6f15964e5a18654ad31e4f6fc5818fdb9262c617a56d40a68114f8",
+          "subject": "Skip shadow-root nodes in render_node (new NodeData variant)"
+        },
+        {
+          "file": "0003-Paint-range-inputs-and-select-chevrons-in-accent-col.patch",
+          "sha256": "4154e23535f8584b77672e542924c42d35967ed987d81cb30951f44c38743985",
+          "subject": "Paint range inputs and select chevrons in accent colours"
+        },
+        {
+          "file": "0004-Fix-viewport-clipping-and-scaling-of-painted-SVG.patch",
+          "sha256": "d2990521f0f9190830af3ff111216971970faece96c05b42d6029c4481c792f3",
+          "subject": "Fix viewport clipping and scaling of painted SVG"
+        },
+        {
+          "file": "0005-Skip-painting-background-layers-with-clip-text.patch",
+          "sha256": "133460aa14dd068bcf9e1e41a7e2338e2a7b273209f36b11cf09602ebafc8ca7",
+          "subject": "Skip painting background layers with clip:text"
+        },
+        {
+          "file": "0006-Paint-re-homed-abspos-children-through-their-transla.patch",
+          "sha256": "dc999c75576ae8e1c5bcb7fc0d7bbf469e05aee8e8119427bb9afdcdbb444742",
+          "subject": "Paint re-homed abspos children through their translate"
+        },
+        {
+          "file": "0007-Fix-box-shadow-isolation-corner-radii-and-blur-size.patch",
+          "sha256": "5aa37781f138eddc9f557ee09c9c035354af64205ffb7178290311d6505bfa55",
+          "subject": "Fix box-shadow isolation, corner radii and blur size"
+        },
+        {
+          "file": "0008-Size-the-effect-layer-to-the-painted-subtree.patch",
+          "sha256": "5a69011bfe0573000ce2ff880b1eaf8f451bd5ec329dbe3b34083a50e58cbf32",
+          "subject": "Size the effect layer to the painted subtree"
+        },
+        {
+          "file": "0009-Paint-webkit-text-fill-color-except-over-missing-gra.patch",
+          "sha256": "dd538fe8aca19d51fbc31b5f96b4ccc6a992d36579da05b8b1187215e5582c80",
+          "subject": "Paint -webkit-text-fill-color, except over missing gradient"
+        },
+        {
+          "file": "0010-Handle-empty-clip-regions-and-the-layer-budget-corre.patch",
+          "sha256": "2f6e916fd86ad2a8dfd208633ec7999a54a4bf39f238b1cdec759998e6a3305a",
+          "subject": "Handle empty clip regions and the layer budget correctly"
+        },
+        {
+          "file": "0011-paint-skip-work-the-common-element-does-not-need.patch",
+          "sha256": "e296c1d8a9058765e21792871701287328590089dd9a23ce9f833e1bb04ef816",
+          "subject": "paint: skip work the common element does not need"
+        },
+        {
+          "file": "0012-Draw-collapsed-table-borders-per-cell-not-per-gridli.patch",
+          "sha256": "08862f556c215a1a80e79f0835b75e989f609bd4c38705109ce8e7a767d989ec",
+          "subject": "Draw collapsed table borders per cell, not per gridline"
+        },
+        {
+          "file": "0013-Lean-synthetic-italic-to-the-right-not-the-left.patch",
+          "sha256": "bc4245992b616d2af47f133f8cc2b5e523c304c2c5b2246d09c0652730bed844",
+          "subject": "Lean synthetic italic to the right, not the left"
+        },
+        {
+          "file": "0014-Let-a-re-homed-abspos-escape-its-flow-parent-s-overf.patch",
+          "sha256": "a02dab6aa2d2755dddb724677c960ef04c25e97ad1280d93760c47f29f16aea0",
+          "subject": "Let a re-homed abspos escape its flow parent's overflow clip"
+        },
+        {
+          "file": "0015-Map-smooth-and-high-quality-image-rendering-to-high-.patch",
+          "sha256": "1fc8803b02801be714ee7357690d01e868c330935d8b8619e8c256144cbe5c23",
+          "subject": "Map smooth and high-quality image-rendering to high paint"
+        },
+        {
+          "file": "0016-Mark-semantic-parts-in-painted-scenes.patch",
+          "sha256": "d71c6c8031bcbfb856ba5fb29dafecc95f06a8929352138531fba2f6ffdceba9",
+          "subject": "Mark semantic parts in painted scenes"
+        },
+        {
+          "file": "0017-Paint-corner-shape-on-backgrounds-and-clips.patch",
+          "sha256": "d5849a175a43f295bfb73fc12ada797a08588fd27f6d642031e51fa9ad526892",
+          "subject": "Paint corner-shape on backgrounds and clips"
+        },
+        {
+          "file": "0018-Apply-inline-box-opacity-to-text-and-span-decoration.patch",
+          "sha256": "f77dd15c598784f9f78cd2b6ad9768d1dc5173a5d09fb783ab5d755f0b512c55",
+          "subject": "Apply inline-box opacity to text and span decorations"
+        },
+        {
+          "file": "0019-Fill-a-corner-shaped-solid-border-as-one-ring.patch",
+          "sha256": "27fe8f2e062c0fd6d7f192877745a43c45a8be313c6b987ec8b1b969bc03317a",
+          "subject": "Fill a corner-shaped solid border as one ring"
+        },
+        {
+          "file": "0020-Honour-visibility-hidden-on-inline-text.patch",
+          "sha256": "2eecefc9b92c52cbc753b6aba84cf77d1d7bffb6d60984eb1150a4a9f9156535",
+          "subject": "Honour visibility:hidden on inline text"
+        },
+        {
+          "file": "0021-Pass-the-scale-to-live_rehomed_reach.patch",
+          "sha256": "ffefecce5404f43dd1837f7ae1d3e6705231b037ad56ca3a602806b7d9e32d34",
+          "subject": "Pass the scale to live_rehomed_reach"
+        },
+        {
+          "file": "0022-Don-t-clip-a-body-whose-overflow-went-to-the-viewpor.patch",
+          "sha256": "76f8ca63c2283de81e767756fa2a0af8826798d0585cd71a8d002e5c3ee92bff",
+          "subject": "Don't clip a body whose overflow went to the viewport"
+        },
+        {
+          "file": "0023-Propagate-text-decorations-into-in-flow-block-childr.patch",
+          "sha256": "ec692b0adea7761ef5b2500d608b5f9fe466117815e68acb75a709527c9703ae",
+          "subject": "Propagate text decorations into in-flow block children"
+        },
+        {
+          "file": "0024-Clip-only-the-clipped-axis-for-one-axis-overflow-cli.patch",
+          "sha256": "171b780d34c592c28d5a705d4b0b765e51c238c0ccfde34e7609d24a35e688d7",
+          "subject": "Clip only the clipped axis for one-axis overflow: clip"
+        },
+        {
+          "file": "0025-Paint-placeholder-text-in-its-placeholder-colour.patch",
+          "sha256": "d0af67996dfe6f869f56361d1c716d78dbfef531ab5a50fce473f17c94c50bc1",
+          "subject": "Paint placeholder text in its ::placeholder colour"
+        },
+        {
+          "file": "0026-Apply-ancestor-overflow-clips-to-hoisted-z-index-chi.patch",
+          "sha256": "39a0473ede44791dd3a0da3067ae7d3dc7bfdab8ded71d0c1971281537977226",
+          "subject": "Apply ancestor overflow clips to hoisted z-index children"
+        },
+        {
+          "file": "0027-Draw-only-the-gradient-tiles-that-reach-the-viewport.patch",
+          "sha256": "8d8e1c8f11f3a824539bee2413a1ac53c78b0caa69d63c19d213e664b596cd35",
+          "subject": "Draw only the gradient tiles that reach the viewport"
+        },
+        {
+          "file": "0028-Bound-repeated-SVG-background-work-with-a-node-visit.patch",
+          "sha256": "27bd43f850ba40e40f44afb2f40a0582f3e2eeabf7de3837259852921b12eb3e",
+          "subject": "Bound repeated SVG background work with a node-visit budget"
+        }
+      ]
+    },
+    {
+      "crate": "blitz-html",
+      "version": "0.3.0-beta.4",
+      "upstreamRepo": "https://github.com/DioxusLabs/blitz",
+      "tarballSha256": "eddd638e05f3f3efb9f2d37f0406e7834ea023727e1678524488aa70eb639615",
+      "seriesSha8": "6503a73f",
+      "mitigates": [],
+      "verificationTargets": ["//packages/core:core_test"],
+      "patches": [
+        {
+          "file": "0001-Stop-the-XHTML-sniff-at-the-first-non-root-start-tag.patch",
+          "sha256": "ac4d7fe17517069853b99e9d955b82ccb302c6bbb9fd36db6e233cfdb6edad2a",
+          "subject": "Stop the XHTML sniff at the first non-root start tag"
+        },
+        {
+          "file": "0002-Parse-template-contents-inline-under-the-template-el.patch",
+          "sha256": "ead985749611c1398ce5639fa91f2a20ab70fc6307f0b54d2a6f204ec6bc6d02",
+          "subject": "Parse template contents inline under the template element"
+        }
+      ]
+    },
+    {
+      "crate": "anyrender",
+      "version": "0.14.0",
+      "upstreamRepo": "https://github.com/DioxusLabs/anyrender",
+      "tarballSha256": "1755d0ef8e00e87b6b825dfbe5a35d34d3b302e97e80a48e93f9cd361fbada06",
+      "seriesSha8": "98e6742a",
+      "mitigates": [],
+      "verificationTargets": ["//packages/core:core_test"],
+      "patches": [
+        {
+          "file": "0001-Add-semantic-scene-parts-that-carry-form-control-sta.patch",
+          "sha256": "5ed08c68254da85ed9dbaf0546dc04dc616384705aaacdec41d7310ec8175a59",
+          "subject": "Add semantic scene parts that carry form-control state"
+        },
+        {
+          "file": "0002-Add-PaintScene-push_clip_path-pop_clip_path.patch",
+          "sha256": "256e93697f4933c0f206f49dc4b752488c26ddfe8220844dee7de8a7bae6b485",
+          "subject": "Add PaintScene::push_clip_path/pop_clip_path"
+        }
+      ]
+    },
+    {
+      "crate": "anyrender_vello_cpu",
+      "version": "0.18.0",
+      "upstreamRepo": "https://github.com/DioxusLabs/anyrender",
+      "tarballSha256": "a09d9356dd2b2f032345711a350c0e2326a854cb5070f899265bc80fb33884b1",
+      "seriesSha8": "9dfabfd3",
+      "mitigates": [],
+      "verificationTargets": ["//packages/core:core_test"],
+      "patches": [
+        {
+          "file": "0001-Implement-PaintScene-push_clip_path-with-vello_cpu-c.patch",
+          "sha256": "a75aa8ec78f7344795e47046de7dd9595a31d279b2404fe182702ba5a22a7a50",
+          "subject": "Implement PaintScene::push_clip_path with vello_cpu clip"
+        },
+        {
+          "file": "0002-Skip-premultiplying-opaque-images.patch",
+          "sha256": "0680ad98e6b05e9dad02b74abd378c622016a98e70dc2a4ba01183c6753ce13e",
+          "subject": "Skip premultiplying opaque images"
+        }
+      ]
+    },
+    {
+      "crate": "taffy",
+      "version": "0.15.0",
+      "upstreamRepo": "https://github.com/DioxusLabs/taffy",
+      "tarballSha256": "3c8480887e8803986d96a7173729565520d4bbb721ad6b7ad6941a22897207aa",
+      "seriesSha8": "bbfc36fa",
+      "mitigates": [],
+      "verificationTargets": ["//packages/core:core_test"],
+      "patches": [
+        {
+          "file": "0001-Cache-box-the-entries-so-an-empty-cache-is-pointer-s.patch",
+          "sha256": "3805f28fcea77882dc4484033784a48935d24eaead1b0c621ca7006ebb69fdd5",
+          "subject": "Cache: box the entries so an empty cache is pointer-sized"
+        },
+        {
+          "file": "0002-Fix-float-placement-and-sizing-in-block-layout.patch",
+          "sha256": "0d2637933a98b37a5ef8ff376cbf1f8a11818efea06c80dd79c62c2f915ff0f4",
+          "subject": "Fix float placement and sizing in block layout"
+        },
+        {
+          "file": "0003-Keep-grid-block-axis-content-contributions.patch",
+          "sha256": "16e0c161b2644f8d214eee2c3dd93873a57791beffaeb46f30e0233762578a44",
+          "subject": "Keep grid block-axis content contributions"
+        },
+        {
+          "file": "0004-Anchor-auto-line-grid-abspos-areas-to-padding.patch",
+          "sha256": "a3d5269b04791e7fc3d8f1d31205ec700e4b8601a20f505c3d53cdf340dcbf7c",
+          "subject": "Anchor auto-line grid abspos areas to padding"
+        },
+        {
+          "file": "0005-Size-content-determined-containers-from-their-non-cy.patch",
+          "sha256": "30d4c17c60da6e0bb85e383e65c3fe300a490f45859f3fcf5871687ac7250999",
+          "subject": "Size content-determined containers from their non-cyclic"
+        },
+        {
+          "file": "0006-Let-a-backend-round-layout-to-something-other-than-a.patch",
+          "sha256": "91003fb077c03fe2c26c3a613789aaa480306d06ec2570c85b3ef223733fa033",
+          "subject": "Let a backend round layout to something other than a pixel"
+        },
+        {
+          "file": "0007-Report-a-block-container-s-last-baseline.patch",
+          "sha256": "68dd61bcbc296384858cc19e4837d68d73b1fa05ff60fb14d24372ed71ba5873",
+          "subject": "Report a block container's last baseline"
+        }
+      ]
+    },
+    {
+      "crate": "stylo_taffy",
+      "version": "0.3.0-beta.4",
+      "upstreamRepo": "https://github.com/DioxusLabs/blitz",
+      "tarballSha256": "3d932deb3145f9e1c4159d09237f7999a29632fba9125896abb364dab080e0c0",
+      "seriesSha8": "e399f5ff",
+      "mitigates": [],
+      "verificationTargets": ["//packages/core:core_test"],
+      "patches": [
+        {
+          "file": "0001-Handle-unresolved-anchor-values-without-panicking.patch",
+          "sha256": "5b09b23ba9a3f1a4b4ef6e6f074b0a2e86cae4cbc308feeafce20957ecbea6e9",
+          "subject": "Handle unresolved anchor values without panicking"
+        },
+        {
+          "file": "0002-Stop-size-containers-from-claiming-out-of-flow-boxes.patch",
+          "sha256": "7beb6bb97a376a5dc41428cd9d9e713700c20b13fbbb7f60d99aeaa226908165",
+          "subject": "Stop size containers from claiming out-of-flow boxes"
+        }
+      ]
+    },
+    {
+      "crate": "stylo",
+      "version": "0.22.0",
+      "upstreamRepo": "https://github.com/servo/stylo",
+      "tarballSha256": "7a255e46af2478628c48daab3774090caabd7812b1dd3ca98801c2b9c53491ed",
+      "seriesSha8": "4baff9ee",
+      "mitigates": [],
+      "verificationTargets": ["//packages/core:core_test"],
+      "patches": [
+        {
+          "file": "0001-Enable-page-descriptors-tolerate-unstyled-snapshot-s.patch",
+          "sha256": "dfb3eb9e450859cdcd2316ca22229910bf7821428cb12a9573434d788417afdc",
+          "subject": "Enable @page descriptors; tolerate unstyled snapshot subtrees"
+        },
+        {
+          "file": "0002-Enable-gecko-gated-properties-and-values-in-the-serv.patch",
+          "sha256": "6f50332ade89f008264cbc6e4ee0ba200a6686e1f9b9fc8b140e234bd28a9157",
+          "subject": "Enable gecko-gated properties and values in the servo build"
+        },
+        {
+          "file": "0003-servo-parse-and-plumb-the-dir-pseudo-class.patch",
+          "sha256": "701efaf8115cdb29d206a064f214dcdc6d4745dc767e5416f532286bc5c62fcb",
+          "subject": "servo: parse and plumb the :dir() pseudo-class"
+        },
+        {
+          "file": "0004-Preserve-none-color-components-through-parse-mix-and.patch",
+          "sha256": "333c6110af465176e69372a2cd594821dd11e11c976289dae0991516ee5a7873",
+          "subject": "Preserve none color components through parse, mix and"
+        },
+        {
+          "file": "0005-Enable-container-queries-cq-units-and-anchor-parsing.patch",
+          "sha256": "2932092f435737ac9ab8edf50e65cd4e40cd761f37b9bea30b69ef24f149330d",
+          "subject": "Enable container queries, cq units and anchor parsing in"
+        },
+        {
+          "file": "0006-list-style-serialize-the-position-when-the-type-iden.patch",
+          "sha256": "f5554b4c5c2262a28433d8b70b8222c76fc0d4e00baa22ea0c6e02eb0d6e8db8",
+          "subject": "list-style: serialize the position when the type ident"
+        },
+        {
+          "file": "0007-Keep-color-scheme-normal-light.patch",
+          "sha256": "2a3ac6ab528a599e7ac7502b8fc58988e8971141cbc47e04f699be133425942f",
+          "subject": "Keep color-scheme: normal light"
+        },
+        {
+          "file": "0008-Retain-forwards-filling-animations-and-add-script-an.patch",
+          "sha256": "0d45ed643b9b16c0ee1d1b1585ca6920928f7261c7ba4cdaa91d073fd71a5855",
+          "subject": "Retain forwards-filling animations and add script animations"
+        },
+        {
+          "file": "0009-Damage-box-shadow-as-repaint-instead-of-rebuilding-t.patch",
+          "sha256": "1e9f08999ebf1ba6bbb38d29941506652bb4f3bac7b7324d55c76ba969ebb474",
+          "subject": "Damage box-shadow as repaint instead of rebuilding the box"
+        },
+        {
+          "file": "0010-Keep-computed-calc-trees-correct-and-panic-free.patch",
+          "sha256": "c5bad0caffb87ed1e20053c251f2388af1f35adbc2b1ba1223af8f49b7723a6a",
+          "subject": "Keep computed calc trees correct and panic-free"
+        },
+        {
+          "file": "0011-Stop-escalating-a-clip-overflow-axis-to-hidden.patch",
+          "sha256": "6cba5e87913d0baf02b42f7fc414eb58181bda8820a1033c8d5a1dca4ec41c7f",
+          "subject": "Stop escalating a clip overflow axis to hidden"
+        },
+        {
+          "file": "0012-Shrink-retained-CSS-buffers-to-their-contents.patch",
+          "sha256": "fa55e82f9a34bda212c1ac42ebb01a9ba2bbc9e80e4e605c3e22de35415e23db",
+          "subject": "Shrink retained CSS buffers to their contents"
+        },
+        {
+          "file": "0013-Complete-keyword-grammars-for-the-servo-build.patch",
+          "sha256": "a8a17bdbe7a04fb1862774e0f54f6693ad7b2efc70c99a0d5f53497b67729037",
+          "subject": "Complete keyword grammars for the servo build"
+        },
+        {
+          "file": "0014-Insert-a-stylesheet-before-an-unknown-anchor-by-appe.patch",
+          "sha256": "909b98f2741f31307461f46900a59236ee9e6c34e7a86937a61287537ece681f",
+          "subject": "Insert a stylesheet before an unknown anchor by appending"
+        },
+        {
+          "file": "0015-Parse-webkit-input-placeholder-as-placeholder.patch",
+          "sha256": "2c3f0a007c355756283d254ed35feb28e5120bfdfdc5a4f9a373c41006747600",
+          "subject": "Parse ::-webkit-input-placeholder as ::placeholder"
+        },
+        {
+          "file": "0016-Taint-the-attribute-text-that-attr-parses-against-ty.patch",
+          "sha256": "c9d16057f29616db71c17202d52ccedbde30a99057b053f0de9a531ae6198950",
+          "subject": "Taint the attribute text that attr() parses against type()"
+        }
+      ]
+    },
+    {
+      "crate": "selectors",
+      "version": "0.41.0",
+      "upstreamRepo": "https://github.com/servo/stylo",
+      "tarballSha256": "8322aebea94a6cc288ff884e8a49bdbceef60206c400c6c46d22e62fc4fd91a6",
+      "seriesSha8": "3ed27e28",
+      "mitigates": [],
+      "verificationTargets": ["//packages/core:core_test"],
+      "patches": [
+        {
+          "file": "0001-Strict-selector-lists-reject-trailing-input-after-a-.patch",
+          "sha256": "626b009f866dfd9d4a8ae237c8d39d9191e01c6b97bdf39af0fcf85ed9da346d",
+          "subject": "Strict selector lists: reject trailing input after a valid"
+        }
+      ]
+    },
+    {
+      "crate": "boa_ast",
+      "version": "0.22.0",
+      "upstreamRepo": "https://github.com/boa-dev/boa",
+      "tarballSha256": "9221b0a090572b4a118b46c5874c0781fe4bc9546b85f0a615b8bfb609ca4ed7",
+      "seriesSha8": "62296386",
+      "mitigates": [],
+      "verificationTargets": ["//packages/core:core_test"],
+      "patches": [
+        {
+          "file": "0001-scope-index-bindings-by-name-and-bind-using-in-bodie.patch",
+          "sha256": "54eb95cb157b316c4998bd6957eb8bdba8f298d9da6d2611f1330db2f0d2dbbd",
+          "subject": "scope: index bindings by name and bind `using` in bodies"
+        },
+        {
+          "file": "0002-source_text-compact-the-collected-text-for-storage.patch",
+          "sha256": "bc82b9243a48dcb467b01d5b098452dcc8614dbb1aa6febd5d460fe29fba1039",
+          "subject": "source_text: compact the collected text for storage"
+        },
+        {
+          "file": "0003-operations-borrow-var-scoped-declarations-instead-of.patch",
+          "sha256": "0b71886c530a66c2740ec0e44cd954cecc4c08e095cde5be5f424a735cae120d",
+          "subject": "operations: borrow var-scoped declarations instead of cloning"
+        },
+        {
+          "file": "0004-ast-box-the-large-rarely-used-expression-and-stateme.patch",
+          "sha256": "e955f0ef8182b0a804c6dce4e06119f3f997763b336d47714a7b3469ba53e924",
+          "subject": "ast: box the large, rarely used expression and statement"
+        },
+        {
+          "file": "0005-source_text-report-the-bytes-a-source-text-retains.patch",
+          "sha256": "9cddf6167cf157236843fa1c065909764780635003c7c96b9e929d62e4df0f3d",
+          "subject": "source_text: report the bytes a source text retains"
+        },
+        {
+          "file": "0006-source_text-lend-out-the-compact-form-for-an-embedde.patch",
+          "sha256": "d653987eab8fb0293d8ee261d601015f68c7cd54ef18bbe7fbd2c21a45d8ab17",
+          "subject": "source_text: lend out the compact form for an embedder's"
+        },
+        {
+          "file": "0007-scope-let-the-compiler-drop-a-scope-s-name-lookup-ma.patch",
+          "sha256": "f2470ba220472a2de83be244f641e47f0a150b69c89a918cc59dee7a4b984cfb",
+          "subject": "scope: let the compiler drop a scope's name lookup map"
+        },
+        {
+          "file": "0008-scope-export-a-scope-s-parts-and-rebuild-it-under-an.patch",
+          "sha256": "08730eed16c30172375728f0ad3853da37202d12b5915859d87e17c5806c15a5",
+          "subject": "scope: export a scope's parts and rebuild it under an outer"
+        }
+      ]
+    },
+    {
+      "crate": "boa_interner",
+      "version": "0.22.0",
+      "upstreamRepo": "https://github.com/boa-dev/boa",
+      "tarballSha256": "317c631e791f5cb7d0017e43c0a758b0eaffd40c34c4c360e2a6be7752b78cd1",
+      "seriesSha8": "9aadda70",
+      "mitigates": [],
+      "verificationTargets": ["//packages/core:boa_interner_test", "//packages/core:core_test"],
+      "patches": [
+        {
+          "file": "0001-interner-checkpoint-truncate-to-rewind-dynamically-i.patch",
+          "sha256": "38afb1d812176ee5e74722a9e6b8d48d2de4f9a05589417ee7ecb1fa07386b74",
+          "subject": "interner: checkpoint/truncate to rewind dynamically interned"
+        }
+      ]
+    },
+    {
+      "crate": "boa_gc",
+      "version": "0.22.0",
+      "upstreamRepo": "https://github.com/boa-dev/boa",
+      "tarballSha256": "af82119558ab1002d1978c8459b53a3ebb506177d29a3aca37c07c1777b1d966",
+      "seriesSha8": "69b6feae",
+      "mitigates": [],
+      "verificationTargets": ["//packages/core:boa_gc_test", "//packages/core:core_test"],
+      "patches": [
+        {
+          "file": "0001-Mark-on-enqueue-to-bound-the-GC-worklist.patch",
+          "sha256": "6583f39d09abecc4327965d24bf16fa3af61e33a18ac1437f89dee4d3f197e9c",
+          "subject": "Mark on enqueue to bound the GC worklist"
+        },
+        {
+          "file": "0002-pointers-widen-WeakGc-s-Clone-to-unsized-targets.patch",
+          "sha256": "cefda88d6c4dc67b14ff7ddb95c2004c95bd868d07dd5001954d7c284b4dec31",
+          "subject": "pointers: widen WeakGc's Clone to unsized targets"
+        },
+        {
+          "file": "0003-expose-heap-occupancy-stats.patch",
+          "sha256": "27d98d84ebb1c5bbd863266059c31698688e5ad5ef0d4999d0d04b622eaecfd2",
+          "subject": "expose heap occupancy stats"
+        },
+        {
+          "file": "0004-add-a-mark-only-census-that-discounts-external-handl.patch",
+          "sha256": "d7226d88912ed86ab884d8b923d389c1caa3d2097d8ee45cca517376368bd178",
+          "subject": "add a mark-only census that discounts external handles"
+        }
+      ]
+    },
+    {
+      "crate": "boa_engine",
+      "version": "0.22.0",
+      "upstreamRepo": "https://github.com/boa-dev/boa",
+      "tarballSha256": "5d6aaf7fdc4299df68adb67e1a5440a51d34630a1f5271b9698fd74bc97b60d9",
+      "seriesSha8": "6353d549",
+      "mitigates": [],
+      "verificationTargets": ["//packages/core:core_test"],
+      "patches": [
+        {
+          "file": "0001-Keep-baked-module-bindings-live-and-cache-stable-con.patch",
+          "sha256": "3e0c48c09691e7da4abe55dc9dfd613ae76d937d637156f17f7d45d5103d4772",
+          "subject": "Keep baked module bindings live and cache stable conversions"
+        },
+        {
+          "file": "0002-Name-throw-sites-for-not-callable-and-null-base-acce.patch",
+          "sha256": "65585fc650946a58e49074a59e13fd75521e4ed050de38cd66a9dc512529d04d",
+          "subject": "Name throw sites for not-callable and null-base accesses"
+        },
+        {
+          "file": "0003-context-recover-and-inspect-leaked-VM-stack-state.patch",
+          "sha256": "23ff4e64c8a3e1137c6dc20a7bf79d40ee337e09b3f9500996ffbab6bce7805a",
+          "subject": "context: recover and inspect leaked VM stack state"
+        },
+        {
+          "file": "0004-array-sort-tolerate-incoherent-comparators-instead-o.patch",
+          "sha256": "dcba3f69cde9a8d555a3501707ffd058ba306fbbe43f680eb0b1af35d93bb9b9",
+          "subject": "array sort: tolerate incoherent comparators instead of"
+        },
+        {
+          "file": "0005-object-expose-a-non-rooting-WeakJsObject-handle.patch",
+          "sha256": "3afbb06b4c67addafadaefcb9ac0c7e3023a0f33c249b5a7ac22c541d6123239",
+          "subject": "object: expose a non-rooting WeakJsObject handle"
+        },
+        {
+          "file": "0006-module-keep-dynamic-Syms-out-of-module-state-after-l.patch",
+          "sha256": "340d13d13d9b360de389415c5c113488b5559d1b19f0aef9de2a56a9e4766aa0",
+          "subject": "module: keep dynamic Syms out of module state after link"
+        },
+        {
+          "file": "0007-inline_cache-keep-one-PIC-entry-inline-and-box-the-o.patch",
+          "sha256": "b2c4ecbcd88ad8ac56224bbf19b2613b83ff22a9f20b99f487ee2694c3d56570",
+          "subject": "inline_cache: keep one PIC entry inline and box the overflow"
+        },
+        {
+          "file": "0008-spanned_source_text-compact-the-source-a-script-reta.patch",
+          "sha256": "c8e5a337410ebfedd27b2dd3010e572a64d0ea5a0be1a0680b7ff3108d079926",
+          "subject": "spanned_source_text: compact the source a script retains"
+        },
+        {
+          "file": "0009-vm-walk-to-the-running-bytecode-once-per-instruction.patch",
+          "sha256": "f6109140f842144e88c0df5a5f36f8348a7a3b64395d25ae6c4f2e072689dc27",
+          "subject": "vm: walk to the running bytecode once per instruction"
+        },
+        {
+          "file": "0010-bytecompiler-follow-boa_ast-s-borrowed-and-boxed-var.patch",
+          "sha256": "e3ee0304a5d409bb82e82548e1b78fbd76e0e26e89add679678bff4f51eb4e63",
+          "subject": "bytecompiler: follow boa_ast's borrowed and boxed variants"
+        },
+        {
+          "file": "0011-bytecompiler-share-one-JsString-per-name-across-a-co.patch",
+          "sha256": "78d18aec972df245e789e61c80af0e9e1c20037dc2ee8999dfb6a126de1d90a6",
+          "subject": "bytecompiler: share one JsString per name across a compile"
+        },
+        {
+          "file": "0012-code_block-build-the-inline-caches-on-first-use.patch",
+          "sha256": "9fef6890e2144eeb22f607d5172040a9423c2219f4cf78bdda8c16dc588da6e1",
+          "subject": "code_block: build the inline caches on first use"
+        },
+        {
+          "file": "0013-source_info-delta-encode-the-bytecode-to-source-map.patch",
+          "sha256": "fbd4e8673f56efd13e7e7e0eab5420b40698c945c7f942c0b967f7bfe79ec712",
+          "subject": "source_info: delta-encode the bytecode to source map"
+        },
+        {
+          "file": "0014-property_map-start-object-storage-at-two-slots.patch",
+          "sha256": "e02bfe094c30910eefc5130378d6cf680a40b77858d6802649ac586ddd56b20a",
+          "subject": "property_map: start object storage at two slots"
+        },
+        {
+          "file": "0015-vm-keep-bytecode-packed-until-its-code-block-first-r.patch",
+          "sha256": "e9bc2dbbabba5bfe471c570c0fd0c27e1ed2474df10b554ab303a04e7b8f7e00",
+          "subject": "vm: keep bytecode packed until its code block first runs"
+        },
+        {
+          "file": "0016-vm-drop-a-caught-throw-s-stale-stack-values.patch",
+          "sha256": "cdae0c98db358092c96071c2ef61e656d58d9f8946ea14704a1e52771edfc90f",
+          "subject": "vm: drop a caught throw's stale stack values"
+        },
+        {
+          "file": "0017-proxy-let-an-embedder-create-and-recognise-its-own-p.patch",
+          "sha256": "783dea1cd294f232cf19b6051d593e916cbd2e97f79fe70117f4fa4d51da356b",
+          "subject": "proxy: let an embedder create and recognise its own proxies"
+        },
+        {
+          "file": "0018-object-expose-an-object-s-census-key.patch",
+          "sha256": "ab7953f505439b67b5256afbc0e8ce363ade6033ed761b3e5b393a064bb9dfd6",
+          "subject": "object: expose an object's census key"
+        },
+        {
+          "file": "0019-ks_code_stats-count-the-memory-compiled-code-retains.patch",
+          "sha256": "d5ae86d26bbb985df7250690e54f746ad1f47a4acadecfb1028614daf77af3f7",
+          "subject": "ks_code_stats: count the memory compiled code retains, by"
+        },
+        {
+          "file": "0020-spanned_source_text-let-an-embedder-s-store-keep-the.patch",
+          "sha256": "ab8e9bb8f2d18e19e738852fc63178ab59ab46c32760ae442f59e50c3eb8b635",
+          "subject": "spanned_source_text: let an embedder's store keep the source"
+        },
+        {
+          "file": "0021-ks_code_store-make-the-store-an-append-log-with-a-fl.patch",
+          "sha256": "c8cf8c320519e776f74cf79902ed6f301b2a035b676f900c8c27054d5e59c2e7",
+          "subject": "ks_code_store: make the store an append log with a flush"
+        },
+        {
+          "file": "0022-bytecode-swap-it-to-the-code-store-and-drop-cold-cod.patch",
+          "sha256": "33265b55d7aa366472c383a450749b8d20737cd76552c26ce1767cf712887999",
+          "subject": "bytecode: swap it to the code store, and drop cold code under"
+        },
+        {
+          "file": "0023-bytecompiler-drop-each-compiled-scope-s-name-lookup-.patch",
+          "sha256": "8755aaefd68a8dab0c0f972643c773ccec2e75e546cc0b95c0a834d1255ad5c9",
+          "subject": "bytecompiler: drop each compiled scope's name lookup map"
+        },
+        {
+          "file": "0024-code_block-split-a-block-into-a-shell-and-a-body.patch",
+          "sha256": "aec1602ea4366de0f9f345ae05031a1d8bf00e17deed9151c4ae38e848fe34a1",
+          "subject": "code_block: split a block into a shell and a body"
+        },
+        {
+          "file": "0025-ks_body-move-never-run-function-bodies-to-the-code-s.patch",
+          "sha256": "f37172bae0f81d8264345b0f2d1f3f8fd8e3807ed0b5c7992a36a86ce04056b0",
+          "subject": "ks_body: move never-run function bodies to the code store"
+        },
+        {
+          "file": "0026-error-lead-the-stack-string-with-the-error-s-name-an.patch",
+          "sha256": "643de238518b13f8fb450f4beb46bb64c5d30ff646276efc5f70c4f5383c3dd3",
+          "subject": "error: lead the stack string with the error's name and"
+        }
+      ]
+    },
+    {
+      "crate": "boa_parser",
+      "version": "0.22.0",
+      "upstreamRepo": "https://github.com/boa-dev/boa",
+      "tarballSha256": "641e81b3c8cbb7a2140547fb3ea534e9edf210b4e8c920b5fa864a919e11fbcf",
+      "seriesSha8": "8100ed11",
+      "mitigates": [],
+      "verificationTargets": ["//packages/core:core_test"],
+      "patches": [
+        {
+          "file": "0001-Accept-contextual-keywords-and-using-as-identifiers.patch",
+          "sha256": "e598cb175b5f119155310bb9d1ca69a761efa5c3d2eb95ef4cfdb5a3757c9bbd",
+          "subject": "Accept contextual keywords and `using` as identifiers"
+        },
+        {
+          "file": "0002-lexer-size-the-collected-source-text-from-the-input-.patch",
+          "sha256": "9a5962a3083b290a2d6c168ab5d7ae2c2a3e7f11ed01ddadcae07bedac83e661",
+          "subject": "lexer: size the collected source text from the input length"
+        },
+        {
+          "file": "0003-Follow-boa_ast-s-boxed-variants-and-stop-cloning-par.patch",
+          "sha256": "0666091dc92db496cdf84bee0cff039ca82969fc8358e79e087c2dbff203a722",
+          "subject": "Follow boa_ast's boxed variants and stop cloning parentheses"
+        },
+        {
+          "file": "0004-Parse-long-comma-and-assignment-chains-without-deep-.patch",
+          "sha256": "25a40218bf7b3c7075f14e061c3abe2ded6a374b86575073b6c3de17a71a2a1d",
+          "subject": "Parse long comma and assignment chains without deep recursion"
+        },
+        {
+          "file": "0005-expression-parse-binary-operators-in-one-frame-by-pr.patch",
+          "sha256": "7a500d9c48b3fbd70da3d0c0c2cee52bcec841641bc5fb0ea3ab258b22e34190",
+          "subject": "expression: parse binary operators in one frame by precedence"
+        }
+      ]
+    },
+    {
+      "crate": "usvg",
+      "version": "0.48.1",
+      "upstreamRepo": "https://github.com/linebender/resvg",
+      "tarballSha256": "977d0a4abdef933f424a99fe09f95576e089b90aebc6f016a3bc813762493e91",
+      "seriesSha8": "d8d43dbb",
+      "mitigates": [],
+      "verificationTargets": ["//packages/core:core_test"],
+      "patches": [
+        {
+          "file": "0001-Apply-SVG2-geometry-properties-from-CSS-including-ca.patch",
+          "sha256": "b3e2385a72067c320a9872a94597d558ed608d81a9004d9b3a3a00168141da1f",
+          "subject": "Apply SVG2 geometry properties from CSS, including calc()"
+        },
+        {
+          "file": "0002-Honour-a-zero-viewBox-as-disabling-rendering.patch",
+          "sha256": "ff06ec3aaed773a61f9b0b85146c09961a4d297261358dac1e29e715571014a5",
+          "subject": "Honour a zero viewBox as disabling rendering"
+        },
+        {
+          "file": "0003-Implement-pathLength-rescale-stroke-dash-pattern-by-.patch",
+          "sha256": "2e799898755662345abf0268c3b1f40f6d055c99ee0251560e34cb1d6da0024c",
+          "subject": "Implement pathLength: rescale stroke dash pattern by"
+        }
+      ]
+    },
+    {
+      "crate": "vello_common",
+      "version": "0.3.0",
+      "upstreamRepo": "https://github.com/linebender/vello",
+      "tarballSha256": "73c2fbe53548bcd25c8ff42f75a93770a8611a16b37bee56d7ef7b44e36027f1",
+      "seriesSha8": "0a05d7b2",
+      "mitigates": [],
+      "verificationTargets": ["//packages/core:vello_common_test", "//packages/core:core_test"],
+      "patches": [
+        {
+          "file": "0001-Share-one-gradient-LUT-across-consecutive-equal-grad.patch",
+          "sha256": "a2fb528ddf5017947b3fbed8f423c86e2ce87e4b281e7b9e81facd0356d34abb",
+          "subject": "Share one gradient LUT across consecutive equal gradients"
+        }
+      ]
+    },
+    {
+      "crate": "vello_cpu",
+      "version": "0.3.0",
+      "upstreamRepo": "https://github.com/linebender/vello",
+      "tarballSha256": "ed1fec424fbba6acf6cbc78bb526447eb77590d95f40419d598870fe37535212",
+      "seriesSha8": "55b87aab",
+      "mitigates": [],
+      "verificationTargets": [
+        "//packages/core:vello_cpu_fallback_test",
+        "//packages/core:core_test"
+      ],
+      "patches": [
+        {
+          "file": "0001-Speed-up-filling-blurred-rounded-rects.patch",
+          "sha256": "9837e58257f198018fd61d52090cb4714666dad5fa2d3642e6217aaa3fa98667",
+          "subject": "Speed up filling blurred rounded rects"
+        }
+      ]
+    },
+    {
+      "crate": "ratatui-image",
+      "version": "8.1.1",
+      "upstreamRepo": "https://github.com/benjajaja/ratatui-image",
+      "tarballSha256": "3ecc67e9f7d0ac69e0f712f58b1a9d5a04d8daeeb3628f4d6b67580abb88b7cb",
+      "seriesSha8": "049cc268",
+      "mitigates": [],
+      "verificationTargets": ["//packages/core:core_test"],
+      "patches": [
+        {
+          "file": "0001-Feature-gate-the-terminal-capability-query-behind-qu.patch",
+          "sha256": "647394d7a66e4e59320ad3a6cb2050888436d9691d9937807ee8559a05a06471",
+          "subject": "Feature-gate the terminal-capability query behind `query`"
+        }
+      ]
+    },
+    {
+      "crate": "jpeg-encoder",
+      "version": "0.7.0",
+      "upstreamRepo": "https://github.com/vstroebel/jpeg-encoder",
+      "tarballSha256": "0b0b36cbb4e6704f12f5b5d7b01dac593982c6550859ebd5a66fb15c9ea27fd5",
+      "seriesSha8": "999bdd2c",
+      "mitigates": [],
+      "verificationTargets": ["//packages/core:core_test"],
+      "patches": [
+        {
+          "file": "0001-Encode-RGBA-images-with-wasm-SIMD128.patch",
+          "sha256": "1be0b4617702c0d7c202dc2b534398abb0b10108f3c482d58b2feb17db7a7126",
+          "subject": "Encode RGBA images with wasm SIMD128"
+        }
+      ]
+    },
+    {
+      "crate": "lru",
+      "version": "0.12.5",
+      "upstreamRepo": "https://github.com/jeromefroe/lru-rs",
+      "tarballSha256": "234cf4f4a04dc1f57e24b96cc0cd600cf2af460d4161ac5ecdd0af8e1f3b2a38",
+      "seriesSha8": "2859f91c",
+      "mitigates": ["GHSA-rhfx-m35p-ff5j", "RUSTSEC-2026-0002", "RUSTSEC-2026-0253"],
+      "verificationTargets": ["//packages/core:core_test", "//packages/rust-host:host_test"],
+      "patches": [
+        {
+          "file": "0001-Fix-IterMut-Stacked-Borrows-and-panic-safe-LruCache-.patch",
+          "sha256": "2f0ea09aeb8276ae1fe2937a25e27f8e6fd9ee97a68f2931e849e6e38a6c6ecf",
+          "subject": "Fix IterMut Stacked Borrows and panic-safe LruCache::pop"
+        }
+      ]
+    }
+  ],
+  "auxiliaryPatches": [
+    {
+      "path": "bazel/rust/rules_rust-patched-crates.patch",
+      "sha256": "67f52108fe2add0c058f141f4bdaa56b3ab88dbcb912e041d32b6f699fc677ff"
+    },
+    {
+      "path": "bazel/rust/rules_rust-proc-macro-no-strip.patch",
+      "sha256": "221edbd2ba4e2aef2783f5f1ac3500f50ffd0bd40adadbc9c60254a54976fca8"
+    },
+    {
+      "path": "scripts/patches/playwright/0001-parawing-page-fixtures.patch",
+      "sha256": "dae2125c3ce3db8662a51e47cfeac724360c29ad864b0f3c60e608a7f3bf756d"
+    },
+    {
+      "path": "scripts/patches/puppeteer/0001-parawing-connect.patch",
+      "sha256": "364b669f5bdc57079f11a1ba0927e2b461a6ca34e40677bbbf5bda02d2e81d4e"
+    }
+  ],
+  "npmOverrides": [
+    {
+      "package": "esbuild",
+      "selector": "esbuild@>=0.20.0 <0.28.1",
+      "replacement": "^0.28.2",
+      "minSafeVersion": "0.28.1",
+      "mitigates": ["GHSA-g7r4-m6w7-qqqr"]
+    },
+    {
+      "package": "hono",
+      "selector": "hono@>=4.0.0 <4.13.16",
+      "replacement": "^4.13.19",
+      "minSafeVersion": "4.13.16",
+      "mitigates": [
+        "GHSA-3gg2-335m-rxc6",
+        "GHSA-46wx-v44x-9hh2",
+        "GHSA-4h7h-rv7c-7m2v",
+        "GHSA-4m76-xfj5-7975",
+        "GHSA-h7mg-cq63-vhpq"
+      ]
+    },
+    {
+      "package": "sharp",
+      "selector": "sharp@>=0.35.0 <0.35.5",
+      "replacement": "^0.35.5",
+      "minSafeVersion": "0.35.5",
+      "mitigates": []
+    },
+    {
+      "package": "undici",
+      "selector": "undici@>=7.0.0 <7.30.1",
+      "replacement": "^7.30.1",
+      "minSafeVersion": "7.30.1",
+      "mitigates": []
+    },
+    {
+      "package": "zod",
+      "selector": "zod@>=4.0.0 <4.6.6",
+      "replacement": "^4.6.6",
+      "minSafeVersion": "4.6.6",
+      "mitigates": []
+    }
+  ],
+  "waivers": [],
+  "trackedUnmaintained": [
+    {
+      "advisoryId": "RUSTSEC-2024-0436",
+      "package": "paste",
+      "reason": "Proc-macro compile-time token pasting crate used transitively by Servo/Linebender; zero runtime code or known bugs.",
+      "reviewBy": "2027-05-16T00:00:00Z"
+    },
+    {
+      "advisoryId": "RUSTSEC-2026-0206",
+      "package": "rustybuzz",
+      "reason": "Transitive Linebender/usvg text shaper notice while upstream migrates to harfrust; zero known vulnerabilities.",
+      "reviewBy": "2027-05-16T00:00:00Z"
+    },
+    {
+      "advisoryId": "RUSTSEC-2026-0192",
+      "package": "ttf-parser",
+      "reason": "Transitive font parser pulled by rustybuzz/usvg pending upstream harfrust/read-fonts migration; zero known vulnerabilities.",
+      "reviewBy": "2027-05-16T00:00:00Z"
+    },
+    {
+      "advisoryId": "RUSTSEC-2026-0371",
+      "package": "zbus_names",
+      "reason": "Transitive Linux D-Bus Secret Service dependency via keyring 3 sync-secret-service; zero known vulnerabilities.",
+      "reviewBy": "2027-05-16T00:00:00Z"
+    },
+    {
+      "advisoryId": "RUSTSEC-2026-0370",
+      "package": "zvariant",
+      "reason": "Transitive Linux D-Bus Secret Service dependency via keyring 3 sync-secret-service; zero known vulnerabilities.",
+      "reviewBy": "2027-05-16T00:00:00Z"
+    },
+    {
+      "advisoryId": "RUSTSEC-2026-0372",
+      "package": "zvariant_derive",
+      "reason": "Compile-time proc-macro for zvariant via keyring 3 sync-secret-service; zero runtime code or known vulnerabilities.",
+      "reviewBy": "2027-05-16T00:00:00Z"
+    }
+  ]
+}

@@ -5,6 +5,11 @@ load("//bazel:executors.bzl", "RUST")
 load(":wasm32.bzl", "HOSTS", "wasm32_rust")
 load("//bazel:rust_checks.bzl", "rust_comments_test", "rust_lint_tests", "rust_nesting_test")
 
+exports_files([
+    "rules_rust-patched-crates.patch",
+    "rules_rust-proc-macro-no-strip.patch",
+])
+
 constraint_setting(name = "panic")
 constraint_value(name = "unwind", constraint_setting = ":panic")
 

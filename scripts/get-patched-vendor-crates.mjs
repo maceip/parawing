@@ -23,7 +23,7 @@ const REPO_ROOT = resolve(SELF_DIR, "..");
 const PATCH_DIR = resolve(SELF_DIR, "patches");
 const OUT_ROOT = resolve(REPO_ROOT, "packages/core/target/vendor-patched");
 
-const CRATES = [
+const FALLBACK_CRATES = [
   { name: "parley", version: "0.12.0" },
   { name: "parley_engine", version: "0.12.0" },
   { name: "blitz-dom", version: "0.3.0-beta.4" },
@@ -47,6 +47,18 @@ const CRATES = [
   { name: "jpeg-encoder", version: "0.7.0" },
   { name: "lru", version: "0.12.5" },
 ];
+
+function loadConfiguredCrates() {
+  const manifestPath = resolve(REPO_ROOT, "deps/patches-manifest.json");
+  if (!existsSync(manifestPath)) return FALLBACK_CRATES;
+  const parsed = JSON.parse(readFileSync(manifestPath, "utf8"));
+  return (parsed.cargoPatches || []).map((entry) => ({
+    name: entry.crate,
+    version: entry.version,
+  }));
+}
+
+const CRATES = loadConfiguredCrates();
 
 // Keep generated nested-repo commits independent of user/global Git configuration.
 const GIT_ENV = {

@@ -379,6 +379,32 @@ js_library(
     visibility = ["//:__pkg__"],
 )
 
+filegroup(
+    name = "patches_tree",
+    srcs = glob(["patches/**"]),
+    visibility = ["//:__pkg__"],
+)
+
+js_library(
+    name = "deps_lib",
+    srcs = ["generate-sbom.mjs"] + glob(["deps/*.mjs"]),
+    visibility = ["//:__pkg__"],
+)
+
+js_library(
+    name = "deps_check_entry",
+    srcs = ["deps/cli.mjs"],
+    deps = [":deps_lib"],
+    visibility = ["//:__pkg__"],
+)
+
+js_binary(
+    name = "deps",
+    data = [":deps_lib"],
+    entry_point = "deps/cli.mjs",
+    visibility = ["//visibility:public"],
+)
+
 js_library(
     name = "check_no_explicit_any",
     srcs = ["check-no-explicit-any.mjs"],
@@ -397,7 +423,7 @@ js_library(
     visibility = ["//visibility:public"],
 )
 
-_HELPERS_DATA = glob(["*.mjs"]) + [
+_HELPERS_DATA = glob(["*.mjs", "deps/*.mjs"]) + [
     "lint/scope.mjs",
     # wasm-opt.test.mjs compares the JS sha256 pin with the Bazel pin.
     "//:module_bazel",

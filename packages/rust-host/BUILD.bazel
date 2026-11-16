@@ -6,6 +6,7 @@ load("//bazel:checks.bzl", "workspace_configs")
 load("//bazel:rust_checks.bzl", "rust_comments_test", "rust_lint_tests", "rust_nesting_test")
 
 exports_files([
+    "BUILD.bazel",
     "Cargo.lock",
     "Cargo.toml",
 ])
