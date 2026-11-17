@@ -8,6 +8,7 @@ exports_files([
     "VERSION",
     "clippy.toml",
     "package.json",
+    "patches/picomatch@4.0.7.patch",
     "pnpm-workspace.yaml",
     "rustfmt.toml",
 ])
@@ -132,6 +133,7 @@ js_test(
     size = "small",
     data = [
         ".npmrc",
+        "patches/picomatch@4.0.7.patch",
         "pnpm-lock.yaml",
         "pnpm-workspace.yaml",
         ":workspace_configs",
@@ -173,6 +175,7 @@ _DEPS_INPUTS = [
     "MODULE.bazel",
     "VERSION",
     "package.json",
+    "patches/picomatch@4.0.7.patch",
     "pnpm-lock.yaml",
     "//bazel/rust:rules_rust-patched-crates.patch",
     "//bazel/rust:rules_rust-proc-macro-no-strip.patch",
@@ -182,6 +185,7 @@ _DEPS_INPUTS = [
     "//packages/rust-host:BUILD.bazel",
     "//packages/rust-host:Cargo.lock",
     "//packages/rust-host:Cargo.toml",
+    "//scripts:BUILD.bazel",
     "//scripts:deps_lib",
     "//scripts:patches_tree",
     "//scripts/lint/rust-check:Cargo.lock",

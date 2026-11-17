@@ -1,13 +1,13 @@
 {
   "schemaVersion": 1,
   "source": "https://api.osv.dev/v1/querybatch",
-  "inventoryDigest": "b45db12f3831212b772bafc74f35f04344accb6f3a9fbf7921bb365ffe614386",
+  "inventoryDigest": "78834c9c8c0b9431597824619e3d8d4b08d6e019cceda558d7a3d16ae304f292",
   "counts": {
-    "total": 1083,
+    "total": 1082,
     "cargo": 782,
-    "npm": 280,
+    "npm": 279,
     "bazelAndToolchains": 21,
-    "osvQueryable": 1062
+    "osvQueryable": 1061
   },
   "advisories": [
     {
@@ -112,6 +112,19 @@
       "lockfiles": ["packages/parawing-cli/Cargo.lock"],
       "kind": "unmaintained",
       "summary": "`zvariant` is unmaintained",
+      "fixedVersions": []
+    },
+    {
+      "id": "GHSA-fc5q-39xc-vjpf",
+      "aliases": ["CVE-2026-112366"],
+      "packageKey": "npm:picomatch@4.0.7",
+      "ecosystem": "npm",
+      "packageName": "picomatch",
+      "packageVersion": "4.0.7",
+      "purl": "pkg:npm/picomatch@4.0.7",
+      "lockfiles": ["pnpm-lock.yaml"],
+      "kind": "vulnerability",
+      "summary": "picomatch vulnerable to ReDoS through single-branch repeated extglobs",
       "fixedVersions": []
     }
   ]

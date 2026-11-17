@@ -1257,6 +1257,13 @@
       ]
     },
     {
+      "package": "picomatch",
+      "selector": "picomatch@>=4.0.0 <4.0.8",
+      "replacement": "4.0.7",
+      "minSafeVersion": "4.0.7",
+      "mitigates": ["GHSA-fc5q-39xc-vjpf", "CVE-2026-112366"]
+    },
+    {
       "package": "sharp",
       "selector": "sharp@>=0.35.0 <0.35.5",
       "replacement": "^0.35.5",
@@ -1276,6 +1283,17 @@
       "replacement": "^4.6.6",
       "minSafeVersion": "4.6.6",
       "mitigates": []
+    }
+  ],
+  "npmPatches": [
+    {
+      "package": "picomatch",
+      "version": "4.0.7",
+      "path": "patches/picomatch@4.0.7.patch",
+      "sha256": "a6ea5b6c27b40e694014c7eb382b835e5aa699cf873419f6f58a57e8d759064b",
+      "mitigates": ["GHSA-fc5q-39xc-vjpf", "CVE-2026-112366"],
+      "verificationTargets": ["//scripts:helpers_test"],
+      "reason": "Literalize single-branch and mixed-wildcard repeated extglobs (+(*), +(*a), +(?*a)) in lib/parse.js to prevent exponential ReDoS backtracking."
     }
   ],
   "waivers": [],

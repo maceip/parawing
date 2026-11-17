@@ -185,6 +185,33 @@ function verifyNpmOverrides(rootDir, manifestOverrides, inventoryPackages, error
   }
 }
 
+function verifyNpmPatches(rootDir, npmPatches, errors) {
+  const pkgJson = JSON.parse(readFileSync(join(rootDir, "package.json"), "utf8"));
+  const declared = pkgJson?.pnpm?.patchedDependencies || {};
+  const indexed = new Set();
+  for (const entry of npmPatches || []) {
+    const key = `${entry.package}@${entry.version}`;
+    indexed.add(key);
+    if (declared[key] !== entry.path) {
+      errors.push(
+        `package.json pnpm.patchedDependencies[${JSON.stringify(key)}] expected ${JSON.stringify(entry.path)}`,
+      );
+    }
+    verifySinglePatchFile(join(rootDir, entry.path), entry.path, entry.sha256, false, errors);
+    for (const target of entry.verificationTargets || []) {
+      verifyBazelTargetExists(rootDir, target, errors);
+    }
+    if ((entry.mitigates || []).length > 0 && (entry.verificationTargets || []).length === 0) {
+      errors.push(`Security-patched npm package ${key} must declare a verificationTarget`);
+    }
+  }
+  for (const key of Object.keys(declared)) {
+    if (!indexed.has(key)) {
+      errors.push(`Unindexed package.json pnpm.patchedDependencies entry: ${key}`);
+    }
+  }
+}
+
 /** @param {string} rootDir @param {Array<any>} inventoryPackages @returns {{ ok: boolean, errors: string[], summary: Record<string, number> }} */
 export function verifyAllPatchesAndOverrides(rootDir, inventoryPackages) {
   const errors = [];
@@ -209,15 +236,18 @@ export function verifyAllPatchesAndOverrides(rootDir, inventoryPackages) {
     verifySinglePatchFile(join(rootDir, aux.path), aux.path, aux.sha256, false, errors);
   }
   verifyNpmOverrides(rootDir, manifest.npmOverrides, inventoryPackages, errors);
+  verifyNpmPatches(rootDir, manifest.npmPatches, errors);
   const totalPatchFiles =
     manifest.cargoPatches.reduce((acc, e) => acc + e.patches.length, 0) +
-    (manifest.auxiliaryPatches || []).length;
+    (manifest.auxiliaryPatches || []).length +
+    (manifest.npmPatches || []).length;
   return {
     ok: errors.length === 0,
     errors,
     summary: {
       cargoSeries: manifest.cargoPatches.length,
       auxiliaryPatches: (manifest.auxiliaryPatches || []).length,
+      npmPatches: (manifest.npmPatches || []).length,
       totalPatchFiles,
       npmSecurityOverrides: (manifest.npmOverrides || []).length,
     },

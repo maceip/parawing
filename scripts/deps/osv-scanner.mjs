@@ -129,14 +129,32 @@ function buildNormalizedAdvisories(rawPairs, detailsById) {
 }
 
 function findPatchMitigation(advisory, manifest) {
-  if (advisory.ecosystem !== "crates.io") return null;
   const allIds = new Set([advisory.id, ...(advisory.aliases || [])]);
-  for (const entry of manifest.cargoPatches || []) {
-    if (entry.crate !== advisory.packageName || entry.version !== advisory.packageVersion) {
-      continue;
+  if (advisory.ecosystem === "crates.io") {
+    for (const entry of manifest.cargoPatches || []) {
+      if (entry.crate !== advisory.packageName || entry.version !== advisory.packageVersion) {
+        continue;
+      }
+      const matched = (entry.mitigates || []).filter((m) => allIds.has(m));
+      if (matched.length > 0) {
+        return {
+          entry,
+          matched,
+          mitigation: `Patched in scripts/patches/${entry.crate}-${entry.version}`,
+        };
+      }
     }
-    const matched = (entry.mitigates || []).filter((m) => allIds.has(m));
-    if (matched.length > 0) return { entry, matched };
+  }
+  if (advisory.ecosystem === "npm") {
+    for (const entry of manifest.npmPatches || []) {
+      if (entry.package !== advisory.packageName || entry.version !== advisory.packageVersion) {
+        continue;
+      }
+      const matched = (entry.mitigates || []).filter((m) => allIds.has(m));
+      if (matched.length > 0) {
+        return { entry, matched, mitigation: `Patched in ${entry.path}` };
+      }
+    }
   }
   return null;
 }
@@ -166,7 +184,7 @@ export function evaluateAdvisories(advisories, manifest, nowIso = new Date().toI
         ...adv,
         status: "fixed_by_patch",
         vexStatus: "fixed",
-        mitigation: `Patched in scripts/patches/${patchHit.entry.crate}-${patchHit.entry.version}`,
+        mitigation: patchHit.mitigation,
         verificationTargets: patchHit.entry.verificationTargets || [],
       });
       continue;

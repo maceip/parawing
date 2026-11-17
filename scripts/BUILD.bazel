@@ -7,6 +7,8 @@ load("//bazel:executors.bzl", "PW", "WPT", "for_test")
 load("//tests/e2e:defs.bzl", "e2e_shard_name")
 load("//tests/e2e:shards.bzl", "E2E_SHARD_STARTS")
 
+exports_files(["BUILD.bazel"])
+
 js_library(
     name = "wpt_shared",
     srcs = ["wpt-shared.mjs"],

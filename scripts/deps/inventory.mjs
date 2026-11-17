@@ -59,6 +59,11 @@ function collectCargoPackages(rootDir, patchedTarballShas) {
 function collectNpmPackages(rootDir) {
   const lockPath = join(rootDir, "pnpm-lock.yaml");
   if (!existsSync(lockPath)) return [];
+  const pkgJsonPath = join(rootDir, "package.json");
+  const patchedDeps = existsSync(pkgJsonPath)
+    ? Object.keys(JSON.parse(readFileSync(pkgJsonPath, "utf8"))?.pnpm?.patchedDependencies || {})
+    : [];
+  const patchedSet = new Set(patchedDeps);
   const parsed = parsePnpmLock(readFileSync(lockPath, "utf8"));
   const out = [];
   for (const pkg of parsed.packages.values()) {
@@ -69,7 +74,7 @@ function collectNpmPackages(rootDir) {
       version: pkg.version,
       purl: encodeNpmPurl(pkg.name, pkg.version),
       checksum: pkg.checksum ? `${pkg.checksum.algorithm}:${pkg.checksum.checksumValue}` : "",
-      patched: false,
+      patched: patchedSet.has(`${pkg.name}@${pkg.version}`),
       lockfiles: ["pnpm-lock.yaml"],
     });
   }

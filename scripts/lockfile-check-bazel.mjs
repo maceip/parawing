@@ -12,7 +12,12 @@ import { trackedFiles } from "./tracked-files.mjs";
 const root = resolve(import.meta.dirname, "..");
 const temp = process.env.TEST_TMPDIR;
 const work = join(temp, "workspace");
-const manifests = trackedFiles(root, ["package.json", "*/package.json", ":(exclude)vendor/**"]);
+const manifests = trackedFiles(root, [
+  "package.json",
+  "*/package.json",
+  "patches/*.patch",
+  ":(exclude)vendor/**",
+]);
 for (const file of [".npmrc", "pnpm-lock.yaml", "pnpm-workspace.yaml", ...manifests]) {
   mkdirSync(dirname(join(work, file)), { recursive: true });
   copyFileSync(join(root, file), join(work, file));

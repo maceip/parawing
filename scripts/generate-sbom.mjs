@@ -119,6 +119,9 @@ function readPatchManifestMeta(rootDir) {
   for (const entry of parsed.cargoPatches || []) {
     metaMap.set(`${entry.crate}-${entry.version}`, entry);
   }
+  for (const entry of parsed.npmPatches || []) {
+    metaMap.set(`npm:${entry.package}@${entry.version}`, entry);
+  }
   return metaMap;
 }
 
@@ -558,6 +561,18 @@ export function generateSbom({
 
   for (const pkg of pnpmParsed.packages.values()) {
     pkg.spdxId = nextSpdxId(`npm-${pkg.name}-${pkg.version}`);
+    const npmPatch = patchMetaMap.get(`npm:${pkg.name}@${pkg.version}`);
+    const npmComments = ["ecosystem=npm", "lockfile=pnpm-lock.yaml"];
+    if (pkg.importers.size > 0) {
+      npmComments.push(`importers=${[...pkg.importers].sort().join(",")}`);
+    }
+    if (npmPatch) {
+      npmComments.push(`npm_patch=${npmPatch.path}`);
+      npmComments.push(`patch_sha8=${String(npmPatch.sha256 || "").slice(0, 8)}`);
+      if (npmPatch.mitigates?.length > 0) {
+        npmComments.push(`mitigates=${npmPatch.mitigates.join(",")}`);
+      }
+    }
     const entry = {
       name: pkg.name,
       SPDXID: pkg.spdxId,
@@ -574,10 +589,7 @@ export function generateSbom({
           referenceLocator: encodeNpmPurl(pkg.name, pkg.version),
         },
       ],
-      comment:
-        pkg.importers.size > 0
-          ? `ecosystem=npm; lockfile=pnpm-lock.yaml; importers=${[...pkg.importers].sort().join(",")}`
-          : "ecosystem=npm; lockfile=pnpm-lock.yaml",
+      comment: npmComments.join("; "),
     };
     if (pkg.checksum) {
       entry.checksums = [pkg.checksum];

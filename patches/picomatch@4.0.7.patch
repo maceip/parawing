@@ -1,0 +1,160 @@
+diff --git a/lib/parse.js b/lib/parse.js
+index 29207512c60183b4bb9bf5112be3b9b5f4a9a9fd..26204d30c5f457542328235707adb16d67f1aead 100644
+--- a/lib/parse.js
++++ b/lib/parse.js
+@@ -139,6 +139,56 @@ const normalizeSimpleBranch = branch => {
+   return value.replace(/\\(.)/g, '$1');
+ };
+ 
++const hasUnboundedTopLevelStar = branch => {
++  let escaped = false;
++  let bracket = 0;
++  let paren = 0;
++
++  for (let i = 0; i < branch.length; i++) {
++    const ch = branch[i];
++
++    if (escaped === true) {
++      escaped = false;
++      continue;
++    }
++
++    if (ch === '\\') {
++      escaped = true;
++      continue;
++    }
++
++    if (ch === '[') {
++      bracket++;
++      continue;
++    }
++
++    if (ch === ']' && bracket > 0) {
++      bracket--;
++      continue;
++    }
++
++    if (ch === '(') {
++      paren++;
++      continue;
++    }
++
++    if (ch === ')' && paren > 0) {
++      paren--;
++      continue;
++    }
++
++    if (bracket > 0 || paren > 0) {
++      continue;
++    }
++
++    if (ch === '*' && branch[i + 1] !== '(') {
++      return true;
++    }
++  }
++
++  return false;
++};
++
+ const hasRepeatedCharPrefixOverlap = branches => {
+   const values = branches.map(normalizeSimpleBranch).filter(Boolean);
+ 
+@@ -296,14 +346,16 @@ const analyzeRepeatedExtglob = (body, options) => {
+ 
+   const branches = splitTopLevel(body).map(branch => branch.trim());
+ 
+-  if (branches.length > 1) {
+-    if (
+-      branches.some(branch => branch === '') ||
+-      branches.some(branch => /^[*?]+$/.test(branch)) ||
+-      hasRepeatedCharPrefixOverlap(branches)
+-    ) {
+-      return { risky: true };
+-    }
++  if (
++    branches.some(branch => branch === '') ||
++    branches.some(branch => /^[*?]+$/.test(branch)) ||
++    branches.some(hasUnboundedTopLevelStar)
++  ) {
++    return { risky: true };
++  }
++
++  if (branches.length > 1 && hasRepeatedCharPrefixOverlap(branches)) {
++    return { risky: true };
+   }
+ 
+   // A repeated extglob is "risky" (prone to catastrophic backtracking) when a
+@@ -454,6 +506,16 @@ const parse = (input, options) => {
+     consume(token.value);
+   };
+ 
++  const isExtglobOpen = () => {
++    if (opts.noextglob === true || peek() !== '(') return false;
++    if (peek(2) !== '?') return true;
++    return peek(3) !== undefined && !/[!=<:]/.test(peek(3));
++  };
++
++  const afterExtglobOpenParen = () => {
++    return prev.value === '(' && (prev.extglob === true || (prev.prev && prev.prev.type === 'at'));
++  };
++
+   const negate = () => {
+     let count = 1;
+ 
+@@ -1020,12 +1082,12 @@ const parse = (input, options) => {
+ 
+     if (value === '?') {
+       const isGroup = prev && prev.value === '(';
+-      if (!isGroup && opts.noextglob !== true && peek() === '(' && peek(2) !== '?') {
++      if (!isGroup && isExtglobOpen()) {
+         extglobOpen('qmark', value);
+         continue;
+       }
+ 
+-      if (prev && prev.type === 'paren') {
++      if (prev && prev.type === 'paren' && !afterExtglobOpenParen()) {
+         const next = peek();
+         let output = value;
+ 
+@@ -1051,11 +1113,9 @@ const parse = (input, options) => {
+      */
+ 
+     if (value === '!') {
+-      if (opts.noextglob !== true && peek() === '(') {
+-        if (peek(2) !== '?' || !/[!=<:]/.test(peek(3))) {
+-          extglobOpen('negate', value);
+-          continue;
+-        }
++      if (isExtglobOpen()) {
++        extglobOpen('negate', value);
++        continue;
+       }
+ 
+       if (opts.nonegate !== true && state.index === 0) {
+@@ -1069,7 +1129,7 @@ const parse = (input, options) => {
+      */
+ 
+     if (value === '+') {
+-      if (opts.noextglob !== true && peek() === '(' && peek(2) !== '?') {
++      if (isExtglobOpen()) {
+         extglobOpen('plus', value);
+         continue;
+       }
+@@ -1093,7 +1153,7 @@ const parse = (input, options) => {
+      */
+ 
+     if (value === '@') {
+-      if (opts.noextglob !== true && peek() === '(' && peek(2) !== '?') {
++      if (isExtglobOpen()) {
+         push({ type: 'at', extglob: true, value, output: '' });
+         continue;
+       }
+@@ -1137,7 +1197,7 @@ const parse = (input, options) => {
+     }
+ 
+     let rest = remaining();
+-    if (opts.noextglob !== true && /^\([^?]/.test(rest)) {
++    if (rest.length > 1 && isExtglobOpen()) {
+       extglobOpen('star', value);
+       continue;
+     }

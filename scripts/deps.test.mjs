@@ -5,8 +5,9 @@
 import assert from "node:assert/strict";
 import { createServer } from "node:http";
 import { mkdirSync, mkdtempSync, rmSync, writeFileSync } from "node:fs";
+import { createRequire } from "node:module";
 import { tmpdir } from "node:os";
-import { join } from "node:path";
+import { join, resolve } from "node:path";
 import test from "node:test";
 import { extractDependencyInventory } from "./deps/inventory.mjs";
 import { runOptionalLlmTriage } from "./deps/llm-assist.mjs";
@@ -318,4 +319,21 @@ test("embedded and remote LLM triage assistants remain strictly advisory and nev
     llmResult: remote,
   });
   assert.match(md, /Advisory-Only, Never Authoritative/);
+});
+
+test("patched picomatch@4.0.7 neutralizes GHSA-fc5q-39xc-vjpf single-branch repeated extglob ReDoS", () => {
+  const engineReq = createRequire(resolve(import.meta.dirname, "../packages/engine/package.json"));
+  const vitestReq = createRequire(engineReq.resolve("vitest/package.json"));
+  const viteReq = createRequire(vitestReq.resolve("vite/package.json"));
+  const picomatch = viteReq("picomatch");
+
+  for (const pattern of ["+(*)", "+(*a)", "+(a*b)", "+(?*a)", "*(?*a)"]) {
+    const re = picomatch.makeRe(pattern);
+    const start = performance.now();
+    assert.equal(re.test(`${"a".repeat(42)}!`), false);
+    assert.ok(performance.now() - start < 200, `${pattern} backtracked`);
+  }
+  assert.equal(picomatch.isMatch("abcabc", "+(abc)"), true);
+  assert.equal(picomatch.isMatch("foobar", "*(foo|bar)"), true);
+  assert.equal(picomatch.isMatch("ababa", "+(*(a)|*(b))"), true);
 });

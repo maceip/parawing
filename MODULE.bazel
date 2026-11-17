@@ -315,6 +315,7 @@ npm.npm_translate_lock(
     custom_postinstalls = {"pngjs@7.0.0": "true"},
     data = [
         "//:package.json",
+        "//:patches/picomatch@4.0.7.patch",
         "//:pnpm-workspace.yaml",
         "//:packages/core/pkg/package.json",
         "//:packages/deno-host/package.json",
