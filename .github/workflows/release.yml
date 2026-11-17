@@ -66,11 +66,7 @@ jobs:
           if [ -n "$(git status --porcelain VERSION package.json)" ]; then
             git add VERSION package.json
             git commit -s -m "chore(release): bump version to ${TAG} [skip release]"
-            git tag -a "${TAG}" -m "Parawing ${TAG}"
-            git push origin HEAD:main "refs/tags/${TAG}"
-          elif ! git rev-parse -q --verify "refs/tags/${TAG}" >/dev/null; then
-            git tag -a "${TAG}" -m "Parawing ${TAG}"
-            git push origin "refs/tags/${TAG}"
+            git push origin HEAD:main
           fi
 
           {
@@ -105,7 +101,7 @@ jobs:
             target: x86_64-unknown-linux-gnu
           - runner: ubuntu-24.04-arm
             target: aarch64-unknown-linux-gnu
-          - runner: macos-15
+          - runner: macos-latest
             target: aarch64-apple-darwin
     runs-on: ${{ matrix.runner }}
     timeout-minutes: 60
@@ -253,6 +249,7 @@ jobs:
         uses: softprops/action-gh-release@v2
         with:
           tag_name: ${{ needs.prepare.outputs.tag }}
+          target_commitish: ${{ needs.prepare.outputs.commit_sha }}
           name: Parawing ${{ needs.prepare.outputs.tag }}
           draft: false
           prerelease: false
