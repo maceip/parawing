@@ -1,4 +1,4 @@
-load("@aspect_rules_js//js:defs.bzl", "js_library", "js_test")
+load("@aspect_rules_js//js:defs.bzl", "js_library", "js_run_binary", "js_test")
 load("@bazel_lib//lib:copy_to_bin.bzl", "copy_to_bin")
 load("@npm//:defs.bzl", "npm_link_all_packages")
 
@@ -167,32 +167,58 @@ js_test(
     },
 )
 
+_DEPS_INPUTS = [
+    "Cargo.lock",
+    "Cargo.toml",
+    "MODULE.bazel",
+    "VERSION",
+    "package.json",
+    "pnpm-lock.yaml",
+    "//bazel/rust:rules_rust-patched-crates.patch",
+    "//bazel/rust:rules_rust-proc-macro-no-strip.patch",
+    "//packages/core:BUILD.bazel",
+    "//packages/device-authority:Cargo.lock",
+    "//packages/parawing-cli:Cargo.lock",
+    "//packages/rust-host:BUILD.bazel",
+    "//packages/rust-host:Cargo.lock",
+    "//packages/rust-host:Cargo.toml",
+    "//scripts:deps_lib",
+    "//scripts:patches_tree",
+    "//scripts/lint/rust-check:Cargo.lock",
+    "//scripts/memprof-rewriter:Cargo.lock",
+] + glob(["deps/*.json"])
+
 js_test(
     name = "deps_check",
     size = "small",
     args = ["verify"],
     copy_data_to_bin = False,
-    data = [
-        "Cargo.lock",
-        "Cargo.toml",
-        "MODULE.bazel",
-        "VERSION",
-        "package.json",
-        "pnpm-lock.yaml",
-        "//bazel/rust:rules_rust-patched-crates.patch",
-        "//bazel/rust:rules_rust-proc-macro-no-strip.patch",
-        "//packages/core:BUILD.bazel",
-        "//packages/device-authority:Cargo.lock",
-        "//packages/parawing-cli:Cargo.lock",
-        "//packages/rust-host:BUILD.bazel",
-        "//packages/rust-host:Cargo.lock",
-        "//packages/rust-host:Cargo.toml",
-        "//scripts:deps_lib",
-        "//scripts:patches_tree",
-        "//scripts/lint/rust-check:Cargo.lock",
-        "//scripts/memprof-rewriter:Cargo.lock",
-    ] + glob(["deps/*.json"]),
+    data = _DEPS_INPUTS,
     entry_point = "//scripts:deps_check_entry",
+)
+
+js_run_binary(
+    name = "deps_report",
+    srcs = _DEPS_INPUTS,
+    outs = [
+        "parawing.openvex.json",
+        "parawing-deps-report.json",
+        "parawing-deps-report.md",
+    ],
+    args = [
+        "report",
+        "--vex-out",
+        "$(rootpath parawing.openvex.json)",
+        "--json-out",
+        "$(rootpath parawing-deps-report.json)",
+        "--md-out",
+        "$(rootpath parawing-deps-report.md)",
+    ],
+    copy_srcs_to_bin = False,
+    mnemonic = "ParawingDepsReport",
+    progress_message = "Generating deterministic OpenVEX and dependency integrity reports",
+    tool = "//scripts:deps",
+    visibility = ["//visibility:public"],
 )
 
 test_suite(

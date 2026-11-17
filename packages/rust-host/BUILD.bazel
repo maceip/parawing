@@ -68,11 +68,13 @@ rust_test(
     crate_name = "parawing_rust_host",
     crate_root = "src/lib.rs",
     data = [
+        "//bazel:deno",
         "//packages/deno-host:pkg",
         "//packages/engine:rbi_json",
         "//packages/engine:rbi_wasm",
     ],
     edition = "2021",
+    env = {"PARAWING_DENO_BIN": "$(rootpath //bazel:deno)"},
     proc_macro_deps = all_crate_deps(
         proc_macro = True,
         proc_macro_dev = True,

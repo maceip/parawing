@@ -1,0 +1,137 @@
+load("@rules_cc//cc:defs.bzl", "cc_toolchain")
+load("@rules_cc//cc/private/toolchain:unix_cc_toolchain_config.bzl", "cc_toolchain_config")
+
+package(default_visibility = ["//visibility:public"])
+
+exports_files(["credential-helper"])
+
+constraint_setting(name = "executor")
+
+constraint_value(
+    name = "limrun",
+    constraint_setting = ":executor",
+)
+
+_LINUX_EXEC_PROPERTIES = {
+    "OSFamily": "linux",
+    "limrun-toolchains": "jdk-17-21-25-clang18-v2",
+}
+
+_MACOS_EXEC_PROPERTIES = {
+    "OSFamily": "macos",
+}
+
+platform(
+    name = "linux_x86_64",
+    constraint_values = [
+        ":limrun",
+        "@platforms//cpu:x86_64",
+        "@platforms//os:linux",
+    ],
+    exec_properties = _LINUX_EXEC_PROPERTIES,
+)
+
+platform(
+    name = "linux_x86_64_rust",
+    constraint_values = ["//bazel/rust:rust_pool"],
+    exec_properties = _LINUX_EXEC_PROPERTIES,
+    parents = [":linux_x86_64"],
+)
+
+platform(
+    name = "macos_arm64",
+    constraint_values = [
+        ":limrun",
+        "@platforms//cpu:arm64",
+        "@platforms//os:macos",
+    ],
+    exec_properties = _MACOS_EXEC_PROPERTIES,
+)
+
+platform(
+    name = "macos_arm64_rust",
+    constraint_values = ["//bazel/rust:rust_pool"],
+    exec_properties = _MACOS_EXEC_PROPERTIES,
+    parents = [":macos_arm64"],
+)
+
+# Limrun Linux x86_64 workers provide clang 18 and libstdc++-13 at fixed image paths.
+cc_toolchain_config(
+    name = "clang18_config",
+    abi_libc_version = "glibc",
+    abi_version = "clang",
+    compiler = "clang",
+    cpu = "k8",
+    cxx_builtin_include_directories = [
+        "/usr/lib/llvm-18/lib/clang/18/include",
+        "/usr/lib/llvm-18/include",
+        "/usr/lib/clang/18/include",
+        "/usr/local/include",
+        "/usr/include",
+        "/usr/lib/gcc/x86_64-linux-gnu/13",
+        "/usr/bin/../lib/gcc/x86_64-linux-gnu/13",
+    ],
+    host_system_name = "x86_64-unknown-linux-gnu",
+    link_flags = ["-no-canonical-prefixes"],
+    link_libs = [
+        "-lstdc++",
+        "-lm",
+        "-pthread",
+        "-ldl",
+    ],
+    target_libc = "glibc",
+    target_system_name = "x86_64-unknown-linux-gnu",
+    tool_paths = {
+        "ar": "/usr/bin/ar",
+        "cpp": "/usr/bin/clang-cpp",
+        "dwp": "/bin/false",
+        "gcc": "/usr/bin/clang",
+        "gcov": "/bin/false",
+        "ld": "/usr/bin/ld",
+        "llvm-cov": "/bin/false",
+        "nm": "/usr/bin/nm",
+        "objcopy": "/usr/bin/objcopy",
+        "objdump": "/usr/bin/objdump",
+        "strip": "/usr/bin/strip",
+    },
+    toolchain_identifier = "limrun-linux-x86_64-clang18",
+    unfiltered_compile_flags = [
+        "-no-canonical-prefixes",
+        "-Wno-builtin-macro-redefined",
+        '-D__DATE__="redacted"',
+        '-D__TIMESTAMP__="redacted"',
+        '-D__TIME__="redacted"',
+    ],
+)
+
+filegroup(name = "empty")
+
+cc_toolchain(
+    name = "clang18",
+    all_files = ":empty",
+    ar_files = ":empty",
+    as_files = ":empty",
+    compiler_files = ":empty",
+    dwp_files = ":empty",
+    linker_files = ":empty",
+    objcopy_files = ":empty",
+    strip_files = ":empty",
+    supports_param_files = 1,
+    toolchain_config = ":clang18_config",
+    toolchain_identifier = "limrun-linux-x86_64-clang18",
+)
+
+toolchain(
+    name = "cc_toolchain",
+    exec_compatible_with = [
+        ":limrun",
+        "@platforms//cpu:x86_64",
+        "@platforms//os:linux",
+    ],
+    target_compatible_with = [
+        "@platforms//cpu:x86_64",
+        "@platforms//os:linux",
+    ],
+    toolchain = ":clang18",
+    toolchain_type = "@bazel_tools//tools/cpp:toolchain_type",
+)

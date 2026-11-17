@@ -1,12 +1,12 @@
 {
   "schemaVersion": 1,
   "source": "https://api.osv.dev/v1/querybatch",
-  "inventoryDigest": "8be7b9b779e5c84f98709fb8e7bfbd9a5f863ac6346ec48e41335223105bc07b",
+  "inventoryDigest": "b45db12f3831212b772bafc74f35f04344accb6f3a9fbf7921bb365ffe614386",
   "counts": {
-    "total": 1079,
+    "total": 1083,
     "cargo": 782,
     "npm": 280,
-    "bazelAndToolchains": 17,
+    "bazelAndToolchains": 21,
     "osvQueryable": 1062
   },
   "advisories": [

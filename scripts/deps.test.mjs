@@ -240,11 +240,16 @@ test("embedded and remote LLM triage assistants remain strictly advisory and nev
   const dir = mkdtempSync(join(tmpdir(), "parawing-llm-test-"));
   t.after(() => rmSync(dir, { recursive: true, force: true }));
   const binPath = join(dir, "mock-llama-cli");
+  const scriptPath = join(dir, "mock-llama-cli.mjs");
   const modelPath = join(dir, "model.gguf");
   writeFileSync(modelPath, "gguf");
   writeFileSync(
+    scriptPath,
+    `process.stdout.write(JSON.stringify({summary:"Patched in lru",reachability:"parley->lru",recommendedAction:"Keep patch until lru 0.19",candidatePatchPlan:"done"}));\n`,
+  );
+  writeFileSync(
     binPath,
-    `#!/usr/bin/env node\nprocess.stdout.write(JSON.stringify({summary:"Patched in lru",reachability:"parley->lru",recommendedAction:"Keep patch until lru 0.19",candidatePatchPlan:"done"}));\n`,
+    `#!/bin/sh\nexec ${JSON.stringify(process.execPath)} ${JSON.stringify(scriptPath)} "$@"\n`,
     { mode: 0o755 },
   );
 

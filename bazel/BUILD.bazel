@@ -1,6 +1,7 @@
 load("@bazel_lib//lib:copy_file.bzl", "copy_file")
 load("@bazel_lib//lib:copy_to_directory.bzl", "copy_to_directory")
 load("@bazel_skylib//rules:common_settings.bzl", "bool_flag")
+load("//bazel:python.bzl", "exec_py_toolchain")
 
 _HOSTS = ["linux_aarch64", "linux_x86_64", "macos_aarch64"]
 
@@ -12,6 +13,22 @@ copy_file(
     }),
     out = "wasm-bindgen",
     is_executable = True,
+    visibility = ["//visibility:public"],
+)
+
+copy_file(
+    name = "deno",
+    src = select({
+        "//bazel/rust:" + host: "@deno_%s//:deno" % host
+        for host in _HOSTS
+    }),
+    out = "deno-bin",
+    is_executable = True,
+    visibility = ["//visibility:public"],
+)
+
+exec_py_toolchain(
+    name = "exec_py_toolchain",
     visibility = ["//visibility:public"],
 )
 

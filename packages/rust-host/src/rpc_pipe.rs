@@ -1247,13 +1247,37 @@ impl DenoWorkerProcess {
     }
 }
 
+fn resolve_env_deno_path(raw: &str) -> Option<String> {
+    let trimmed = raw.trim();
+    if trimmed.is_empty() {
+        return None;
+    }
+    let direct = std::path::Path::new(trimmed);
+    if direct.exists() {
+        let resolved = direct
+            .canonicalize()
+            .unwrap_or_else(|_| direct.to_path_buf());
+        return Some(resolved.display().to_string());
+    }
+    for var in ["TEST_SRCDIR", "RUNFILES_DIR"] {
+        let Ok(base) = std::env::var(var) else {
+            continue;
+        };
+        let candidate = std::path::PathBuf::from(base).join("_main").join(trimmed);
+        if candidate.exists() {
+            return Some(candidate.display().to_string());
+        }
+    }
+    Some(trimmed.to_string())
+}
+
 pub fn resolve_deno_binary(explicit: Option<&str>) -> String {
     if let Some(bin) = explicit.filter(|s| !s.trim().is_empty()) {
         return bin.to_string();
     }
     if let Ok(env_bin) = std::env::var("PARAWING_DENO_BIN") {
-        if !env_bin.trim().is_empty() {
-            return env_bin;
+        if let Some(resolved) = resolve_env_deno_path(&env_bin) {
+            return resolved;
         }
     }
     if let Ok(home) = std::env::var("HOME") {

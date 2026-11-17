@@ -15,10 +15,25 @@ import { evaluateAdvisories, queryOsvLive, verifyOfflineAdvisoryLock } from "./o
 import { loadPatchesManifest, verifyAllPatchesAndOverrides } from "./patch-verifier.mjs";
 import { buildOpenVexDocument, renderMarkdownReport } from "./reporter.mjs";
 
+function resolveWorkspaceRoot(explicit) {
+  if (explicit) return resolve(explicit);
+  if (process.env.BUILD_WORKSPACE_DIRECTORY) return resolve(process.env.BUILD_WORKSPACE_DIRECTORY);
+  const candidates = [
+    process.cwd(),
+    resolve(process.cwd(), "../../.."),
+    resolve(import.meta.dirname, "../.."),
+  ];
+  for (const dir of candidates) {
+    if (existsSync(join(dir, "deps/patches-manifest.json"))) return dir;
+  }
+  return resolve(import.meta.dirname, "../..");
+}
+
 function parseCliArgs(argv) {
+  let explicitRoot = "";
   const opts = {
     cmd: "verify",
-    rootDir: process.env.BUILD_WORKSPACE_DIRECTORY || resolve(import.meta.dirname, "../.."),
+    rootDir: "",
     online: false,
     llm: "none",
     advisoryId: "",
@@ -30,13 +45,14 @@ function parseCliArgs(argv) {
   for (let i = 0; i < argv.length; i += 1) {
     const arg = argv[i];
     if (arg === "--online") opts.online = true;
-    else if (arg === "--root" && argv[i + 1]) opts.rootDir = resolve(argv[(i += 1)]);
+    else if (arg === "--root" && argv[i + 1]) explicitRoot = argv[(i += 1)];
     else if (arg === "--llm" && argv[i + 1]) opts.llm = argv[(i += 1)];
     else if (arg === "--md-out" && argv[i + 1]) opts.mdOut = resolve(argv[(i += 1)]);
     else if (arg === "--json-out" && argv[i + 1]) opts.jsonOut = resolve(argv[(i += 1)]);
     else if (arg === "--vex-out" && argv[i + 1]) opts.vexOut = resolve(argv[(i += 1)]);
     else positional.push(arg);
   }
+  opts.rootDir = resolveWorkspaceRoot(explicitRoot);
   if (positional[0]) opts.cmd = positional[0];
   if (positional[1]) opts.advisoryId = positional[1];
   return opts;

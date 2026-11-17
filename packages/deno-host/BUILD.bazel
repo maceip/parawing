@@ -89,11 +89,13 @@ node_test(
     data = [
         ":dist",
         ":srcs",
+        "//bazel:deno",
         "//packages/engine:assets",
     ] + glob(
         ["test/**"],
         allow_empty = True,
     ),
+    env = {"PARAWING_DENO_BIN": "$(rootpath //bazel:deno)"},
 )
 
 build_test(

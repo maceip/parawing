@@ -73,6 +73,8 @@ packages/engine/test/e2e/.fixtures-dist/
 /vendor/*
 !/vendor/wasm-memprof/
 
-# Local Bazel flags, read by .bazelrc.
+# Local Bazel flags and Limrun local overrides, read by .bazelrc.
 .bazelrc.user
+.limrun/
+.limrun.env
 .turbo/

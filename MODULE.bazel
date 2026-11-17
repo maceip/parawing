@@ -8,6 +8,7 @@ bazel_dep(name = "bazel_skylib", version = "1.9.0")
 bazel_dep(name = "platforms", version = "1.1.0")
 bazel_dep(name = "rules_cc", version = "0.2.17")
 bazel_dep(name = "rules_nodejs", version = "6.7.7")
+bazel_dep(name = "rules_python", version = "1.7.0")
 bazel_dep(name = "rules_rust", version = "0.74.0")
 bazel_dep(name = "rules_shell", version = "0.6.1")
 
@@ -258,7 +259,8 @@ crate.annotation(
     ],
 )
 crate.annotation(
-    build_script_env = {"PYTHON3": "/usr/bin/python3"},
+    build_script_env = {"PYTHON3": "$(PYTHON3)"},
+    build_script_toolchains = ["//bazel:exec_py_toolchain"],
     crate = "stylo",
     repositories = ["crates"],
 )
@@ -299,9 +301,18 @@ wasm_std_repo(
 node = use_extension("@rules_nodejs//nodejs:extensions.bzl", "node")
 node.toolchain(node_version = "24.22.1")
 
+python = use_extension("@rules_python//python/extensions:python.bzl", "python")
+python.toolchain(
+    ignore_root_user_error = True,
+    python_version = "3.12",
+)
+
 npm = use_extension("@aspect_rules_js//npm:extensions.bzl", "npm")
 npm.npm_translate_lock(
     name = "npm",
+    # pngjs@7.0.0 ships tarball directories with mode 0666 (missing +x), which fails non-root RBE
+    # directory reads under NpmPackageExtract; custom_postinstall routes through npm_import's chmod a+X.
+    custom_postinstalls = {"pngjs@7.0.0": "true"},
     data = [
         "//:package.json",
         "//:pnpm-workspace.yaml",
@@ -418,6 +429,33 @@ http_archive(
     ),
 )
 http_archive(
+    name = "deno_linux_x86_64",
+    build_file_content = 'exports_files(["deno"])',
+    sha256 = "e890975bc2549807bbcc0b584ffafda72cc7c93349dd99c80483dd784f6c4609",
+    url = (
+        "https://github.com/denoland/deno/releases/download/v2.9.8/" +
+        "deno-x86_64-unknown-linux-gnu.zip"
+    ),
+)
+http_archive(
+    name = "deno_linux_aarch64",
+    build_file_content = 'exports_files(["deno"])',
+    sha256 = "d49596c20b9788cf8f5d8ddf644103d4bde56ed239753f0bdb92ba9361d51905",
+    url = (
+        "https://github.com/denoland/deno/releases/download/v2.9.8/" +
+        "deno-aarch64-unknown-linux-gnu.zip"
+    ),
+)
+http_archive(
+    name = "deno_macos_aarch64",
+    build_file_content = 'exports_files(["deno"])',
+    sha256 = "9f0bf660393da2eaff044cdc7444cb08c73f235849b61d224d825a194ce7c98e",
+    url = (
+        "https://github.com/denoland/deno/releases/download/v2.9.8/" +
+        "deno-aarch64-apple-darwin.zip"
+    ),
+)
+http_archive(
     name = "pyyaml",
     build_file_content = """filegroup(
     name = "yaml",
@@ -518,52 +556,7 @@ wpt_editing(
     script = "//packages/dom-shim:scripts/editing-implementation.mjs",
 )
 
-# Root modules may provide typed string maps for these profiles; empty maps run locally.
+# Root modules may provide typed string maps for these profiles; empty maps keep Limrun and local
+# platform exec_properties unpolluted by retired bazelflare pool tags.
 executor_profiles = use_extension("//bazel:executor_profiles.bzl", "executor_profiles")
 use_repo(executor_profiles, "parawing_executor_profiles")
-
-# bazelflare's pools for these profiles (--config=bazelflare), by the names of the images its
-# deployment declares; dev-only, so a module that wraps this one keeps its own.
-bazelflare_profiles = use_extension(
-    "//bazel:executor_profiles.bzl",
-    "executor_profiles",
-    dev_dependency = True,
-)
-bazelflare_profiles.profile(
-    name = "rust",
-    exec_properties = {
-        "idle-ms": "120000",
-        "instance": "standard-4",
-        "max-vcpu": "400",
-        "slots": "2",
-    },
-)
-bazelflare_profiles.profile(
-    name = "e2e",
-    exec_properties = {
-        "idle-ms": "60000",
-        "instance": "standard-4",
-        "max-vcpu": "200",
-        "slots": "1",
-    },
-)
-bazelflare_profiles.profile(
-    name = "wpt",
-    exec_properties = {
-        "container-image": "wpt-6efb1b12",  # bakes tests/wpt-revision.json's corpus at /opt/wpt
-        "idle-ms": "60000",
-        "instance": "standard-4",
-        "max-vcpu": "1000",
-        "slots": "1",
-    },
-)
-bazelflare_profiles.profile(
-    name = "pw",
-    exec_properties = {
-        "container-image": "playwright-1.62.0",  # bakes scripts/pw-setup.mjs's PW_TAG at /opt/playwright
-        "idle-ms": "60000",
-        "instance": "standard-4",
-        "max-vcpu": "200",
-        "slots": "1",
-    },
-)

@@ -46,4 +46,40 @@ common:bazelflare --action_env=PARAWING_WPT_DIR=/opt/wpt
 # Stage the prebuilt Chrome DevTools frontend (about 250 MB to download once) into the engine assets
 # at /inspector/. `pnpm run dev` takes it from `common --config=devtools` in .bazelrc.user.
 common:devtools --//packages/engine:bundle_devtools
+# Limrun remote execution + shared remote cache + BES (Linux x86_64 and macOS arm64 worker pools).
+common:limrun_base --remote_instance_name=org_01m7ger979f4b98sesd3w802kv
+common:limrun_base --credential_helper=buildplane.us-east1.limrun.net=%workspace%/bazel/limrun/credential-helper
+common:limrun_base --bes_backend=grpcs://buildplane.us-east1.limrun.net:4443
+common:limrun_base --bes_upload_mode=nowait_for_upload_complete
+common:limrun_base --bes_timeout=60s
+common:limrun_base --remote_timeout=600
+common:limrun_base --remote_cache_compression
+common:limrun_base --grpc_keepalive_time=30s --grpc_keepalive_timeout=20s
+common:limrun --config=limrun_base
+common:limrun --remote_executor=grpcs://buildplane.us-east1.limrun.net:4443
+common:limrun --jobs=100
+build:limrun --spawn_strategy=remote
+build:limrun --remote_local_fallback=false
+build:limrun --strategy=Genrule=remote
+build:limrun --platforms=//bazel/limrun:linux_x86_64
+build:limrun --extra_execution_platforms=//bazel/limrun:linux_x86_64,//bazel/limrun:linux_x86_64_rust
+build:limrun --extra_toolchains=//bazel/limrun:cc_toolchain
+build:limrun --modify_execution_info=.*=-no-remote,.*=-no-remote-exec
+build:limrun --remote_download_outputs=toplevel
+build:limrun --action_env=PATH=/usr/local/sbin:/usr/local/bin:/usr/sbin:/usr/bin:/sbin:/bin
+common:limrun_macos --config=limrun_base
+common:limrun_macos --remote_executor=grpcs://buildplane.us-east1.limrun.net:4443
+common:limrun_macos --jobs=64
+build:limrun_macos --spawn_strategy=remote
+build:limrun_macos --remote_local_fallback=false
+build:limrun_macos --strategy=Genrule=remote
+build:limrun_macos --platforms=//bazel/limrun:macos_arm64
+build:limrun_macos --extra_execution_platforms=//bazel/limrun:macos_arm64,//bazel/limrun:macos_arm64_rust
+build:limrun_macos --modify_execution_info=.*=-no-remote,.*=-no-remote-exec
+build:limrun_macos --remote_download_outputs=toplevel
+build:limrun_macos --action_env=PATH=/usr/bin:/bin:/usr/sbin:/sbin
+common:limrun_cache --config=limrun_base
+common:limrun_cache --remote_cache=grpcs://buildplane.us-east1.limrun.net:4443
+build:limrun_cache --remote_upload_local_results=true
+build:limrun_cache --remote_download_outputs=toplevel
 try-import %workspace%/.bazelrc.user

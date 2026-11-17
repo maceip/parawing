@@ -21,7 +21,7 @@ test(
   "engine preparation and serving retain the embedding host's config and binary imports",
   { timeout: ENGINE_TEST_TIMEOUT_MS },
   async (t) => {
-    const root = mkdtempSync(join(tmpdir(), "parawing-host-dist-"));
+    const root = mkdtempSync(join(process.env.TEST_TMPDIR || tmpdir(), "parawing-host-dist-"));
     const config = join(root, "wrangler.jsonc");
     const dist = join(root, "dist");
     let child;
@@ -38,6 +38,7 @@ test(
       }
       rmSync(root, { recursive: true, force: true });
     });
+    writeFileSync(join(root, "package.json"), '{"private":true}\n');
     writeFileSync(join(root, "data.bin"), new Uint8Array([1, 2, 3]));
     writeFileSync(
       join(root, "index.js"),

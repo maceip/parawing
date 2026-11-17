@@ -6,6 +6,7 @@
 
 import { spawn, type ChildProcessByStdio } from "node:child_process";
 import { existsSync } from "node:fs";
+import { resolve } from "node:path";
 import { Writable, Readable } from "node:stream";
 import { createRpcSession, markRpcTarget, type RpcSession } from "@parawing/rpc-transport";
 import type { HostCapabilities } from "@parawing/engine/host-capabilities";
@@ -44,7 +45,23 @@ const BOOTSTRAP_DATA_URL = `data:text/javascript;base64,${Buffer.from(
 export function resolveDenoBinary(explicit?: string): string {
   if (explicit && explicit.trim().length > 0) return explicit;
   const fromEnv = process.env["PARAWING_DENO_BIN"];
-  if (fromEnv && fromEnv.trim().length > 0) return fromEnv;
+  if (fromEnv && fromEnv.trim().length > 0) {
+    if (existsSync(fromEnv)) return resolve(fromEnv);
+    const execroot = process.env["JS_BINARY__EXECROOT"];
+    const bindir = process.env["JS_BINARY__BINDIR"];
+    if (execroot && bindir) {
+      const binCandidate = resolve(execroot, bindir, fromEnv);
+      if (existsSync(binCandidate)) return binCandidate;
+    }
+    const upTwo = resolve(process.cwd(), "../..", fromEnv);
+    if (existsSync(upTwo)) return upTwo;
+    const runfiles = process.env["TEST_SRCDIR"] ?? process.env["RUNFILES_DIR"];
+    if (runfiles) {
+      const candidate = resolve(runfiles, "_main", fromEnv);
+      if (existsSync(candidate)) return candidate;
+    }
+    return fromEnv;
+  }
   const home = process.env["HOME"];
   if (home) {
     const userDeno = `${home}/.deno/bin/deno`;

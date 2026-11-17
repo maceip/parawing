@@ -24,10 +24,10 @@ function fixture(t) {
   writeFileSync(join(root, "Cargo.toml"), manifest);
   writeFileSync(join(root, "Cargo.lock"), lock);
   // Model a registry whose newest compatible release is not the patched version.
+  const cargoMjs = join(root, "bin/cargo.mjs");
   writeFileSync(
-    join(root, "bin/cargo"),
-    `#!/usr/bin/env node
-import { mkdirSync } from "node:fs";
+    cargoMjs,
+    `import { mkdirSync } from "node:fs";
 import { join } from "node:path";
 if (process.env.FAIL_CARGO) process.exit(23);
 const args = process.argv.slice(2);
@@ -35,6 +35,10 @@ const spec = args[0] === "fetch" ? "taffy@0.15.1" : args.at(-1);
 const [name, version] = spec.split("@");
 mkdirSync(join(process.env.CARGO_HOME, "registry/src/index.crates.io-fixture", name + "-" + version), { recursive: true });
 `,
+  );
+  writeFileSync(
+    join(root, "bin/cargo"),
+    `#!/bin/sh\nexec ${JSON.stringify(process.execPath)} ${JSON.stringify(cargoMjs)} "$@"\n`,
     { mode: 0o755 },
   );
   const env = {

@@ -95,6 +95,10 @@ runs:
           echo "common --repository_cache=$HOME/.cache/bazel-repo"
           echo "build --disk_cache=$HOME/.cache/bazel-disk"
         } >> .bazelrc.user
+        if [ -n "${LIM_API_KEY:-}" ]; then
+          npm install -g lim@0.57.3
+          echo "common --config=${LIMRUN_BAZEL_CONFIG:-limrun_cache}" >> .bazelrc.user
+        fi
     # Restore only: the job saves at its end, from main only (see ci.yml).
     - if: inputs.bazel-cache == 'true'
       id: bazel-cache
