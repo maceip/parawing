@@ -1,0 +1,38 @@
+{
+  "manifest_version": 3,
+  "name": "Parawing × Vivari Co-Browser",
+  "version": "0.1.10",
+  "description": "Runs the Parawing KSC2 client inside Vivari's in-browser Node.js VM against a DigitalOcean parawing-rust-host server.",
+  "minimum_chrome_version": "116",
+  "permissions": ["sidePanel", "storage", "activeTab", "tabs"],
+  "host_permissions": ["http://*/*", "https://*/*"],
+  "cross_origin_opener_policy": {
+    "value": "same-origin"
+  },
+  "cross_origin_embedder_policy": {
+    "value": "require-corp"
+  },
+  "content_security_policy": {
+    "extension_pages": "script-src 'self' 'wasm-unsafe-eval'; object-src 'self';"
+  },
+  "background": {
+    "service_worker": "background.js",
+    "type": "module"
+  },
+  "action": {
+    "default_title": "Open Parawing × Vivari Workbench",
+    "default_icon": {
+      "16": "icons/icon16.png",
+      "48": "icons/icon48.png",
+      "128": "icons/icon128.png"
+    }
+  },
+  "side_panel": {
+    "default_path": "workbench.html"
+  },
+  "icons": {
+    "16": "icons/icon16.png",
+    "48": "icons/icon48.png",
+    "128": "icons/icon128.png"
+  }
+}

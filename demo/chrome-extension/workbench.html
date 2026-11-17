@@ -1,0 +1,172 @@
+<!--
+Copyright (c) 2026 Cloudflare, Inc.
+Licensed under the Apache 2.0 license found in the LICENSE file or at:
+https://opensource.org/licenses/Apache-2.0
+-->
+
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>Parawing × Vivari Co-Browser</title>
+    <link rel="stylesheet" href="./workbench.css" />
+  </head>
+  <body>
+    <header class="topbar">
+      <div class="brand">
+        <img src="./icons/icon48.png" alt="Parawing" class="brand-icon" />
+        <span class="brand-title">Parawing × Vivari</span>
+        <span id="conn-badge" class="status-pill" data-state="connecting">Booting</span>
+      </div>
+      <form id="endpoint-form" class="endpoint-bar">
+        <label for="droplet-origin" class="sr-only">DigitalOcean Droplet Origin</label>
+        <input
+          id="droplet-origin"
+          type="url"
+          required
+          spellcheck="false"
+          value="https://167-99-170-67.sslip.io"
+          aria-label="DigitalOcean Droplet HTTPS Origin"
+        />
+        <button id="connect-btn" type="submit">Reconnect</button>
+        <button id="active-tab-btn" type="button">Co-Browse Active Tab</button>
+        <button id="welcome-btn" type="button">Welcome Scene</button>
+      </form>
+    </header>
+
+    <main id="workbench-grid" class="workbench">
+      <aside id="left-pane" class="pane left-pane" aria-label="Session Controls">
+        <section class="panel-block">
+          <div class="section-heading">
+            <h2>Remote Navigation</h2>
+            <span id="page-title" class="muted-meta">Idle</span>
+          </div>
+          <form id="nav-form" class="stack-form">
+            <input
+              id="nav-url"
+              type="url"
+              required
+              spellcheck="false"
+              value="https://example.com"
+              aria-label="Target URL"
+            />
+            <button id="nav-btn" type="submit">Navigate Droplet Target</button>
+          </form>
+        </section>
+
+        <section class="panel-block">
+          <div class="section-heading">
+            <h2>Deno V8 Sub-Isolate Eval</h2>
+            <span id="eval-output" class="muted-meta">Ready</span>
+          </div>
+          <form id="eval-form" class="stack-form">
+            <textarea id="eval-expr" rows="4" spellcheck="false" aria-label="JavaScript Expression">
+(() => {
+  __state.ticks = (__state.ticks || 0) + 1;
+  const el = document.getElementById('counter-box') || document.querySelector('h1');
+  if (el) el.textContent = 'ticks: ' + __state.ticks;
+  return { ticks: __state.ticks };
+})()</textarea>
+            <button id="eval-btn" type="submit">Run in Droplet Isolate</button>
+          </form>
+        </section>
+
+        <section class="panel-block">
+          <div class="section-heading">
+            <h2>Capsule Continuity (CRIU)</h2>
+            <span id="lease-badge" class="muted-meta">Unattested</span>
+          </div>
+          <div class="button-row">
+            <button id="attest-btn" type="button">Attest &amp; Lease</button>
+            <button id="freeze-btn" type="button">Freeze</button>
+            <button id="thaw-btn" type="button" disabled>Thaw</button>
+          </div>
+          <div id="continuity-readout" class="mono-readout">No checkpoint sealed yet.</div>
+        </section>
+
+        <section class="panel-block">
+          <div class="section-heading">
+            <h2>Live Substrate Telemetry</h2>
+          </div>
+          <dl class="telemetry-list">
+            <div>
+              <dt>Vivari Guest</dt>
+              <dd id="metric-vivari">starting…</dd>
+            </div>
+            <div>
+              <dt>Droplet Host</dt>
+              <dd id="metric-host">—</dd>
+            </div>
+            <div>
+              <dt>Capsule SHA</dt>
+              <dd id="metric-capsule">—</dd>
+            </div>
+            <div>
+              <dt>KSC2 Frames</dt>
+              <dd id="metric-frames">0</dd>
+            </div>
+            <div>
+              <dt>Wire Bytes</dt>
+              <dd id="metric-bytes">0 B</dd>
+            </div>
+            <div>
+              <dt>Wasm Tiles</dt>
+              <dd id="metric-tiles">0</dd>
+            </div>
+          </dl>
+        </section>
+      </aside>
+
+      <div
+        id="splitter-left"
+        class="splitter"
+        role="separator"
+        aria-orientation="vertical"
+        aria-label="Resize controls pane"
+        tabindex="0"
+      ></div>
+
+      <section class="pane center-pane" aria-label="Client Scene Viewport">
+        <div class="action-rail">
+          <span id="viewport-url" class="mono-truncate">parawing://welcome</span>
+          <span id="hit-readout" class="muted-meta"
+            >Click canvas to hit-test in scene_host.wasm</span
+          >
+        </div>
+        <div class="canvas-stage">
+          <canvas id="viewport-canvas" width="880" height="560"></canvas>
+        </div>
+      </section>
+
+      <div
+        id="splitter-right"
+        class="splitter"
+        role="separator"
+        aria-orientation="vertical"
+        aria-label="Resize inspector pane"
+        tabindex="0"
+      ></div>
+
+      <aside id="right-pane" class="pane right-pane" aria-label="Vivari Runtime Inspector">
+        <div class="action-rail">
+          <span>Vivari In-Browser Node VM</span>
+          <span id="vivari-pid" class="muted-meta">PID —</span>
+        </div>
+        <iframe
+          id="vivari-frame"
+          class="vivari-frame"
+          title="Vivari Cross-Origin Isolated Kernel"
+          allow="cross-origin-isolated; clipboard-read; clipboard-write"
+        ></iframe>
+        <div class="section-heading log-header">
+          <h2>Event &amp; Stdout Stream</h2>
+          <button id="clear-log-btn" type="button" class="ghost-btn">Clear</button>
+        </div>
+        <pre id="event-log" class="event-log" aria-live="polite"></pre>
+      </aside>
+    </main>
+
+    <script type="module" src="./workbench.js"></script>
+  </body>
+</html>
