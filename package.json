@@ -35,6 +35,7 @@
     "deps:triage": "bazel run //scripts:deps -- triage",
     "deps:limrun": "bazel test --config=limrun //:deps_check //scripts:helpers_test && bazel build --config=limrun //:deps_report",
     "hydrate:limrun": "bash bazel/limrun/sandbox-hydrate.sh",
+    "pages:build": "bazel run //scripts:build_security_pages",
     "check": "bazel test //:check && bazel run //scripts:workspace_checks",
     "check:limrun": "bazel test --config=limrun //:check",
     "types:lint": "tsc -p scripts/lint/tsconfig.json",

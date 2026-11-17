@@ -407,6 +407,13 @@ js_binary(
     visibility = ["//visibility:public"],
 )
 
+js_binary(
+    name = "build_security_pages",
+    data = [":deps_lib"],
+    entry_point = "build-security-pages.mjs",
+    visibility = ["//visibility:public"],
+)
+
 js_library(
     name = "check_no_explicit_any",
     srcs = ["check-no-explicit-any.mjs"],
