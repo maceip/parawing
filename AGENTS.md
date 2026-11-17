@@ -156,7 +156,7 @@ pnpm run test:puppeteer --filter <substring>           # after pnpm run pptr:set
 Use an explicit `PARAWING_PORT` or `--port` when other engines may be running, and stop only the
 engine processes you started.
 
-- **Deploying:** Agents never push or deploy.
+- **Deploying:** Always `git push` committed work immediately; only run Cloudflare `pnpm run deploy` when asked.
 - **Tracing:** send a `traceparent` header (or a bare trace id in it) with `pnpm dev:tracing` running.
 - **WPT:** `test:wpt` starts, health-checks and stops its own engines every `--batch-size` tests.
   It refuses to start if a port in its range is taken. `-j N` runs N engines and uses ports
@@ -170,14 +170,14 @@ engine processes you started.
 
 ### Branches and commits
 
-- Branch from an up-to-date `origin/main` before the first edit; never commit on `main`.
+- Pull/rebase from an up-to-date `origin/main` before editing, commit continuously in small atomic commits, and push immediately (`git push`).
 - Read `git log --oneline` first. Use a one-line imperative summary of about 70 characters, and a
   body that explains why.
 - Keep commits atomic: one reason per commit. Squash work-in-progress commits before review.
 - Sign off every commit (`git commit -s`); see [CONTRIBUTING.md](CONTRIBUTING.md).
 - Do not commit plans, findings, inventories or scratch reproductions. `PLAN.md`, `TODO.md` and
   `FINDINGS.md` are gitignored for that purpose. Keep durable findings as a code comment.
-- Agents do not push; leave that to the person they work for.
+- Always push committed changes to `origin` immediately; never leave dangling local commits or diffs.
 
 ### Code style
 
