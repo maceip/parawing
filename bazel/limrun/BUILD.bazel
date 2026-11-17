@@ -3,7 +3,10 @@ load("@rules_cc//cc/private/toolchain:unix_cc_toolchain_config.bzl", "cc_toolcha
 
 package(default_visibility = ["//visibility:public"])
 
-exports_files(["credential-helper"])
+exports_files([
+    "credential-helper",
+    "sandbox-hydrate.sh",
+])
 
 constraint_setting(name = "executor")
 
