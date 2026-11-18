@@ -135,9 +135,10 @@ textarea {
 
 input:focus,
 textarea:focus,
+button:focus,
 button:focus-visible {
-  outline: 1px solid var(--accent);
-  outline-offset: 0;
+  outline: 2px solid #fbbf24;
+  outline-offset: 1px;
 }
 
 button {
@@ -154,7 +155,8 @@ button {
   transition: opacity 150ms ease-out;
 }
 
-button[type="submit"] {
+button[type="submit"],
+.primary-btn {
   background: var(--accent);
   border-color: var(--accent);
   color: #082f49;
@@ -242,6 +244,13 @@ button:disabled {
 .button-row {
   display: grid;
   grid-template-columns: 1.3fr 1fr 1fr;
+  gap: 6px;
+  margin-bottom: 6px;
+}
+
+.handoff-row {
+  display: grid;
+  grid-template-columns: 1fr 1.15fr;
   gap: 6px;
   margin-bottom: 6px;
 }

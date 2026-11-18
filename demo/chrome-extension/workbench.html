@@ -39,6 +39,20 @@ https://opensource.org/licenses/Apache-2.0
       <aside id="left-pane" class="pane left-pane" aria-label="Session Controls">
         <section class="panel-block">
           <div class="section-heading">
+            <h2>Agent Handoff (Epoch)</h2>
+            <span id="epoch-badge" class="status-pill" data-state="connecting">Epoch —</span>
+          </div>
+          <div class="handoff-row">
+            <button id="take-control-btn" type="button" class="primary-btn" disabled>
+              Take Control
+            </button>
+            <button id="handback-btn" type="button" disabled>Hand Off to Agent</button>
+          </div>
+          <div id="epoch-readout" class="mono-readout">Awaiting epoch lease…</div>
+        </section>
+
+        <section class="panel-block">
+          <div class="section-heading">
             <h2>Remote Navigation</h2>
             <span id="page-title" class="muted-meta">Idle</span>
           </div>
@@ -61,11 +75,10 @@ https://opensource.org/licenses/Apache-2.0
             <span id="eval-output" class="muted-meta">Ready</span>
           </div>
           <form id="eval-form" class="stack-form">
-            <textarea id="eval-expr" rows="4" spellcheck="false" aria-label="JavaScript Expression">
+            <textarea id="eval-expr" rows="3" spellcheck="false" aria-label="JavaScript Expression">
 (() => {
   __state.ticks = (__state.ticks || 0) + 1;
-  const el = document.getElementById('counter-box') || document.querySelector('h1');
-  if (el) el.textContent = 'ticks: ' + __state.ticks;
+  document.getElementById('counter-box').textContent = 'ticks: ' + __state.ticks;
   return { ticks: __state.ticks };
 })()</textarea>
             <button id="eval-btn" type="submit">Run in Droplet Isolate</button>

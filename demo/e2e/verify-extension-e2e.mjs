@@ -187,7 +187,37 @@ async function main() {
     );
     assert.ok(initialMetrics.slateOrCardPixels > 1000);
 
-    // 5. Exercise Deno V8 sub-isolate JS evaluation twice on the DigitalOcean droplet.
+    // 5. Exercise Agent Handoff (`#handback-btn` -> StaleEpochFenced -> `#take-control-btn`)
+    //    and Deno V8 sub-isolate JS evaluation on the DigitalOcean droplet.
+    const initialEpochText = await page.$eval("#epoch-badge", (el) => el.textContent || "");
+    assert.match(initialEpochText, /^Epoch \d+ · human-vivari$/);
+
+    await page.click("#handback-btn");
+    await page.waitForFunction(
+      () => {
+        const badge = document.getElementById("epoch-badge")?.textContent || "";
+        const takeBtn = document.getElementById("take-control-btn");
+        return badge.endsWith("· agent-alpha") && Boolean(takeBtn && !takeBtn.disabled);
+      },
+      { timeout: 15_000 },
+    );
+
+    await page.click("#eval-btn");
+    await page.waitForFunction(
+      () => (document.getElementById("eval-output")?.textContent || "").includes("epoch fenced"),
+      { timeout: 15_000 },
+    );
+
+    await page.click("#take-control-btn");
+    await page.waitForFunction(
+      () => {
+        const badge = document.getElementById("epoch-badge")?.textContent || "";
+        const handbackBtn = document.getElementById("handback-btn");
+        return badge.endsWith("· human-vivari") && Boolean(handbackBtn && !handbackBtn.disabled);
+      },
+      { timeout: 15_000 },
+    );
+
     await page.click("#eval-btn");
     await page.waitForFunction(
       () => document.getElementById("eval-output")?.textContent === '{"ticks":1}',

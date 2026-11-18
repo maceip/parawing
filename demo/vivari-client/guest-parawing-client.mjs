@@ -15,6 +15,8 @@ import readline from "node:readline";
 const HOST = process.env.PARAWING_HOST || "host.vivari.internal";
 const PORT = Number(process.env.PARAWING_PORT || "8788");
 const TARGET_ID = process.env.PARAWING_TARGET_ID || "vivari-co-browser";
+const SELF_NODE_ID = process.env.PARAWING_NODE_ID || "human-vivari";
+const JOIN_EXISTING = process.env.PARAWING_JOIN === "1";
 
 const OP_V2_INGEST_FRAME = 20;
 const OP_V2_COMPOSITE = 21;
@@ -361,10 +363,11 @@ async function main() {
   } = await SceneHostClientWasm.load("/parawing/scene_host.wasm");
   emit("wasmReady", { wasmSha256, wasmBytes });
 
-  const [health, versionInfo, capsuleManifest] = await Promise.all([
+  const [health, versionInfo, capsuleManifest, initialEpoch] = await Promise.all([
     httpGetJson("/health"),
     httpGetJson("/json/version"),
     httpGetJson("/capsule/manifest"),
+    httpGetJson("/roam/epoch"),
   ]);
   emit("dropletConnected", {
     health: health.text,
@@ -373,8 +376,28 @@ async function main() {
     criuEnabled: capsuleManifest.criuEnabled,
   });
 
-  const cdpWs = await NetWebSocket.connect(HOST, PORT, `/devtools/page/${TARGET_ID}`);
-  const viewerWs = await NetWebSocket.connect(HOST, PORT, `/viewer/${TARGET_ID}`);
+  async function transferOwnershipViaControlSocket(newOwner) {
+    const ctrlWs = await NetWebSocket.connect(HOST, PORT, `/devtools/page/${TARGET_ID}`);
+    try {
+      return await new Promise((resolvePromise, reject) => {
+        const timer = setTimeout(() => {
+          reject(new Error("CDP timeout on Parawing.transferOwnership"));
+        }, 10_000);
+        ctrlWs.handlers.text = (raw) => {
+          const msg = JSON.parse(raw);
+          if (msg.id !== 1) return;
+          clearTimeout(timer);
+          if (msg.error) reject(new Error(msg.error.message || JSON.stringify(msg.error)));
+          else resolvePromise(msg.result);
+        };
+        ctrlWs.sendText(
+          JSON.stringify({ id: 1, method: "Parawing.transferOwnership", params: { newOwner } }),
+        );
+      });
+    } finally {
+      ctrlWs.close();
+    }
+  }
 
   let nextRpcId = 1;
   const pendingRpc = new Map();
@@ -382,15 +405,52 @@ async function main() {
   let lastFrozenBundle = null;
   let totalFrames = 0;
   let totalWireBytes = 0;
+  let cdpWs = null;
+  let lastEpochKey = "";
 
-  cdpWs.handlers.text = (raw) => {
-    const msg = JSON.parse(raw);
-    const waiter = pendingRpc.get(msg.id);
-    if (!waiter) return;
-    pendingRpc.delete(msg.id);
-    if (msg.error) waiter.reject(new Error(msg.error.message || JSON.stringify(msg.error)));
-    else waiter.resolve(msg.result);
-  };
+  function recordAndEmitEpoch(type, lease, extra = {}) {
+    const viewers = Array.isArray(lease.viewerNodes) ? lease.viewerNodes : [];
+    const key = `${lease.epoch}:${lease.ownerNodeId}:${viewers.join(",")}`;
+    lastEpochKey = key;
+    emit(type, {
+      epoch: lease.epoch,
+      ownerNodeId: lease.ownerNodeId,
+      viewerNodes: viewers,
+      selfNodeId: SELF_NODE_ID,
+      ...extra,
+    });
+  }
+
+  async function connectPinnedCdpWs(epoch, nodeId) {
+    if (cdpWs) {
+      try {
+        cdpWs.close();
+      } catch {}
+    }
+    const query = `?epoch=${epoch}&nodeId=${encodeURIComponent(nodeId)}`;
+    const nextWs = await NetWebSocket.connect(HOST, PORT, `/devtools/page/${TARGET_ID}${query}`);
+    nextWs.handlers.text = (raw) => {
+      const msg = JSON.parse(raw);
+      const waiter = pendingRpc.get(msg.id);
+      if (!waiter) return;
+      pendingRpc.delete(msg.id);
+      if (msg.error) waiter.reject(new Error(msg.error.message || JSON.stringify(msg.error)));
+      else waiter.resolve(msg.result);
+    };
+    cdpWs = nextWs;
+  }
+
+  let activeEpochLease = initialEpoch;
+  if (!JOIN_EXISTING && activeEpochLease.ownerNodeId !== SELF_NODE_ID) {
+    activeEpochLease = await transferOwnershipViaControlSocket(SELF_NODE_ID);
+  }
+  await connectPinnedCdpWs(activeEpochLease.epoch, SELF_NODE_ID);
+  const viewerWs = await NetWebSocket.connect(
+    HOST,
+    PORT,
+    `/viewer/${TARGET_ID}?epoch=${activeEpochLease.epoch}&nodeId=${encodeURIComponent(SELF_NODE_ID)}`,
+  );
+  recordAndEmitEpoch("epochState", activeEpochLease);
 
   function cdpCall(method, params = {}) {
     const id = nextRpcId++;
@@ -411,6 +471,17 @@ async function main() {
       });
       cdpWs.sendText(JSON.stringify({ id, method, params }));
     });
+  }
+
+  async function refreshEpochIfChanged() {
+    try {
+      const lease = await cdpCall("Parawing.getEpochLease", {});
+      const viewers = Array.isArray(lease.viewerNodes) ? lease.viewerNodes : [];
+      const key = `${lease.epoch}:${lease.ownerNodeId}:${viewers.join(",")}`;
+      if (key !== lastEpochKey) {
+        recordAndEmitEpoch("epochState", lease);
+      }
+    } catch {}
   }
 
   viewerWs.handlers.bin = (packet) => {
@@ -439,13 +510,22 @@ async function main() {
       tilesEvicted: rendered.tilesEvicted,
       pngBase64: rendered.png.toString("base64"),
     });
+    void refreshEpochIfChanged();
   };
 
   viewerWs.sendBinary(buildCreditGrant(8, 0));
-  await cdpCall("Emulation.setDeviceMetricsOverride", { width: 880, height: 560 });
-  await cdpCall("Page.setDocumentContent", { html: DEFAULT_WELCOME_HTML });
-  const docSnap = await cdpCall("DOM.getDocument", {});
-  emit("navigated", { url: "parawing://welcome", title: docSnap.root.title });
+  if (JOIN_EXISTING) {
+    const docSnap = await cdpCall("DOM.getDocument", {});
+    emit("navigated", {
+      url: docSnap.root.documentURL || `parawing://${TARGET_ID}`,
+      title: docSnap.root.title,
+    });
+  } else {
+    await cdpCall("Emulation.setDeviceMetricsOverride", { width: 880, height: 560 });
+    await cdpCall("Page.setDocumentContent", { html: DEFAULT_WELCOME_HTML });
+    const docSnap = await cdpCall("DOM.getDocument", {});
+    emit("navigated", { url: "parawing://welcome", title: docSnap.root.title });
+  }
 
   async function ensureAttestedLease() {
     if (activeLeaseId) return activeLeaseId;
@@ -539,9 +619,20 @@ async function main() {
           csprngReseedSha256: String(outcome.csprngReseedSha256 || "").slice(0, 16),
           title: doc.root.title,
         });
+      } else if (cmd.action === "handoff") {
+        const newOwner = String(cmd.newOwner || SELF_NODE_ID);
+        const lease = await transferOwnershipViaControlSocket(newOwner);
+        if (newOwner === SELF_NODE_ID) {
+          await connectPinnedCdpWs(lease.epoch, SELF_NODE_ID);
+        }
+        recordAndEmitEpoch("handoff", lease, { reqId });
+      } else if (cmd.action === "syncEpoch") {
+        const lease = await cdpCall("Parawing.getEpochLease", {});
+        recordAndEmitEpoch("epochState", lease, { reqId });
       }
     } catch (err) {
       emit("commandError", { reqId, action: cmd.action, message: err.message || String(err) });
+      void refreshEpochIfChanged();
     }
   });
 }

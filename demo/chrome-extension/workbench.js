@@ -14,6 +14,10 @@ const els = {
   dropletOrigin: document.getElementById("droplet-origin"),
   activeTabBtn: document.getElementById("active-tab-btn"),
   welcomeBtn: document.getElementById("welcome-btn"),
+  epochBadge: document.getElementById("epoch-badge"),
+  takeControlBtn: document.getElementById("take-control-btn"),
+  handbackBtn: document.getElementById("handback-btn"),
+  epochReadout: document.getElementById("epoch-readout"),
   navForm: document.getElementById("nav-form"),
   navUrl: document.getElementById("nav-url"),
   pageTitle: document.getElementById("page-title"),
@@ -44,6 +48,9 @@ const els = {
 };
 
 const ctx = els.canvas.getContext("2d");
+const initialParams = new URLSearchParams(window.location.search);
+const pinnedTargetId = initialParams.get("target") || "";
+const joinExistingTarget = initialParams.get("join") === "1";
 let reqCounter = 1;
 let activeTargetOrigin = DEFAULT_DROPLET_ORIGIN;
 
@@ -100,6 +107,20 @@ function drawPngBase64(pngBase64, width, height) {
   img.src = `data:image/png;base64,${pngBase64}`;
 }
 
+function renderEpochLease(evt) {
+  const selfNodeId = evt.selfNodeId || "human-vivari";
+  const isHumanOwner = evt.ownerNodeId === selfNodeId;
+  els.epochBadge.dataset.state = isHumanOwner ? "connected" : "connecting";
+  els.epochBadge.textContent = `Epoch ${evt.epoch} · ${evt.ownerNodeId}`;
+  els.takeControlBtn.disabled = isHumanOwner;
+  els.handbackBtn.disabled = !isHumanOwner;
+  const viewers =
+    Array.isArray(evt.viewerNodes) && evt.viewerNodes.length > 0
+      ? evt.viewerNodes.join(", ")
+      : "none";
+  els.epochReadout.textContent = `Owner: ${evt.ownerNodeId} · viewers: ${viewers}`;
+}
+
 function handleParawingEvent(evt) {
   switch (evt.type) {
     case "boot":
@@ -117,6 +138,18 @@ function handleParawingEvent(evt) {
       els.metricCapsule.textContent = `${evt.capsuleHash.slice(0, 12)}…`;
       appendLog(
         `Droplet connected: ${evt.browser} (CRIU=${evt.criuEnabled}, capsule=${evt.capsuleHash.slice(0, 16)}…)`,
+      );
+      break;
+    case "epochState":
+      renderEpochLease(evt);
+      appendLog(
+        `Epoch #${evt.epoch} lease -> owner=${evt.ownerNodeId} viewers=[${(evt.viewerNodes || []).join(", ")}]`,
+      );
+      break;
+    case "handoff":
+      renderEpochLease(evt);
+      appendLog(
+        `HANDOFF -> Epoch #${evt.epoch} owner=${evt.ownerNodeId} (fenced viewers: [${(evt.viewerNodes || []).join(", ")}])`,
       );
       break;
     case "frame":
@@ -204,7 +237,13 @@ function connectToOrigin(rawOrigin) {
   const proto = clean.startsWith("https://") ? "wss://" : "ws://";
   const hostPart = clean.replace(/^https?:\/\//, "");
   const relayUrl = `${proto}${hostPart}/parawing-demo-v1`;
-  const frameUrl = `${clean}/vivari/index.html?relay=${encodeURIComponent(relayUrl)}&t=${Date.now()}`;
+  const frameParams = new URLSearchParams({
+    relay: relayUrl,
+    t: String(Date.now()),
+  });
+  if (pinnedTargetId) frameParams.set("target", pinnedTargetId);
+  if (joinExistingTarget) frameParams.set("join", "1");
+  const frameUrl = `${clean}/vivari/index.html?${frameParams.toString()}`;
   appendLog(`Loading Vivari client frame from ${clean}/vivari/`);
   els.vivariFrame.src = frameUrl;
   if (globalThis.chrome?.storage?.local) {
@@ -242,6 +281,12 @@ els.evalForm.addEventListener("submit", (ev) => {
   sendGuestCommand("evalJs", { expression: els.evalExpr.value });
 });
 
+els.takeControlBtn.addEventListener("click", () => {
+  sendGuestCommand("handoff", { newOwner: "human-vivari" });
+});
+els.handbackBtn.addEventListener("click", () => {
+  sendGuestCommand("handoff", { newOwner: "agent-alpha" });
+});
 els.attestBtn.addEventListener("click", () => sendGuestCommand("attest"));
 els.freezeBtn.addEventListener("click", () => sendGuestCommand("freeze"));
 els.thawBtn.addEventListener("click", () => sendGuestCommand("thaw"));

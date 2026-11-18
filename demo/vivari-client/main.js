@@ -66,12 +66,17 @@ async function bootClientInVivari() {
     },
   });
 
-  const targetId =
-    new URLSearchParams(window.location.search).get("target") ||
-    `ext-${Math.random().toString(36).slice(2, 8)}`;
+  const searchParams = new URLSearchParams(window.location.search);
+  const targetId = searchParams.get("target") || `ext-${Math.random().toString(36).slice(2, 8)}`;
+  const joinExisting = searchParams.get("join") === "1" ? "1" : "0";
+  const nodeId = searchParams.get("nodeId") || "human-vivari";
   const proc = await vivari.spawn("node", ["/parawing/client.mjs"], {
     cwd: "/parawing",
-    env: { PARAWING_TARGET_ID: targetId },
+    env: {
+      PARAWING_TARGET_ID: targetId,
+      PARAWING_JOIN: joinExisting,
+      PARAWING_NODE_ID: nodeId,
+    },
   });
 
   const stdinWriter = proc.input.getWriter();
