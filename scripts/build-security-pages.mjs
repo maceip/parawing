@@ -246,84 +246,59 @@ export function buildSecurityPages(options = {}) {
     <header class="dads-slim-header">
       <div class="dads-shell dads-slim-header-inner">
         <a class="dads-brand" href="${REPO_URL}">
-          <img class="dads-brand-logo" src="./favicon.png" width="24" height="24" alt="" aria-hidden="true" />
+          <span class="dads-brand-logo-wrap" aria-hidden="true">
+            <img class="dads-brand-logo" src="./favicon.png" width="56" height="56" alt="" />
+          </span>
           <span>Parawing v${escapeHtml(version)}</span>
         </a>
-        <p class="dads-header-pitch">
-          <strong>Delegated Agent Co-Browser Engine</strong> — Rust/Blitz KSC2 vector streaming, zero-permission Deno V8 isolates, and CRIU session continuity with attested zero-CVE builds.
-        </p>
-        <nav class="dads-utility-nav" aria-label="Primary resources">
-          <a href="./parawing.openvex.json">OpenVEX v0.2.0</a>
-          <a href="${REPO_URL}/releases/latest">Releases</a>
-        </nav>
+        <div class="dads-header-tabs" role="tablist" aria-label="Security ledger views">
+          <button
+            type="button"
+            id="tab-advisories"
+            class="dads-tab"
+            role="tab"
+            aria-selected="true"
+            aria-controls="panel-advisories"
+          >
+            Remediated Advisories (${remediatedDoc.remediated.length})
+          </button>
+          <button
+            type="button"
+            id="tab-patches"
+            class="dads-tab"
+            role="tab"
+            aria-selected="false"
+            aria-controls="panel-patches"
+          >
+            Patch Series &amp; Notices (${patchSeriesCount + (manifest.trackedUnmaintained?.length || 0)})
+          </button>
+        </div>
       </div>
     </header>
 
     <main class="dads-shell dads-main">
-      <div class="dads-page-heading">
-        <h1>Vulnerabilities Discovered &amp; Remediated</h1>
-        <span class="dads-heading-meta">Inventory SHA-256: ${escapeHtml(inventory.digest.slice(0, 16))}…</span>
-      </div>
-
-      <section class="dads-kpi-grid" aria-label="Supply-chain verification metrics">
-        <div class="dads-kpi-card">
-          <p class="dads-kpi-label">Unmitigated Vulnerabilities</p>
-          <p class="dads-kpi-value" id="kpi-open">0</p>
-          <p class="dads-kpi-sub">Deterministic OSV &amp; RustSec gate</p>
-        </div>
-        <div class="dads-kpi-card">
-          <p class="dads-kpi-label">Advisories Remediated</p>
-          <p class="dads-kpi-value" id="kpi-remediated">${remediatedDoc.remediated.length}</p>
-          <p class="dads-kpi-sub">CVEs, GHSAs &amp; RustSec soundness bugs</p>
-        </div>
-        <div class="dads-kpi-card">
-          <p class="dads-kpi-label">Locked Dependencies Audited</p>
-          <p class="dads-kpi-value" id="kpi-packages">${inventory.counts.total}</p>
-          <p class="dads-kpi-sub">${inventory.counts.cargo} Cargo · ${inventory.counts.npm} npm · ${inventory.counts.bazelAndToolchains} Bazel</p>
-        </div>
-        <div class="dads-kpi-card">
-          <p class="dads-kpi-label">SHA-256 Verified Patches</p>
-          <p class="dads-kpi-value" id="kpi-patches">${patchCheck.summary.totalPatchFiles}</p>
-          <p class="dads-kpi-sub">${patchSeriesCount} crate/npm series + ${patchCheck.summary.auxiliaryPatches} toolchain</p>
-        </div>
-      </section>
-
-      <div class="dads-tabs" role="tablist" aria-label="Security ledger views">
-        <button
-          type="button"
-          id="tab-advisories"
-          class="dads-tab"
-          role="tab"
-          aria-selected="true"
-          aria-controls="panel-advisories"
-        >
-          Remediated Vulnerabilities (${remediatedDoc.remediated.length})
-        </button>
-        <button
-          type="button"
-          id="tab-patches"
-          class="dads-tab"
-          role="tab"
-          aria-selected="false"
-          aria-controls="panel-patches"
-        >
-          Verified Patch Series &amp; Notices (${patchSeriesCount + (manifest.trackedUnmaintained?.length || 0)})
-        </button>
-      </div>
-
       <section id="panel-advisories" role="tabpanel" aria-labelledby="tab-advisories">
         <div class="dads-table-controls">
-          <div class="dads-search-group">
+          <div class="dads-toolbar-title">
+            <h1>Vulnerabilities Discovered &amp; Remediated</h1>
+            <span
+              id="result-count"
+              class="dads-heading-meta"
+              aria-live="polite"
+              data-open="0"
+              data-total-deps="${inventory.counts.total}"
+              data-total-patches="${patchCheck.summary.totalPatchFiles}"
+            >0 open · ${remediatedDoc.remediated.length}/${remediatedDoc.remediated.length} remediated · ${inventory.counts.total} deps · ${patchCheck.summary.totalPatchFiles} patches</span>
+          </div>
+          <div class="dads-filter-actions">
             <label for="search-input" class="sr-only">Search advisory ID, package, or summary</label>
             <input
               id="search-input"
               class="dads-input"
               type="search"
-              placeholder="Search CVE, GHSA, RUSTSEC, package, or commit…"
+              placeholder="Search CVE, package, commit…"
               autocomplete="off"
             />
-          </div>
-          <div class="dads-filter-actions">
             <label for="severity-select" class="sr-only">Filter by severity</label>
             <select id="severity-select" class="dads-select">
               <option value="all">All Severities</option>
@@ -347,10 +322,6 @@ export function buildSecurityPages(options = {}) {
         </div>
 
         <div id="active-filters" class="dads-active-filters" hidden></div>
-
-        <p id="result-count" class="dads-kpi-label" aria-live="polite" style="margin-bottom: 12px">
-          Showing ${remediatedDoc.remediated.length} of ${remediatedDoc.remediated.length} remediated vulnerabilities
-        </p>
 
         <div class="dads-table-wrap">
           <table class="dads-table">
@@ -424,8 +395,19 @@ export function buildSecurityPages(options = {}) {
 
       <hr class="dads-divider" />
       <footer class="dads-footer">
-        <span>Generated deterministically from <a href="./dependency-integrity.json">dependency-integrity.json</a> &amp; <a href="./parawing.openvex.json">parawing.openvex.json</a> (LLM relied upon: false).</span>
-        <span>Design tokens: Digital Agency Design System v2.18.2.</span>
+        <div class="dads-footer-top">
+          <p class="dads-footer-pitch">
+            <strong>Delegated Agent Co-Browser Engine</strong> — Rust/Blitz KSC2 vector streaming, zero-permission Deno V8 isolates, and CRIU session continuity with attested zero-CVE builds.
+          </p>
+          <nav class="dads-utility-nav" aria-label="Primary resources">
+            <a href="./parawing.openvex.json">OpenVEX v0.2.0</a>
+            <a href="${REPO_URL}/releases/latest">Releases</a>
+          </nav>
+        </div>
+        <div class="dads-footer-meta">
+          <span>Inventory SHA-256: <span class="dads-mono">${escapeHtml(inventory.digest.slice(0, 16))}…</span> (<a href="./dependency-integrity.json">dependency-integrity.json</a>, LLM relied upon: false).</span>
+          <span>Design tokens: Digital Agency Design System v2.18.2.</span>
+        </div>
       </footer>
     </main>
 

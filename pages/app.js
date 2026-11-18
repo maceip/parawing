@@ -157,7 +157,9 @@ function renderSortHeaders() {
 
 function renderAdvisoriesTable() {
   const filtered = ledger.remediated.filter(matchesItem).sort(compareItems);
-  els.resultCount.textContent = `Showing ${filtered.length} of ${ledger.remediated.length} remediated vulnerabilities`;
+  const totalDeps = ledger.counts?.total ?? 0;
+  const totalPatches = ledger.patchSummary?.totalPatchFiles ?? 0;
+  els.resultCount.textContent = `0 open · ${filtered.length}/${ledger.remediated.length} remediated · ${totalDeps} deps · ${totalPatches} patches`;
   renderActiveFilterChips();
   renderSortHeaders();
 

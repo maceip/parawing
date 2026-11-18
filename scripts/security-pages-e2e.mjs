@@ -89,32 +89,51 @@ async function main() {
     page.on("pageerror", (err) => pageErrors.push(String(err?.message ?? err)));
     await page.goto(`${baseUrl}/`, { waitUntil: "networkidle0" });
 
-    // 1. Verify Slim Header vertical footprint & exact Figma v2.18.2 tokens/layout.
+    // 1. Verify Slim Header (clipped 2X blue logo), compact vertical footprint & footer pitch.
     const layoutMetrics = await page.evaluate(() => {
       const header = document.querySelector(".dads-slim-header");
+      const logo = document.querySelector(".dads-brand-logo");
+      const table = document.querySelector("#panel-advisories .dads-table");
+      const footerPitch = document.querySelector(".dads-footer-pitch");
       const main = document.querySelector(".dads-main");
       const rootStyles = getComputedStyle(document.documentElement);
+      const headerRect = header.getBoundingClientRect();
+      const logoRect = logo.getBoundingClientRect();
       return {
-        headerHeight: header.getBoundingClientRect().height,
+        headerHeight: headerRect.height,
+        headerOverflow: getComputedStyle(header).overflow,
+        logoHeight: logoRect.height,
+        logoTop: logoRect.top,
+        logoBottom: logoRect.bottom,
+        headerBottom: headerRect.bottom,
+        tableTopY: table.getBoundingClientRect().top,
+        footerPitchTopY: footerPitch.getBoundingClientRect().top,
         contentWidth: main.clientWidth - 160,
         key900: rootStyles.getPropertyValue("--color-key-900").trim(),
         gray420: rootStyles.getPropertyValue("--color-neutral-solid-gray-420").trim(),
         yellow300: rootStyles.getPropertyValue("--color-primitive-yellow-300").trim(),
-        kpiOpen: document.getElementById("kpi-open")?.textContent?.trim(),
-        kpiRemediated: Number(document.getElementById("kpi-remediated")?.textContent || "0"),
+        summaryText: document.getElementById("result-count")?.textContent?.trim() || "",
         initialRows: document.querySelectorAll("#advisories-tbody tr.dads-data-row").length,
       };
     });
+    assert.equal(layoutMetrics.headerHeight, 46);
+    assert.equal(layoutMetrics.headerOverflow, "hidden");
+    assert.ok(layoutMetrics.logoHeight >= 54);
+    assert.ok(layoutMetrics.logoTop < 0, "Expected 2X logo to clip top of nav rail");
     assert.ok(
-      layoutMetrics.headerHeight >= 56 && layoutMetrics.headerHeight <= 68,
-      `Expected compact Slim Header (56-68px), got ${layoutMetrics.headerHeight}px`,
+      layoutMetrics.logoBottom > layoutMetrics.headerBottom,
+      "Expected 2X logo to clip bottom of nav rail",
     );
+    assert.ok(
+      layoutMetrics.tableTopY <= 135,
+      `Expected ultra-compact top zone (table top <= 135px), got ${layoutMetrics.tableTopY}px`,
+    );
+    assert.ok(layoutMetrics.footerPitchTopY > layoutMetrics.tableTopY);
     assert.equal(layoutMetrics.contentWidth, 1120);
     assert.equal(layoutMetrics.key900, "#0017c1");
     assert.equal(layoutMetrics.gray420, "#949494");
     assert.equal(layoutMetrics.yellow300, "#ffd43d");
-    assert.equal(layoutMetrics.kpiOpen, "0");
-    assert.equal(layoutMetrics.kpiRemediated, buildInfo.remediatedCount);
+    assert.match(layoutMetrics.summaryText, /^0 open · 37\/37 remediated/);
     assert.equal(layoutMetrics.initialRows, buildInfo.remediatedCount);
 
     // 2. Exercise Search Box + Cyan-200 (#99f2ff) search highlight + removable Chip Tag.

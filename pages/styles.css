@@ -147,31 +147,32 @@ select:focus-visible {
   padding-inline: 80px;
 }
 
-/* Header Container Wide: Slim (8263:47834): compact 56px single-row header. */
+/* Header Container Wide: Slim (8263:47834): compact 46px single-row nav rail with clipped 2X logo. */
 .dads-slim-header {
+  height: 46px;
+  overflow: hidden;
   background-color: var(--color-neutral-white);
   border-bottom: 1px solid var(--color-neutral-solid-gray-420);
 }
 
 .dads-slim-header-inner {
-  min-height: 56px;
+  height: 46px;
   display: flex;
   align-items: center;
   justify-content: space-between;
   gap: 24px;
-  padding-block: 8px;
 }
 
 .dads-brand {
   display: inline-flex;
   align-items: center;
-  gap: 8px;
+  gap: 12px;
   flex-shrink: 0;
   color: var(--color-neutral-solid-gray-900);
   text-decoration: none;
   font-size: var(--font-size-16);
   font-weight: var(--font-weight-700);
-  line-height: 1.5;
+  line-height: 1;
   letter-spacing: 0.04em;
 }
 
@@ -181,26 +182,55 @@ select:focus-visible {
   text-decoration: none;
 }
 
+.dads-brand-logo-wrap {
+  width: 54px;
+  height: 54px;
+  margin-block: -4px;
+  border-radius: var(--border-radius-12);
+  overflow: hidden;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  flex-shrink: 0;
+}
+
 .dads-brand-logo {
-  width: 24px;
-  height: 24px;
-  border-radius: var(--border-radius-4);
+  width: 58px;
+  height: 58px;
+  display: block;
+  flex-shrink: 0;
 }
 
-.dads-header-pitch {
-  margin: 0;
-  flex: 1;
-  min-width: 0;
+/* Header-integrated Tabs (21904:1080): underline indicator in Key-900 flush with nav rail border. */
+.dads-header-tabs {
+  height: 100%;
+  display: flex;
+  align-items: stretch;
+  gap: 4px;
+}
+
+.dads-tab {
+  appearance: none;
+  background: transparent;
+  border: 0;
+  border-bottom: 3px solid transparent;
+  padding: 0 14px;
   color: var(--color-neutral-solid-gray-800);
+  font-family: var(--font-family-sans);
   font-size: var(--font-size-14);
-  font-weight: var(--font-weight-400);
-  line-height: 1.3;
-  letter-spacing: 0;
+  font-weight: var(--font-weight-700);
+  line-height: 1;
+  cursor: pointer;
+  white-space: nowrap;
 }
 
-.dads-header-pitch strong {
-  color: var(--color-neutral-solid-gray-900);
-  font-weight: var(--font-weight-700);
+.dads-tab:hover {
+  background-color: var(--color-neutral-solid-gray-50);
+}
+
+.dads-tab[aria-selected="true"] {
+  color: var(--color-key-1000);
+  border-bottom-color: var(--color-key-900);
 }
 
 /* Utility Links (8194:8629 / 7:23222): inline compact links separated by 16px. */
@@ -214,27 +244,33 @@ select:focus-visible {
 }
 
 .dads-main {
-  padding-top: 24px;
-  padding-bottom: 64px;
+  padding-top: 12px;
+  padding-bottom: 48px;
 }
 
-/* Headings + Building Blocks / Rulers (9732:1520 / 15511:19389). */
 .dads-page-heading {
   display: flex;
   align-items: baseline;
   justify-content: space-between;
   gap: 16px;
-  padding-bottom: 12px;
+  padding-bottom: 8px;
   border-bottom: 1px solid var(--color-neutral-solid-gray-420);
-  margin-bottom: 24px;
+  margin-bottom: 12px;
 }
 
-.dads-page-heading h1 {
+.dads-toolbar-title {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  min-width: 0;
+}
+
+.dads-toolbar-title h1 {
   margin: 0;
   color: var(--color-neutral-solid-gray-900);
-  font-size: var(--font-size-24);
+  font-size: var(--font-size-17);
   font-weight: var(--font-weight-700);
-  line-height: 1.5;
+  line-height: 1.3;
   letter-spacing: 0.02em;
 }
 
@@ -242,98 +278,17 @@ select:focus-visible {
   color: var(--color-neutral-solid-gray-600);
   font-family: var(--font-family-mono);
   font-size: var(--font-size-14);
-  line-height: 1.5;
-}
-
-/* 12-column Grid Cards (11337:7786 + 520:21585 32px gutter). */
-.dads-kpi-grid {
-  display: grid;
-  grid-template-columns: repeat(4, minmax(0, 1fr));
-  gap: 32px;
-  margin-bottom: 24px;
-}
-
-.dads-kpi-card {
-  background-color: var(--color-neutral-white);
-  border: 1px solid var(--color-neutral-solid-gray-420);
-  border-radius: var(--border-radius-8);
-  padding: 16px;
-}
-
-.dads-kpi-label {
-  margin: 0 0 4px 0;
-  color: var(--color-neutral-solid-gray-600);
-  font-size: var(--font-size-14);
-  font-weight: var(--font-weight-400);
   line-height: 1.3;
-  letter-spacing: 0;
 }
 
-.dads-kpi-value {
-  margin: 0;
-  color: var(--color-neutral-solid-gray-900);
-  font-family: var(--font-family-mono);
-  font-size: var(--font-size-28);
-  font-weight: var(--font-weight-700);
-  line-height: 1.5;
-  font-variant-numeric: tabular-nums;
-}
-
-.dads-kpi-sub {
-  margin: 4px 0 0 0;
-  color: var(--color-neutral-solid-gray-800);
-  font-size: var(--font-size-14);
-  line-height: 1.3;
-  letter-spacing: 0;
-}
-
-/* Tabs (21904:1080): underline indicator in Key-900 on Gray-420 baseline. */
-.dads-tabs {
-  display: flex;
-  gap: 8px;
-  border-bottom: 1px solid var(--color-neutral-solid-gray-420);
-  margin-bottom: 20px;
-}
-
-.dads-tab {
-  appearance: none;
-  background: var(--color-neutral-white);
-  border: 0;
-  border-bottom: 3px solid transparent;
-  padding: 10px 16px;
-  color: var(--color-neutral-solid-gray-800);
-  font-family: var(--font-family-sans);
-  font-size: var(--font-size-16);
-  font-weight: var(--font-weight-700);
-  line-height: 1.3;
-  cursor: pointer;
-}
-
-.dads-tab:hover {
-  background-color: var(--color-neutral-solid-gray-50);
-}
-
-.dads-tab[aria-selected="true"] {
-  color: var(--color-key-1000);
-  border-bottom-color: var(--color-key-900);
-}
-
-/* Table Controls (15976:36465): Search Box + Select Boxes + Vertical Divider + X-Small Buttons. */
+/* Table Controls (15976:36465): Single compact row with title/summary + Search + Selects + Reset. */
 .dads-table-controls {
   display: flex;
   flex-wrap: wrap;
   align-items: center;
   justify-content: space-between;
-  gap: 16px;
-  margin-bottom: 16px;
-}
-
-.dads-search-group {
-  display: flex;
-  align-items: center;
-  gap: 12px;
-  flex: 1;
-  min-width: 260px;
+  gap: 12px 16px;
+  margin-bottom: 10px;
 }
 
 .dads-input,
@@ -350,8 +305,7 @@ select:focus-visible {
 }
 
 .dads-input {
-  width: 100%;
-  max-width: 420px;
+  width: 268px;
 }
 
 .dads-input:hover,
@@ -635,22 +589,35 @@ mark.dads-highlight {
 
 .dads-footer {
   display: flex;
-  flex-wrap: wrap;
-  justify-content: space-between;
-  gap: 16px;
+  flex-direction: column;
+  gap: 8px;
   color: var(--color-neutral-solid-gray-600);
   font-size: var(--font-size-14);
   line-height: 1.5;
 }
 
+.dads-footer-top,
+.dads-footer-meta {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px 24px;
+}
+
+.dads-footer-pitch {
+  margin: 0;
+  color: var(--color-neutral-solid-gray-800);
+}
+
+.dads-footer-pitch strong {
+  color: var(--color-neutral-solid-gray-900);
+  font-weight: var(--font-weight-700);
+}
+
 @media (max-width: 1024px) {
   .dads-shell {
     padding-inline: 32px;
-  }
-
-  .dads-kpi-grid {
-    grid-template-columns: repeat(2, minmax(0, 1fr));
-    gap: 24px;
   }
 }
 
@@ -659,12 +626,21 @@ mark.dads-highlight {
     padding-inline: 16px;
   }
 
+  .dads-slim-header {
+    height: auto;
+  }
+
   .dads-slim-header-inner {
+    height: auto;
+    min-height: 44px;
     flex-wrap: wrap;
     gap: 8px;
   }
 
-  .dads-kpi-grid,
+  .dads-input {
+    width: 100%;
+  }
+
   .dads-proof-grid {
     grid-template-columns: 1fr;
     gap: 16px;
