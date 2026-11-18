@@ -243,13 +243,45 @@ export function buildSecurityPages(options = {}) {
     <link rel="stylesheet" href="./styles.css" />
   </head>
   <body>
+    <svg class="dads-goo-defs" width="0" height="0" aria-hidden="true" focusable="false">
+      <defs>
+        <filter id="parawing-goo" x="-40%" y="-40%" width="180%" height="200%" color-interpolation-filters="sRGB">
+          <feGaussianBlur in="SourceGraphic" stdDeviation="6.5" result="blur" />
+          <feColorMatrix
+            in="blur"
+            mode="matrix"
+            values="1 0 0 0 0  0 1 0 0 0  0 0 1 0 0  0 0 0 22 -9"
+            result="goo"
+          />
+          <feComposite in="SourceGraphic" in2="goo" operator="atop" />
+        </filter>
+      </defs>
+    </svg>
+
     <header class="dads-slim-header">
       <div class="dads-shell dads-slim-header-inner">
         <a class="dads-brand" href="${REPO_URL}">
           <span class="dads-brand-logo-wrap" aria-hidden="true">
-            <img class="dads-brand-logo" src="./favicon.png" width="56" height="56" alt="" />
+            <svg class="dads-nav-meniscus" viewBox="0 0 116 28" width="116" height="28" focusable="false">
+              <path
+                d="M0,2 C22,2 25,25 58,25 C91,25 94,2 116,2 L116,0 L0,0 Z"
+                fill="var(--color-neutral-white)"
+              />
+              <path
+                d="M0,1.5 C22,1.5 25,25 58,25 C91,25 94,1.5 116,1.5"
+                fill="none"
+                stroke="var(--color-neutral-solid-gray-420)"
+                stroke-width="1"
+              />
+            </svg>
+            <span class="dads-goo-stage">
+              <span class="dads-goo-lobe dads-goo-lobe-a"></span>
+              <span class="dads-goo-lobe dads-goo-lobe-b"></span>
+              <span class="dads-goo-drop"></span>
+            </span>
+            <img class="dads-brand-logo" src="./favicon.png" width="58" height="58" alt="" />
           </span>
-          <span>Parawing v${escapeHtml(version)}</span>
+          <span class="dads-brand-text">Parawing v${escapeHtml(version)}</span>
         </a>
         <div class="dads-header-tabs" role="tablist" aria-label="Security ledger views">
           <button

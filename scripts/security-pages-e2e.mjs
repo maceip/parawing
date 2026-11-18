@@ -89,10 +89,12 @@ async function main() {
     page.on("pageerror", (err) => pageErrors.push(String(err?.message ?? err)));
     await page.goto(`${baseUrl}/`, { waitUntil: "networkidle0" });
 
-    // 1. Verify Slim Header (clipped 2X blue logo), compact vertical footprint & footer pitch.
+    // 1. Verify Slim Header (gooey overflowing icon), compact top zone & footer pitch.
     const layoutMetrics = await page.evaluate(() => {
       const header = document.querySelector(".dads-slim-header");
       const logo = document.querySelector(".dads-brand-logo");
+      const gooStage = document.querySelector(".dads-goo-stage");
+      const gooFilter = document.getElementById("parawing-goo");
       const table = document.querySelector("#panel-advisories .dads-table");
       const footerPitch = document.querySelector(".dads-footer-pitch");
       const main = document.querySelector(".dads-main");
@@ -102,8 +104,9 @@ async function main() {
       return {
         headerHeight: headerRect.height,
         headerOverflow: getComputedStyle(header).overflow,
+        gooFilterActive:
+          Boolean(gooFilter) && getComputedStyle(gooStage).filter.includes("parawing-goo"),
         logoHeight: logoRect.height,
-        logoTop: logoRect.top,
         logoBottom: logoRect.bottom,
         headerBottom: headerRect.bottom,
         tableTopY: table.getBoundingClientRect().top,
@@ -116,17 +119,17 @@ async function main() {
         initialRows: document.querySelectorAll("#advisories-tbody tr.dads-data-row").length,
       };
     });
-    assert.equal(layoutMetrics.headerHeight, 46);
-    assert.equal(layoutMetrics.headerOverflow, "hidden");
-    assert.ok(layoutMetrics.logoHeight >= 54);
-    assert.ok(layoutMetrics.logoTop < 0, "Expected 2X logo to clip top of nav rail");
+    assert.equal(layoutMetrics.headerHeight, 48);
+    assert.equal(layoutMetrics.headerOverflow, "visible");
+    assert.equal(layoutMetrics.gooFilterActive, true);
+    assert.ok(layoutMetrics.logoHeight >= 56);
     assert.ok(
-      layoutMetrics.logoBottom > layoutMetrics.headerBottom,
-      "Expected 2X logo to clip bottom of nav rail",
+      layoutMetrics.logoBottom >= layoutMetrics.headerBottom + 8,
+      `Expected gooey logo to visibly overflow below navbar (${layoutMetrics.logoBottom} vs ${layoutMetrics.headerBottom})`,
     );
     assert.ok(
-      layoutMetrics.tableTopY <= 135,
-      `Expected ultra-compact top zone (table top <= 135px), got ${layoutMetrics.tableTopY}px`,
+      layoutMetrics.tableTopY <= 155,
+      `Expected ultra-compact top zone (table top <= 155px), got ${layoutMetrics.tableTopY}px`,
     );
     assert.ok(layoutMetrics.footerPitchTopY > layoutMetrics.tableTopY);
     assert.equal(layoutMetrics.contentWidth, 1120);
