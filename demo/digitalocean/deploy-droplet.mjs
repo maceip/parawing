@@ -156,6 +156,14 @@ fi
     [...sshArgs(keyPath), "-r", `${VIVARI_DIST}/.`, `root@${state.ip}:/var/www/parawing-vivari/`],
     { stdio: "inherit" },
   );
+  runSsh(
+    state.ip,
+    keyPath,
+    `set -euo pipefail
+mkdir -p /var/www/parawing-vivari/fonts
+cp -f /usr/share/fonts/truetype/dejavu/*.ttf /var/www/parawing-vivari/fonts/ 2>/dev/null || true
+`,
+  );
 
   const caddyfile = `${state.sslipHost} {
   encode zstd gzip

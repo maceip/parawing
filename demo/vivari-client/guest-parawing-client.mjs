@@ -18,6 +18,7 @@ const TARGET_ID = process.env.PARAWING_TARGET_ID || "vivari-co-browser";
 const SELF_NODE_ID = process.env.PARAWING_NODE_ID || "human-vivari";
 const JOIN_EXISTING = process.env.PARAWING_JOIN === "1";
 
+const OP_PUT_FONT = 6;
 const OP_V2_INGEST_FRAME = 20;
 const OP_V2_COMPOSITE = 21;
 const OP_V2_HIT_TEST = 24;
@@ -275,6 +276,17 @@ class SceneHostClientWasm {
     }
   }
 
+  /** @param {string} assetPath @param {Buffer} fontBytes @returns {number} */
+  putFontAsset(assetPath, fontBytes) {
+    const pathBuf = Buffer.from(assetPath, "utf8");
+    const input = Buffer.allocUnsafe(4 + pathBuf.length + fontBytes.length);
+    input.writeUInt32LE(pathBuf.length, 0);
+    pathBuf.copy(input, 4);
+    fontBytes.copy(input, 4 + pathBuf.length);
+    const out = this.call(OP_PUT_FONT, input);
+    return out.length >= 4 ? out.readUInt32LE(0) : 0;
+  }
+
   /** @param {Buffer} ksc2Payload @returns {{png: Buffer, width: number, height: number, tilesCached: number, tilesEvicted: number}} */
   ingestAndCompositePng(ksc2Payload) {
     const statsBuf = this.call(OP_V2_INGEST_FRAME, ksc2Payload);
@@ -361,7 +373,17 @@ async function main() {
     sha256: wasmSha256,
     byteLength: wasmBytes,
   } = await SceneHostClientWasm.load("/parawing/scene_host.wasm");
-  emit("wasmReady", { wasmSha256, wasmBytes });
+  let loadedFonts = 0;
+  if (fs.existsSync("/parawing/fonts")) {
+    for (const file of fs.readdirSync("/parawing/fonts")) {
+      if (!file.endsWith(".ttf") && !file.endsWith(".otf") && !file.endsWith(".woff2")) continue;
+      const bytes = fs.readFileSync(`/parawing/fonts/${file}`);
+      if (wasm.putFontAsset(`/fonts/${file}`, bytes) > 0) {
+        loadedFonts += 1;
+      }
+    }
+  }
+  emit("wasmReady", { wasmSha256, wasmBytes, loadedFonts });
 
   const [health, versionInfo, capsuleManifest, initialEpoch] = await Promise.all([
     httpGetJson("/health"),

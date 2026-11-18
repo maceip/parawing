@@ -6,6 +6,18 @@ Parawing is a performant, secure agent co-browser built for humans and AI agents
 web sessions with hardware-backed passkey delegation, blind credential brokering, live human
 handoff, and 0-RTT client-side scene compositing, forked from Kitesurf.
 
+## Live Agent Handoff
+
+![Live epoch-fenced agent handoff between agent-alpha and human-vivari](.github/assets/agent_handoff_demo.gif)
+
+1. **Autonomous execution (`agent-alpha`):** Drives a remote `parawing-rust-host` target (Blitz layout + zero-permission Deno V8 sub-isolate) while streaming binary `KSC2` vector display-lists into the unpacked MV3 [Vivari Chrome Extension](demo/chrome-extension) (`scene_host.wasm` client compositor) and pausing at a high-risk cutover gate.
+2. **Epoch-fenced human takeover (`human-vivari`):** Clicking **Take Control** executes `Parawing.transferOwnership`, increments the monotonic epoch lease, fences stale agent sockets (`StaleEpochFenced`), and lets the human authorize the action directly inside the live Deno V8 sub-isolate (`__state.humanApproved = true`).
+3. **Seamless handback:** Clicking **Hand Off to Agent** advances the epoch lease back to `agent-alpha`, which reconnects at the new epoch and finishes the rollout against the preserved isolate heap and DOM. Reproduce or re-record end-to-end with [`demo/e2e/record-agent-handoff.mjs`](demo/e2e/record-agent-handoff.mjs).
+
+## Dependency Integrity & Vulnerability Ledger
+
+Every Rust crate and npm tarball is SHA-256 pinned, audited against OSV/GitHub Advisory/RustSec, and tracked with OpenVEX 0.2.0 attestations on the live **[Vulnerability Discovery & Remediation Ledger](https://maceip.github.io/parawing/)** (`pnpm run pages:build`).
+
 ## Requirements
 
 - [Bazelisk](https://github.com/bazelbuild/bazelisk), installed as `bazel`

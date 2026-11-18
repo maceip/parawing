@@ -89,6 +89,15 @@ async function main() {
     },
   });
   copyFileSync(SCENE_HOST_WASM, resolve(vivariOutDir, "scene_host.wasm"));
+  const fontsSrcDir = resolve(REPO_ROOT, "packages/engine/public/fonts");
+  const fontsOutDir = resolve(vivariOutDir, "fonts");
+  mkdirSync(fontsOutDir, { recursive: true });
+  for (const fontName of ["NotoSans.ttf", "NotoSansMono.ttf", "NotoSerif.ttf"]) {
+    const src = resolve(fontsSrcDir, fontName);
+    if (existsSync(src)) {
+      copyFileSync(src, resolve(fontsOutDir, fontName));
+    }
+  }
 
   console.log("[demo:build] Staging MV3 Chrome Extension into demo/chrome-extension/dist…");
   rmSync(EXT_DIST_DIR, { recursive: true, force: true });

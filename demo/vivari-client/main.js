@@ -42,6 +42,29 @@ async function bootClientInVivari() {
   }
   const wasmBytes = new Uint8Array(await wasmRes.arrayBuffer());
 
+  const fontFiles = [
+    "NotoSans.ttf",
+    "NotoSansMono.ttf",
+    "NotoSerif.ttf",
+    "DejaVuSans.ttf",
+    "DejaVuSans-Bold.ttf",
+    "DejaVuSansMono.ttf",
+    "DejaVuSansMono-Bold.ttf",
+  ];
+  const fontDirectory = {};
+  await Promise.all(
+    fontFiles.map(async (name) => {
+      try {
+        const res = await fetch(`./fonts/${name}`);
+        if (!res.ok) return;
+        const buf = new Uint8Array(await res.arrayBuffer());
+        if (buf.byteLength > 0) {
+          fontDirectory[name] = { file: { contents: buf } };
+        }
+      } catch {}
+    }),
+  );
+
   const vivari = await Vivari.boot({
     serviceWorkerUrl: false,
     netRelay,
@@ -58,6 +81,9 @@ async function bootClientInVivari() {
         },
         "scene_host.wasm": {
           file: { contents: wasmBytes },
+        },
+        fonts: {
+          directory: fontDirectory,
         },
         "client.mjs": {
           file: { contents: guestClientSource },

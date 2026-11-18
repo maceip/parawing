@@ -7,7 +7,7 @@ This demo runs **Parawing's client-side `KSC2` / `CompositorV2` Wasm engine (`sc
 1. **Chrome Extension (`demo/chrome-extension/`)**:
    - Manifest V3 unpacked extension (`sidePanel` + toolbar `action` + `tabs` + `storage`) with `Cross-Origin-Opener-Policy: same-origin` and `Cross-Origin-Embedder-Policy: require-corp` (`SharedArrayBuffer` enabled).
    - Implements a resizable 3-pane workbench (`Left Controls` | `Center KSC2 Canvas` | `Right Vivari Node VM Inspector`).
-   - Every control drives live state: remote URL navigation, active Chrome tab co-browsing, Deno V8 sub-isolate JS evaluation, 0-RTT client-side `scene_host.wasm` canvas hit-testing, P-256 capsule attestation & key lease issuance, and live CRIU/capsule session freeze & thaw on the DigitalOcean droplet.
+   - Every control drives live state: epoch-fenced agent handoff (`Take Control` / `Hand Off to Agent` via `Parawing.transferOwnership`), remote URL navigation, active Chrome tab co-browsing, Deno V8 sub-isolate JS evaluation, 0-RTT client-side `scene_host.wasm` canvas hit-testing, P-256 capsule attestation & key lease issuance, and live CRIU/capsule session freeze & thaw on the DigitalOcean droplet.
 
 2. **Vivari In-Browser Node.js Client (`demo/vivari-client/`)**:
    - Bundles `@vivari/core` (`Vivari.boot({ serviceWorkerUrl: false, netRelay })`) and stages `scene_host.wasm`.
@@ -30,6 +30,9 @@ node demo/digitalocean/deploy-droplet.mjs
 
 # 3. Run full Chromium --load-extension E2E verification against the live DigitalOcean droplet
 node demo/e2e/verify-extension-e2e.mjs
+
+# 4. Record the live epoch-fenced Agent Handoff GIF (.github/assets/agent_handoff_demo.gif)
+node demo/e2e/record-agent-handoff.mjs
 ```
 
 ## Loading Unpacked in Chrome
