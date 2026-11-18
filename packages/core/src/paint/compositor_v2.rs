@@ -1080,7 +1080,10 @@ impl CompositeRenderCtx<'_> {
             let tile_affine =
                 layer_affine * Affine::translate((tr.bounds.x as f64, tr.bounds.y as f64));
             if let Some(tile) = self.compositor.tile_cache.get(&tr.content_hash) {
+                let tile_clip = Rect::new(0.0, 0.0, tr.bounds.w as f64, tr.bounds.h as f64);
+                scene.push_clip_layer(Fill::NonZero, tile_affine, &tile_clip);
                 paint_tile_vectors(scene, tile, self.store, tile_affine);
+                scene.pop_layer();
             } else {
                 *self.checker_count += 1;
                 paint_checkerboard(scene, tile_affine, tr.bounds.w, tr.bounds.h);

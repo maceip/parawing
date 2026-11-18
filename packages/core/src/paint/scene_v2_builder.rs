@@ -1575,4 +1575,31 @@ mod tests {
             "password value leaked into text_runs"
         );
     }
+
+    #[test]
+    fn multi_tile_compositor_clips_tile_overdraw() {
+        let html = r#"<!DOCTYPE html><html><body style="margin:0;background:#0f172a">
+          <div style="width:760px;height:140px;background:#ef4444"></div>
+        </body></html>"#;
+        let dom = DomHandle::new(html, "https://example.test/");
+        dom.set_viewport(800, 600);
+        dom.resolve_layout();
+        let bytes = dom.render_scene_v2(0, 0, &[]);
+        let frame = SceneFrameV2::decode(&bytes).expect("decode KSC2");
+        assert!(frame.layers[0].tile_refs.len() > 4);
+
+        let mut comp = CompositorV2::new();
+        comp.apply_frame(frame);
+        let store = ResourceStore::default();
+        let mut slot = None;
+        let (rgba, stats) = comp
+            .composite_rgba(&store, &mut slot, CompositeOptsV2::default())
+            .expect("composite RGBA");
+        let px_off = 8 + ((40 * stats.width + 40) * 4) as usize;
+        assert!(
+            rgba[px_off] > 200 && rgba[px_off + 2] < 100,
+            "later 256x256 tiles must not paint body background over tile (0, 0), got {:?}",
+            &rgba[px_off..px_off + 4]
+        );
+    }
 }

@@ -1161,19 +1161,86 @@ impl<'a, 'b, S: PaintScene> SceneVisitor for ReplayVisitor<'a, 'b, S> {
     )]
     fn on_text_run(
         &mut self,
-        _font_id: u32,
-        _font_size: f32,
-        _normalized_coords: &[i16],
-        _transform: DecodedTransform,
-        _rgba: (u8, u8, u8, u8),
-        _start_x_q3: i16,
-        _start_y_q3: i16,
-        _text_utf8: &[u8],
-        _kerns: &[(u16, i8)],
-        _flags: u8,
+        font_id: u32,
+        font_size: f32,
+        normalized_coords: &[i16],
+        transform: DecodedTransform,
+        rgba: (u8, u8, u8, u8),
+        start_x_q3: i16,
+        start_y_q3: i16,
+        text_utf8: &[u8],
+        kerns: &[(u16, i8)],
+        flags: u8,
     ) {
         self.text_runs += 1;
+        let Some(Some(font)) = self.ctx.fonts_by_id.get(&font_id) else {
+            return;
+        };
+        let Some(glyphs) =
+            reconstruct_text_run_glyphs(font, font_size, start_x_q3, start_y_q3, text_utf8, kerns)
+        else {
+            return;
+        };
+        let glyph_transform = if (flags & 1) != 0 {
+            Some(Affine::skew(-0.212_556_56, 0.0))
+        } else {
+            None
+        };
+        self.scene.draw_glyphs(
+            font,
+            font_size,
+            true,
+            normalized_coords,
+            Vec2::ZERO,
+            Fill::NonZero,
+            solid(rgba.0, rgba.1, rgba.2, rgba.3),
+            1.0,
+            affine(transform),
+            glyph_transform,
+            glyphs.into_iter(),
+        );
     }
+}
+
+fn reconstruct_text_run_glyphs(
+    font: &FontData,
+    font_size: f32,
+    start_x_q3: i16,
+    start_y_q3: i16,
+    text_utf8: &[u8],
+    kerns: &[(u16, i8)],
+) -> Option<Vec<AnyGlyph>> {
+    use skrifa::raw::TableProvider as _;
+    use skrifa::MetadataProvider as _;
+
+    let text = std::str::from_utf8(text_utf8).ok()?;
+    let font_ref = skrifa::FontRef::from_index(font.data.data(), font.index).ok()?;
+    let upem = font_ref.head().ok()?.units_per_em().max(1) as f32;
+    let hmtx = font_ref.hmtx().ok()?;
+    let cmap = font_ref.charmap();
+    let scale = font_size / upem;
+
+    let mut x = start_x_q3 as f32 * 0.125;
+    let y = start_y_q3 as f32 * 0.125;
+    let mut kern_pos = 0usize;
+    let mut glyphs = Vec::with_capacity(text.len());
+    for (idx, ch) in text.chars().enumerate() {
+        let gid = cmap.map(ch).map(|g| g.to_u32()).unwrap_or(0);
+        glyphs.push(AnyGlyph { id: gid, x, y });
+        let adv = hmtx.advance(skrifa::GlyphId::new(gid)).unwrap_or(0) as f32 * scale;
+        while kern_pos < kerns.len() && (kerns[kern_pos].0 as usize) < idx {
+            kern_pos += 1;
+        }
+        let dx = if kern_pos < kerns.len() && kerns[kern_pos].0 as usize == idx {
+            let v = kerns[kern_pos].1 as f32 * 0.125;
+            kern_pos += 1;
+            v
+        } else {
+            0.0
+        };
+        x += adv + dx;
+    }
+    Some(glyphs)
 }
 
 #[derive(Default, Clone, Copy)]
