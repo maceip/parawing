@@ -322,6 +322,36 @@ select:focus-visible {
   border-bottom-color: var(--color-key-900);
 }
 
+.dads-header-right {
+  height: 100%;
+  display: flex;
+  align-items: center;
+  gap: 12px;
+}
+
+.dads-showcase-link {
+  display: inline-flex;
+  align-items: center;
+  height: 30px;
+  padding: 0 12px;
+  border-radius: 9999px;
+  background-color: #f5efe6;
+  border: 1px solid #dfd5c8;
+  color: #2a2420;
+  text-decoration: none;
+  font-size: var(--font-size-14);
+  font-weight: var(--font-weight-700);
+  line-height: 1;
+  white-space: nowrap;
+}
+
+.dads-showcase-link:visited,
+.dads-showcase-link:hover {
+  color: #2a2420;
+  background-color: #e8f1eb;
+  text-decoration: none;
+}
+
 /* Utility Links (8194:8629 / 7:23222): inline compact links separated by 16px. */
 .dads-utility-nav {
   display: flex;

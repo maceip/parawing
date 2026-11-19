@@ -232,6 +232,34 @@ async function main() {
     assert.equal(depRes.status, 200);
     const depJson = await depRes.json();
     assert.equal(depJson.remediated.length, buildInfo.remediatedCount);
+
+    // 8. Navigate via header link to showcase.html and verify pastel + high-contrast tokens.
+    await Promise.all([
+      page.waitForNavigation({ waitUntil: "domcontentloaded" }),
+      page.click(".dads-showcase-link"),
+    ]);
+    const showcaseCheck = await page.evaluate(() => {
+      const canonical = document.querySelector('link[rel="canonical"]')?.getAttribute("href") || "";
+      const bodyBg = getComputedStyle(document.body).backgroundColor;
+      const chassis = document.querySelector(".hc-browser");
+      const cs = getComputedStyle(chassis);
+      const titleGroupChildren = document.querySelector(".hc-title-group")?.children.length || 0;
+      const statusChildren = document.querySelector(".hc-statusbar")?.children.length || 0;
+      return {
+        canonical,
+        bodyBg,
+        chassisBg: cs.backgroundColor,
+        chassisColor: cs.color,
+        titleGroupChildren,
+        statusChildren,
+      };
+    });
+    assert.equal(showcaseCheck.canonical, "https://maceip.github.io/parawing/showcase.html");
+    assert.equal(showcaseCheck.bodyBg, "rgb(250, 246, 240)");
+    assert.equal(showcaseCheck.chassisBg, "rgb(10, 12, 16)");
+    assert.equal(showcaseCheck.chassisColor, "rgb(255, 255, 255)");
+    assert.ok(showcaseCheck.titleGroupChildren <= 2);
+    assert.ok(showcaseCheck.statusChildren <= 2);
     assert.deepEqual(pageErrors, []);
 
     console.log("[pages:e2e] ALL CONTROLS & FIGMA DADS v2.18.2 TOKENS VERIFIED:", {

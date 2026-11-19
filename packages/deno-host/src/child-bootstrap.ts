@@ -73,6 +73,29 @@ if (!runtime) {
   throw new Error("child-bootstrap must run inside Deno");
 }
 
+const NativeEvent = globalThis.Event;
+const nativeDispatchEvent = globalThis.dispatchEvent.bind(globalThis);
+let pageDispatchEvent: ((ev: Event) => boolean) | null = null;
+const wrappedGlobalDispatchEvent = function (ev: Event): boolean {
+  if (ev instanceof NativeEvent) {
+    return nativeDispatchEvent(ev);
+  }
+  if (pageDispatchEvent) {
+    return pageDispatchEvent.call(globalThis, ev);
+  }
+  return nativeDispatchEvent(ev);
+};
+Object.defineProperty(globalThis, "dispatchEvent", {
+  configurable: true,
+  enumerable: true,
+  get() {
+    return wrappedGlobalDispatchEvent;
+  },
+  set(fn: unknown) {
+    pageDispatchEvent = typeof fn === "function" ? (fn as (ev: Event) => boolean) : null;
+  },
+});
+
 const rawStdinReadable = runtime.stdin.readable;
 const rawStdoutWritable = runtime.stdout.writable;
 const writeStderr = (line: string): void => {
@@ -84,6 +107,14 @@ const exitProcess = (code: number): never => runtime.exit(code);
 
 function formatLogArg(value: unknown): string {
   if (typeof value === "string") return value;
+  if (value instanceof Error) return value.stack ?? `${value.name}: ${value.message}`;
+  if (value && typeof value === "object" && "message" in value) {
+    const errLike = value as { name?: unknown; message?: unknown; stack?: unknown };
+    if (typeof errLike.stack === "string") return errLike.stack;
+    if (typeof errLike.message === "string") {
+      return `${String(errLike.name ?? "Error")}: ${errLike.message}`;
+    }
+  }
   try {
     return JSON.stringify(value);
   } catch {
@@ -124,6 +155,7 @@ setAbortIsolateHandler((reason: string): never => {
 });
 
 globalThis.addEventListener("error", (ev: Event): void => {
+  ev.preventDefault();
   const errEv = ev as ErrorEvent;
   const err = errEv.error as Error | undefined;
   const name = err?.name ?? "Error";
@@ -143,6 +175,7 @@ globalThis.addEventListener("error", (ev: Event): void => {
 });
 
 globalThis.addEventListener("unhandledrejection", (ev: PromiseRejectionEvent): void => {
+  ev.preventDefault();
   const reason = ev.reason;
   const err = reason instanceof Error ? reason : null;
   const name = err?.name ?? "UnhandledRejection";

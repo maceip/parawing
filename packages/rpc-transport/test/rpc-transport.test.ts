@@ -500,8 +500,12 @@ describe("RpcSession freeze, unplug, and replug replay", () => {
       role: "server",
       target: {
         async usePort(port: RpcStub<Port>, tag: string) {
-          const reply = await port.echo(new Uint8Array([0x6f, 0x6b]), tag);
-          return new TextDecoder().decode(reply);
+          try {
+            const reply = await port.echo(new Uint8Array([0x6f, 0x6b]), tag);
+            return new TextDecoder().decode(reply);
+          } finally {
+            port[Symbol.dispose]();
+          }
         },
       },
     });
@@ -514,6 +518,8 @@ describe("RpcSession freeze, unplug, and replug replay", () => {
     const port = await relayA.call<RpcStub<Port>>("mintPort", []);
     const result = await relayB.call<string>("usePort", [port, "hop2"]);
     assert.equal(result, "ok:hop2");
+    const secondResult = await relayB.call<string>("usePort", [port, "hop3"]);
+    assert.equal(secondResult, "ok:hop3");
 
     relayA.close();
     relayB.close();

@@ -40,3 +40,17 @@ node demo/e2e/record-agent-handoff.mjs
 1. Run `node demo/scripts/build.mjs`.
 2. Open `chrome://extensions`, enable **Developer mode**, click **Load unpacked**, and select `demo/chrome-extension/dist`.
 3. Click the **Parawing × Vivari** toolbar icon (or open Chrome's Side Panel) to launch the live workbench connected to the DigitalOcean droplet.
+
+## GitHub Pages Live Showcase (`parawing-aol-showcase`)
+
+A separate dedicated DigitalOcean SFO2 droplet (`64.225.124.165` / `https://64-225-124-165.sslip.io`) powers the pastel GitHub Pages showcase (`https://maceip.github.io/parawing/showcase.html`), rendering a high-contrast Parawing browser strictly locked to `aol.com` (`*.aol.com`) at both the WebSocket session gateway and the Deno V8 egress broker.
+
+```bash
+# 1. Provision & deploy the AOL-locked Parawing host onto DigitalOcean
+node demo/digitalocean/provision-droplet.mjs ensure --name parawing-aol-showcase --state demo/.aol-droplet-state.json
+node demo/digitalocean/deploy-aol-showcase.mjs
+
+# 2. Build GitHub Pages (`dist-pages/index.html` + `dist-pages/showcase.html`) & run live Chromium E2E
+node scripts/security-pages-e2e.mjs
+node demo/e2e/verify-aol-showcase-e2e.mjs
+```

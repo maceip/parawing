@@ -79,5 +79,6 @@ packages/engine/test/e2e/.fixtures-dist/
 .limrun.env
 .turbo/
 demo/.droplet-state.json
+demo/.aol-droplet-state.json
 demo/e2e/.chrome-profile/
 dist-pages/

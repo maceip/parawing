@@ -65,9 +65,9 @@ async function waitForDropletActive(token, id, timeoutMs = 180_000) {
   throw new Error(`Timed out waiting for droplet ${id} to become active`);
 }
 
-async function ensureDroplet(token) {
+async function ensureDroplet(token, targetName) {
   const { droplets } = await doApi(token, "GET", "/droplets?per_page=100");
-  const existing = droplets.find((d) => d.name === DEFAULT_NAME);
+  const existing = droplets.find((d) => d.name === targetName);
   if (existing) {
     const { droplet, ip } = await waitForDropletActive(token, existing.id);
     return { droplet, ip, created: false };
@@ -82,7 +82,7 @@ async function ensureDroplet(token) {
     ) || regions.find((r) => r.available && r.sizes.includes(DEFAULT_SIZE))?.slug;
   if (!picked) throw new Error(`No DigitalOcean region currently offers ${DEFAULT_SIZE}`);
   const created = await doApi(token, "POST", "/droplets", {
-    name: DEFAULT_NAME,
+    name: targetName,
     region: picked,
     size: DEFAULT_SIZE,
     image: DEFAULT_IMAGE,
@@ -96,21 +96,29 @@ async function ensureDroplet(token) {
   return { droplet, ip, created: true };
 }
 
+function readArgValue(argv, flag, fallback) {
+  const idx = argv.indexOf(flag);
+  return idx >= 0 && argv[idx + 1] ? argv[idx + 1] : fallback;
+}
+
 async function main() {
-  const action = process.argv[2] || "ensure";
+  const argv = process.argv.slice(2);
+  const action = argv.find((a) => !a.startsWith("-")) || "ensure";
+  const targetName = readArgValue(argv, "--name", DEFAULT_NAME);
+  const statePath = resolve(readArgValue(argv, "--state", STATE_PATH));
   const token = resolveDoToken();
   if (action === "destroy") {
     const { droplets } = await doApi(token, "GET", "/droplets?per_page=100");
-    const existing = droplets.find((d) => d.name === DEFAULT_NAME);
+    const existing = droplets.find((d) => d.name === targetName);
     if (existing) {
       await doApi(token, "DELETE", `/droplets/${existing.id}`);
-      console.log(JSON.stringify({ deleted: existing.id, name: DEFAULT_NAME }));
+      console.log(JSON.stringify({ deleted: existing.id, name: targetName }));
     } else {
-      console.log(JSON.stringify({ deleted: null, name: DEFAULT_NAME }));
+      console.log(JSON.stringify({ deleted: null, name: targetName }));
     }
     return;
   }
-  const { droplet, ip, created } = await ensureDroplet(token);
+  const { droplet, ip, created } = await ensureDroplet(token, targetName);
   const sslipHost = `${ip.replace(/\./g, "-")}.sslip.io`;
   const state = {
     dropletId: droplet.id,
@@ -123,7 +131,7 @@ async function main() {
     created,
     updatedAt: new Date().toISOString(),
   };
-  writeFileSync(STATE_PATH, `${JSON.stringify(state, null, 2)}\n`);
+  writeFileSync(statePath, `${JSON.stringify(state, null, 2)}\n`);
   console.log(JSON.stringify(state, null, 2));
 }
 

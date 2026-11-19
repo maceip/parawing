@@ -5,6 +5,7 @@
 // Manages exported RPC capability tables, remote proxies, dup/dispose, and value marshaling.
 
 export const RPC_TARGET_SYMBOL: symbol = Symbol.for("parawing.rpcTarget");
+const IMPORTED_STUB_SYMBOL: symbol = Symbol.for("parawing.rpcImportedStub");
 
 export type WireCapKind = "fn" | "obj";
 
@@ -102,6 +103,7 @@ function makeCallableStub(
       return dispatch.invoke(state.capId, null, argList);
     },
     get(_t, prop): unknown {
+      if (prop === IMPORTED_STUB_SYMBOL) return true;
       if (prop === Symbol.dispose) return dispose;
       if (prop === "dup") return dupFn;
       if (prop === "then" || prop === "toJSON") return undefined;
@@ -128,7 +130,7 @@ function makeObjectStub(
   const target: Record<string, unknown> = {};
   return new Proxy(target, {
     get(_t, prop): unknown {
-      if (prop === RPC_TARGET_SYMBOL) return true;
+      if (prop === RPC_TARGET_SYMBOL || prop === IMPORTED_STUB_SYMBOL) return true;
       if (prop === Symbol.dispose) return dispose;
       if (prop === "dup") return dupFn;
       if (prop === "then" || prop === "toJSON" || typeof prop === "symbol") {
@@ -158,9 +160,20 @@ export class CapabilityTable {
   }
 
   exportTarget(target: unknown): { id: number; kind: WireCapKind } {
-    const kind: WireCapKind = typeof target === "function" ? "fn" : "obj";
+    let exportedTarget = target;
+    if (
+      (typeof target === "object" || typeof target === "function") &&
+      target !== null &&
+      Reflect.get(target, IMPORTED_STUB_SYMBOL) === true
+    ) {
+      const dupFn = Reflect.get(target, "dup");
+      if (typeof dupFn === "function") {
+        exportedTarget = Reflect.apply(dupFn, target, []);
+      }
+    }
+    const kind: WireCapKind = typeof exportedTarget === "function" ? "fn" : "obj";
     const id = this.#nextId++;
-    this.#exports.set(id, { id, target, kind, refs: 1 });
+    this.#exports.set(id, { id, target: exportedTarget, kind, refs: 1 });
     return { id, kind };
   }
 

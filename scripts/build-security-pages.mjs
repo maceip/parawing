@@ -16,6 +16,9 @@ import { loadPatchesManifest, verifyAllPatchesAndOverrides } from "./deps/patch-
 import { buildOpenVexDocument } from "./deps/reporter.mjs";
 
 const CANONICAL_URL = "https://maceip.github.io/parawing/";
+const SHOWCASE_CANONICAL_URL = `${CANONICAL_URL}showcase.html`;
+const SHOWCASE_SERVER_ORIGIN = "https://64-225-124-165.sslip.io";
+const SHOWCASE_REGION = "sfo2";
 const REPO_URL = "https://github.com/maceip/parawing";
 const SEVERITY_RANK = { Critical: 5, High: 4, Soundness: 3, Moderate: 2, Low: 1 };
 
@@ -171,6 +174,175 @@ function renderUnmaintainedRows(manifest) {
     .join("");
 }
 
+function renderShowcaseHtml(version) {
+  const title = "Parawing — Live Browser Showcase (Locked to aol.com)";
+  const description =
+    "Pastel soft-tone showcase framing a high-contrast Parawing browser component rendered live on DigitalOcean SFO2 and strictly locked to aol.com.";
+  const ogImage = `${CANONICAL_URL}favicon.png`;
+  const showcaseConfig = {
+    serverOrigin: SHOWCASE_SERVER_ORIGIN,
+    dropletRegion: SHOWCASE_REGION,
+  };
+  return `<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>${escapeHtml(title)}</title>
+    <meta name="description" content="${escapeHtml(description)}" />
+    <meta name="robots" content="index, follow" />
+    <meta name="theme-color" content="#faf6f0" />
+    <link rel="canonical" href="${SHOWCASE_CANONICAL_URL}" />
+    <link rel="icon" type="image/png" href="./favicon.png" />
+    <meta property="og:type" content="website" />
+    <meta property="og:title" content="${escapeHtml(title)}" />
+    <meta property="og:description" content="${escapeHtml(description)}" />
+    <meta property="og:url" content="${SHOWCASE_CANONICAL_URL}" />
+    <meta property="og:image" content="${ogImage}" />
+    <meta name="twitter:card" content="summary" />
+    <meta name="twitter:title" content="${escapeHtml(title)}" />
+    <meta name="twitter:description" content="${escapeHtml(description)}" />
+    <meta name="twitter:image" content="${ogImage}" />
+    <link rel="preconnect" href="https://fonts.googleapis.com" />
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+    <link
+      href="https://fonts.googleapis.com/css2?family=Noto+Sans+JP:wght@400;700&family=Noto+Sans+Mono:wght@400;700&display=swap"
+      rel="stylesheet"
+    />
+    <link rel="stylesheet" href="./showcase.css" />
+  </head>
+  <body>
+    <header class="pastel-nav">
+      <div class="pastel-shell pastel-nav-inner">
+        <a class="pastel-brand" href="${REPO_URL}">
+          <img src="./favicon.png" width="34" height="34" alt="" />
+          <span>Parawing v${escapeHtml(version)}</span>
+        </a>
+        <nav class="pastel-nav-links" aria-label="Site navigation">
+          <a class="pastel-nav-link" href="./showcase.html" aria-current="page">Live Showcase</a>
+          <a class="pastel-nav-link" href="./index.html">Security Ledger</a>
+        </nav>
+      </div>
+    </header>
+
+    <main class="pastel-shell pastel-main">
+      <section class="pastel-hero">
+        <div class="pastel-hero-copy">
+          <span class="pastel-eyebrow">DigitalOcean SFO2 · Locked to aol.com</span>
+          <h1>Parawing Browser Showcase</h1>
+          <p>
+            A stark high-contrast Parawing browser component (Rust/Blitz layout &amp; paint + zero-permission Deno V8 isolates) framed on a calm pastel page and locked strictly to <code>aol.com</code>.
+          </p>
+        </div>
+        <div id="droplet-meta" class="pastel-host-meta">
+          Host: 64-225-124-165.sslip.io · Policy: aol.com-only
+        </div>
+      </section>
+
+      <section class="hc-browser" aria-label="High-contrast Parawing remote browser">
+        <div class="hc-titlebar">
+          <div class="hc-title-group">
+            <span class="hc-window-title">Parawing Delegated Browser</span>
+            <span id="conn-badge" class="hc-conn-badge" data-state="connecting" aria-live="polite">Connecting…</span>
+          </div>
+          <button type="button" id="session-toggle-btn" class="hc-action-btn">Disconnect</button>
+        </div>
+
+        <div class="hc-toolbar">
+          <div class="hc-nav-buttons">
+            <button type="button" id="back-btn" class="hc-icon-btn" disabled>Back</button>
+            <button type="button" id="forward-btn" class="hc-icon-btn" disabled>Forward</button>
+            <button type="button" id="reload-btn" class="hc-icon-btn">Reload</button>
+          </div>
+          <form id="url-form" class="hc-url-form">
+            <div class="hc-url-box">
+              <span class="hc-lock-pill">AOL ONLY</span>
+              <label for="url-input" class="sr-only">Target URL (restricted to aol.com)</label>
+              <input
+                id="url-input"
+                class="hc-url-input"
+                type="text"
+                value="https://www.aol.com/"
+                spellcheck="false"
+                autocomplete="off"
+              />
+            </div>
+            <button type="submit" id="go-btn" class="hc-action-btn hc-go-btn">Load</button>
+          </form>
+        </div>
+
+        <div id="policy-banner" class="hc-policy-banner" role="status" aria-live="polite" hidden>
+          <span id="policy-banner-text"></span>
+          <button type="button" id="dismiss-policy-btn" class="hc-action-btn">Dismiss</button>
+        </div>
+
+        <div class="hc-viewport-wrap">
+          <canvas
+            id="browser-canvas"
+            class="hc-canvas"
+            width="1280"
+            height="760"
+            aria-label="Live Parawing browser viewport locked to aol.com"
+          ></canvas>
+          <div id="loading-overlay" class="hc-loading-overlay">
+            <span id="loading-text">Connecting to DigitalOcean Parawing host (aol.com-only)…</span>
+          </div>
+        </div>
+
+        <div class="hc-statusbar">
+          <span id="engine-telemetry">Blitz + Deno V8 · 1280×760 · awaiting first frame…</span>
+          <span id="policy-telemetry">0 blocked navs · 0 non-AOL requests blocked</span>
+        </div>
+      </section>
+
+      <section class="pastel-cards" aria-label="Interactive showcase scenarios">
+        <article class="pastel-card pastel-card-sage">
+          <div>
+            <h2>Navigate Inside AOL</h2>
+            <p>
+              Streams live Blitz layout &amp; paint frames over WSS from the dedicated SFO2 DigitalOcean droplet. Click links on the canvas or scroll with your mouse wheel.
+            </p>
+          </div>
+          <button type="button" id="load-news-btn" class="pastel-card-btn">Load aol.com/news/</button>
+        </article>
+
+        <article class="pastel-card pastel-card-blush">
+          <div>
+            <h2>Verify Domain Lock</h2>
+            <p>
+              Both the WebSocket session gateway and the Deno V8 egress broker reject every non-<code>aol.com</code> navigation and third-party tracker request.
+            </p>
+          </div>
+          <button type="button" id="test-block-btn" class="pastel-card-btn">Try loading example.com</button>
+        </article>
+
+        <article class="pastel-card pastel-card-butter">
+          <div>
+            <h2>Warm Session Continuity</h2>
+            <p>
+              Disconnect the client WebSocket while keeping the server-side Parawing isolate warm on the droplet, then reattach at Tier 0.
+            </p>
+          </div>
+          <button type="button" id="card-reconnect-btn" class="pastel-card-btn">Disconnect &amp; Reconnect</button>
+        </article>
+      </section>
+
+      <footer class="pastel-footer">
+        <span>Server runtime: DigitalOcean SFO2 droplet (<code>64-225-124-165.sslip.io</code>) · Egress locked to <code>aol.com</code> &amp; <code>*.aol.com</code>.</span>
+        <span>
+          <a href="./index.html">Vulnerability &amp; Patch Ledger</a> ·
+          <a href="${SHOWCASE_SERVER_ORIGIN}/showcase/status" target="_blank" rel="noopener noreferrer">Live Droplet Status JSON</a>
+        </span>
+      </footer>
+    </main>
+
+    <script>window.__PARAWING_SHOWCASE_CONFIG__ = ${JSON.stringify(showcaseConfig).replace(/</g, "\\u003c")};</script>
+    <script type="module" src="./showcase.js"></script>
+  </body>
+</html>
+`;
+}
+
 /** @param {{ rootDir?: string, outDir?: string }} [options] @returns {{ outDir: string, remediatedCount: number, totalPackages: number, totalPatches: number }} */
 export function buildSecurityPages(options = {}) {
   const rootDir = resolveRootDir(options.rootDir);
@@ -283,27 +455,30 @@ export function buildSecurityPages(options = {}) {
           </span>
           <span class="dads-brand-text">Parawing v${escapeHtml(version)}</span>
         </a>
-        <div class="dads-header-tabs" role="tablist" aria-label="Security ledger views">
-          <button
-            type="button"
-            id="tab-advisories"
-            class="dads-tab"
-            role="tab"
-            aria-selected="true"
-            aria-controls="panel-advisories"
-          >
-            Remediated Advisories (${remediatedDoc.remediated.length})
-          </button>
-          <button
-            type="button"
-            id="tab-patches"
-            class="dads-tab"
-            role="tab"
-            aria-selected="false"
-            aria-controls="panel-patches"
-          >
-            Patch Series &amp; Notices (${patchSeriesCount + (manifest.trackedUnmaintained?.length || 0)})
-          </button>
+        <div class="dads-header-right">
+          <div class="dads-header-tabs" role="tablist" aria-label="Security ledger views">
+            <button
+              type="button"
+              id="tab-advisories"
+              class="dads-tab"
+              role="tab"
+              aria-selected="true"
+              aria-controls="panel-advisories"
+            >
+              Remediated Advisories (${remediatedDoc.remediated.length})
+            </button>
+            <button
+              type="button"
+              id="tab-patches"
+              class="dads-tab"
+              role="tab"
+              aria-selected="false"
+              aria-controls="panel-patches"
+            >
+              Patch Series &amp; Notices (${patchSeriesCount + (manifest.trackedUnmaintained?.length || 0)})
+            </button>
+          </div>
+          <a class="dads-showcase-link" href="./showcase.html">Live Showcase →</a>
         </div>
       </div>
     </header>
@@ -432,6 +607,7 @@ export function buildSecurityPages(options = {}) {
             <strong>Delegated Agent Co-Browser Engine</strong> — Rust/Blitz KSC2 vector streaming, zero-permission Deno V8 isolates, and CRIU session continuity with attested zero-CVE builds.
           </p>
           <nav class="dads-utility-nav" aria-label="Primary resources">
+            <a href="./showcase.html">Live Showcase</a>
             <a href="./parawing.openvex.json">OpenVEX v0.2.0</a>
             <a href="${REPO_URL}/releases/latest">Releases</a>
           </nav>
@@ -452,8 +628,11 @@ export function buildSecurityPages(options = {}) {
   rmSync(outDir, { recursive: true, force: true });
   mkdirSync(outDir, { recursive: true });
   writeFileSync(join(outDir, "index.html"), html);
+  writeFileSync(join(outDir, "showcase.html"), renderShowcaseHtml(version));
   copyFileSync(join(rootDir, "pages/styles.css"), join(outDir, "styles.css"));
   copyFileSync(join(rootDir, "pages/app.js"), join(outDir, "app.js"));
+  copyFileSync(join(rootDir, "pages/showcase.css"), join(outDir, "showcase.css"));
+  copyFileSync(join(rootDir, "pages/showcase.js"), join(outDir, "showcase.js"));
   copyFileSync(join(rootDir, ".github/assets/parawing_logo.png"), join(outDir, "favicon.png"));
   writeFileSync(join(outDir, "parawing.openvex.json"), `${JSON.stringify(openVex, null, 2)}\n`);
   writeFileSync(

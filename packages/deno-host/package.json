@@ -8,6 +8,7 @@
   "exports": {
     ".": "./src/server.ts",
     "./onboarding": "./src/onboarding.ts",
+    "./aol-showcase-server": "./src/aol-showcase-server.ts",
     "./deno-isolate-loader": "./src/deno-isolate-loader.ts",
     "./file-assets": "./src/file-assets.ts",
     "./minimal-outbound": "./src/minimal-outbound.ts",

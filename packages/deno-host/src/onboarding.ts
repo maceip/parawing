@@ -284,9 +284,9 @@ export class ParawingBrowserSession {
       timeoutMs,
       (ev) => !ev.sessionId || ev.sessionId === this.cdpSessionId,
     );
+    loadPromise.catch(() => {});
     const navRes = await this.sendCdp("Page.navigate", { url });
     if (typeof navRes["errorText"] === "string" && navRes["errorText"]) {
-      loadPromise.catch(() => {});
       throw new Error(`Page.navigate failed: ${navRes["errorText"]}`);
     }
     await loadPromise;
@@ -684,6 +684,7 @@ async function runCliSmoke(argv: string[]): Promise<void> {
 
 const isEntrypoint =
   typeof process.argv[1] === "string" &&
+  process.argv[1].endsWith("onboarding.ts") &&
   resolve(process.argv[1]) === fileURLToPath(import.meta.url);
 
 if (isEntrypoint) {

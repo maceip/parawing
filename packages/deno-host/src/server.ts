@@ -478,6 +478,7 @@ export {
 
 const isEntrypoint =
   typeof process.argv[1] === "string" &&
+  process.argv[1].endsWith("server.ts") &&
   resolve(process.argv[1]) === fileURLToPath(import.meta.url);
 
 if (isEntrypoint) {
