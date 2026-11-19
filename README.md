@@ -14,6 +14,26 @@ handoff, and 0-RTT client-side scene compositing, forked from Kitesurf.
 2. **Epoch-fenced human takeover (`human-vivari`):** Clicking **Take Control** executes `Parawing.transferOwnership`, increments the monotonic epoch lease, fences stale agent sockets (`StaleEpochFenced`), and lets the human authorize the action directly inside the live Deno V8 sub-isolate (`__state.humanApproved = true`).
 3. **Seamless handback:** Clicking **Hand Off to Agent** advances the epoch lease back to `agent-alpha`, which reconnects at the new epoch and finishes the rollout against the preserved isolate heap and DOM. Reproduce or re-record end-to-end with [`demo/e2e/record-agent-handoff.mjs`](demo/e2e/record-agent-handoff.mjs).
 
+## Browser Onboarding (Spawn, Browse, Disconnect & Reconnect)
+
+Spawn a persistent Parawing browser subprocess, browse and interact over CDP, disconnect the client socket cleanly, and reattach to the preserved live Deno V8 isolate (`Tier 0`) or checkpointed input journal (`Tier 1`) via [`@parawing/deno-host/onboarding`](packages/deno-host/src/onboarding.ts) (verified end-to-end in [`browser-onboarding-e2e.test.ts`](packages/deno-host/test/browser-onboarding-e2e.test.ts)):
+
+```ts
+import { spawnParawingBrowser } from "@parawing/deno-host/onboarding";
+
+const browser = await spawnParawingBrowser({ allowPrivateNetwork: true });
+const s1 = await browser.openSession({ sessionId: "onboard-1", userId: "agent-1" });
+await s1.goto("https://example.com/");
+await s1.disconnect(); // Spawned Parawing host + Deno V8 sub-isolate remain warm
+
+const s2 = await browser.reconnectSession({ sessionId: "onboard-1", userId: "agent-1" });
+console.log(s2.resumedTier, await s2.getPageState()); // 0, { href, title, seq, ... }
+await s2.destroySession();
+await browser.close();
+```
+
+Or run the one-shot CLI flow (`pnpm run browser:onboard https://example.com/`).
+
 ## Dependency Integrity & Vulnerability Ledger
 
 Every Rust crate and npm tarball is SHA-256 pinned, audited against OSV/GitHub Advisory/RustSec, and tracked with OpenVEX 0.2.0 attestations on the live **[Vulnerability Discovery & Remediation Ledger](https://maceip.github.io/parawing/)** (`pnpm run pages:build`). Full onboarding & patch guide: [`deps/README.md`](deps/README.md).

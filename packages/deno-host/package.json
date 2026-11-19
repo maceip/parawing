@@ -7,6 +7,7 @@
   "description": "Standalone Node/Deno host running Parawing isolates in zero-permission Deno subprocesses.",
   "exports": {
     ".": "./src/server.ts",
+    "./onboarding": "./src/onboarding.ts",
     "./deno-isolate-loader": "./src/deno-isolate-loader.ts",
     "./file-assets": "./src/file-assets.ts",
     "./minimal-outbound": "./src/minimal-outbound.ts",

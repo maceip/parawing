@@ -29,6 +29,7 @@
     "script-gate:test": "bazel test //packages/script-gate:test",
     "vendor:apply": "node scripts/get-patched-vendor-crates.mjs",
     "vendor:regen": "node scripts/regen-vendor-patches.mjs",
+    "browser:onboard": "bazel run //packages/deno-host:onboarding_cli --",
     "deps:init": "bazel run //scripts:deps -- init",
     "deps:status": "bazel run //scripts:deps -- status",
     "deps:audit": "bazel run //scripts:deps -- audit",

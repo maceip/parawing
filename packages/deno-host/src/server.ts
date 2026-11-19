@@ -464,13 +464,35 @@ export async function startDenoHostServer(
   return createDenoHostServer(options);
 }
 
+export {
+  ParawingBrowserSession,
+  connectParawingSession,
+  spawnParawingBrowser,
+  type ConnectParawingSessionOptions,
+  type OpenParawingSessionOptions,
+  type ParawingPageSummary,
+  type ParawingViewport,
+  type SpawnParawingBrowserOptions,
+  type SpawnedParawingBrowser,
+} from "./onboarding.ts";
+
 const isEntrypoint =
   typeof process.argv[1] === "string" &&
   resolve(process.argv[1]) === fileURLToPath(import.meta.url);
 
 if (isEntrypoint) {
-  createDenoHostServer()
+  createDenoHostServer({
+    publicDir: process.env["PARAWING_PUBLIC_DIR"] || undefined,
+  })
     .then((server) => {
+      let shuttingDown = false;
+      const shutdown = (): void => {
+        if (shuttingDown) return;
+        shuttingDown = true;
+        void server.close().finally(() => process.exit(0));
+      };
+      process.once("SIGTERM", shutdown);
+      process.once("SIGINT", shutdown);
       console.log(`@parawing/deno-host listening on ${server.origin}`);
     })
     .catch((err) => {

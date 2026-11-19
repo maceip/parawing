@@ -83,6 +83,19 @@ tsc_test(
     project = "tsconfig.bundle.json",
 )
 
+js_binary(
+    name = "onboarding_cli",
+    data = [
+        ":dist",
+        ":srcs",
+        "//bazel:deno",
+        "//packages/engine:assets",
+    ],
+    entry_point = "src/onboarding.ts",
+    env = {"PARAWING_DENO_BIN": "$(rootpath //bazel:deno)"},
+    visibility = ["//visibility:public"],
+)
+
 node_test(
     name = "test",
     args = ["test/*.test.ts"],
