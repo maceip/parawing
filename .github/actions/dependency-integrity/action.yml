@@ -1,0 +1,100 @@
+name: Parawing Dependency Integrity Gate
+description: >-
+  Deterministic multi-ecosystem OSV/RustSec/GHSA scanner, SHA-256 in-tree patch verifier, and
+  OpenVEX v0.2.0 attestation generator (Cargo, pnpm, npm, Go, uv/pip, Bazel). Zero npm install.
+inputs:
+  mode:
+    description: >-
+      'auto' (verify --online if deps/patches-manifest.json exists, else zero-config audit),
+      'online' (strict manifest + live OSV.dev), 'verify' (offline lockfile gate), or 'audit'.
+    required: false
+    default: "auto"
+  working-directory:
+    description: Target repository root to audit/verify.
+    required: false
+    default: "."
+  vex-out:
+    description: Output path for the OpenVEX v0.2.0 JSON attestation.
+    required: false
+    default: ""
+  json-out:
+    description: Output path for the machine-readable JSON verdict.
+    required: false
+    default: ""
+  step-summary:
+    description: Append Markdown dependency integrity report to GITHUB_STEP_SUMMARY ('true'/'false').
+    required: false
+    default: "true"
+outputs:
+  vex-path:
+    description: Path to the emitted OpenVEX v0.2.0 JSON file.
+    value: ${{ steps.run.outputs.vex-path }}
+  json-path:
+    description: Path to the emitted JSON report file.
+    value: ${{ steps.run.outputs.json-path }}
+runs:
+  using: composite
+  steps:
+    - name: Check Node.js 22+
+      id: check-node
+      shell: bash
+      run: |
+        if command -v node >/dev/null 2>&1; then
+          MAJOR="$(node -p 'Number(process.versions.node.split(".")[0])' 2>/dev/null || echo 0)"
+          if [ "$MAJOR" -ge 22 ]; then
+            echo "ready=true" >> "$GITHUB_OUTPUT"
+            exit 0
+          fi
+        fi
+        echo "ready=false" >> "$GITHUB_OUTPUT"
+    - if: steps.check-node.outputs.ready != 'true'
+      uses: actions/setup-node@v4
+      with:
+        node-version: "22"
+    - name: Run deterministic dependency integrity gate
+      id: run
+      shell: bash
+      env:
+        INPUT_MODE: ${{ inputs.mode }}
+        INPUT_WORKDIR: ${{ inputs.working-directory }}
+        INPUT_VEX_OUT: ${{ inputs.vex-out }}
+        INPUT_JSON_OUT: ${{ inputs.json-out }}
+        INPUT_SUMMARY: ${{ inputs.step-summary }}
+        ACTION_DIR: ${{ github.action_path }}
+      run: |
+        set -euo pipefail
+        ENGINE_ROOT="$(cd "$ACTION_DIR/../../.." && pwd)"
+        TARGET_ROOT="$(cd "$INPUT_WORKDIR" && pwd)"
+        VEX_PATH="${INPUT_VEX_OUT:-$RUNNER_TEMP/dependency-integrity.openvex.json}"
+        JSON_PATH="${INPUT_JSON_OUT:-$RUNNER_TEMP/dependency-integrity-report.json}"
+        ARGS=(--root "$TARGET_ROOT" --vex-out "$VEX_PATH" --json-out "$JSON_PATH")
+        if [ "$INPUT_SUMMARY" = "true" ] && [ -n "${GITHUB_STEP_SUMMARY:-}" ]; then
+          ARGS+=(--md-out "$GITHUB_STEP_SUMMARY")
+        fi
+        case "$INPUT_MODE" in
+          auto)
+            if [ -f "$TARGET_ROOT/deps/patches-manifest.json" ]; then
+              CMD=(verify --online)
+            else
+              CMD=(audit)
+            fi
+            ;;
+          online)
+            CMD=(verify --online)
+            ;;
+          verify)
+            CMD=(verify)
+            ;;
+          audit)
+            CMD=(audit)
+            ;;
+          *)
+            echo "Unsupported mode: $INPUT_MODE (expected auto, online, verify, or audit)" >&2
+            exit 2
+            ;;
+        esac
+        node "$ENGINE_ROOT/scripts/deps/cli.mjs" "${CMD[@]}" "${ARGS[@]}"
+        {
+          echo "vex-path=$VEX_PATH"
+          echo "json-path=$JSON_PATH"
+        } >> "$GITHUB_OUTPUT"

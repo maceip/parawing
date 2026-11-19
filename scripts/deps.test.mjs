@@ -4,11 +4,12 @@
 
 import assert from "node:assert/strict";
 import { createServer } from "node:http";
-import { mkdirSync, mkdtempSync, rmSync, writeFileSync } from "node:fs";
+import { existsSync, mkdirSync, mkdtempSync, readFileSync, rmSync, writeFileSync } from "node:fs";
 import { createRequire } from "node:module";
 import { tmpdir } from "node:os";
 import { join, resolve } from "node:path";
 import test from "node:test";
+import { runDepsCli } from "./deps/cli.mjs";
 import { extractDependencyInventory } from "./deps/inventory.mjs";
 import { runOptionalLlmTriage } from "./deps/llm-assist.mjs";
 import { evaluateAdvisories, verifyOfflineAdvisoryLock } from "./deps/osv-scanner.mjs";
@@ -336,4 +337,156 @@ test("patched picomatch@4.0.7 neutralizes GHSA-fc5q-39xc-vjpf single-branch repe
   assert.equal(picomatch.isMatch("abcabc", "+(abc)"), true);
   assert.equal(picomatch.isMatch("foobar", "*(foo|bar)"), true);
   assert.equal(picomatch.isMatch("ababa", "+(*(a)|*(b))"), true);
+});
+
+test("zero-config audit extracts npm package-lock, Go go.sum, and PyPI locks without deps/* files", async (t) => {
+  const root = mkdtempSync(join(tmpdir(), "parawing-audit-zero-"));
+  t.after(() => rmSync(root, { recursive: true, force: true }));
+  writeFileSync(
+    join(root, "package-lock.json"),
+    JSON.stringify({
+      name: "demo-app",
+      lockfileVersion: 3,
+      packages: {
+        "": { name: "demo-app", version: "1.2.0" },
+        "node_modules/minimist": { version: "1.2.8", integrity: "sha512-abc" },
+      },
+    }),
+  );
+  writeFileSync(
+    join(root, "go.sum"),
+    "golang.org/x/net v0.38.0 h1:digest123=\ngolang.org/x/net v0.38.0/go.mod h1:mod123=\n",
+  );
+  writeFileSync(join(root, "requirements.txt"), "requests==2.32.3\n");
+  writeFileSync(
+    join(root, "uv.lock"),
+    'version = 1\n\n[[package]]\nname = "urllib3"\nversion = "2.4.0"\n',
+  );
+
+  assert.equal(await runDepsCli(["--help"]), 0);
+  assert.equal(await runDepsCli(["status", "--root", root]), 1);
+
+  const vexPath = join(root, "out/audit.openvex.json");
+  const jsonPath = join(root, "out/audit.json");
+  const cleanCode = await runDepsCli(
+    ["audit", "--root", root, "--vex-out", vexPath, "--json-out", jsonPath],
+    { queryFn: async () => [] },
+  );
+  assert.equal(cleanCode, 0);
+  const report = JSON.parse(readFileSync(jsonPath, "utf8"));
+  assert.equal(report.ok, true);
+  assert.equal(report.counts.npm, 1);
+  assert.equal(report.counts.go, 1);
+  assert.equal(report.counts.pypi, 2);
+  assert.equal(existsSync(vexPath), true);
+
+  const cveCode = await runDepsCli(["audit", "--root", root], {
+    queryFn: async () => [
+      {
+        id: "CVE-2026-42424",
+        aliases: [],
+        packageKey: "PyPI:requests@2.32.3",
+        ecosystem: "PyPI",
+        packageName: "requests",
+        packageVersion: "2.32.3",
+        purl: "pkg:pypi/requests@2.32.3",
+        kind: "vulnerability",
+        summary: "Redirect header leak",
+        fixedVersions: ["2.32.4"],
+      },
+    ],
+  });
+  assert.equal(cveCode, 1);
+});
+
+test("turnkey init --ci, waive, refresh, sync, and verify onboard a standalone repo end-to-end", async (t) => {
+  const root = mkdtempSync(join(tmpdir(), "parawing-onboard-e2e-"));
+  t.after(() => rmSync(root, { recursive: true, force: true }));
+  mkdirSync(join(root, "patches"), { recursive: true });
+  writeFileSync(
+    join(root, "patches/cookie@0.7.0.patch"),
+    "--- a/index.js\n+++ b/index.js\n@@ -1,1 +1,1 @@\n-old\n+safe\n",
+  );
+  writeFileSync(
+    join(root, "package.json"),
+    JSON.stringify({
+      name: "standalone-svc",
+      version: "0.4.0",
+      scripts: { test: "node --test" },
+      pnpm: {
+        overrides: { "undici@>=7.0.0 <7.30.1": "^7.30.1" },
+        patchedDependencies: { "cookie@0.7.0": "patches/cookie@0.7.0.patch" },
+      },
+    }),
+  );
+  const integrityB64 = Buffer.alloc(64, 3).toString("base64");
+  writeFileSync(
+    join(root, "pnpm-lock.yaml"),
+    [
+      "lockfileVersion: '9.0'",
+      "packages:",
+      `  'cookie@0.7.0':`,
+      `    resolution: {integrity: sha512-${integrityB64}}`,
+      `  'undici@7.30.1':`,
+      `    resolution: {integrity: sha512-${integrityB64}}`,
+      "",
+    ].join("\n"),
+  );
+
+  const sampleAdvisories = [
+    {
+      id: "GHSA-pxg6-pf52-xh8x",
+      aliases: [],
+      packageKey: "npm:cookie@0.7.0",
+      ecosystem: "npm",
+      packageName: "cookie",
+      packageVersion: "0.7.0",
+      purl: "pkg:npm/cookie@0.7.0",
+      kind: "vulnerability",
+      summary: "Out-of-bounds cookie characters",
+      fixedVersions: ["0.7.1"],
+    },
+  ];
+
+  const initCode = await runDepsCli(["init", "--root", root, "--ci"], {
+    queryFn: async () => sampleAdvisories,
+  });
+  assert.equal(initCode, 1);
+  assert.equal(existsSync(join(root, "deps/patches-manifest.json")), true);
+  assert.equal(existsSync(join(root, "deps/advisory-lock.json")), true);
+  assert.equal(existsSync(join(root, "deps/remediated-advisories.json")), true);
+  assert.match(
+    readFileSync(join(root, ".github/workflows/dependency-integrity.yml"), "utf8"),
+    /maceip\/parawing\/\.github\/actions\/dependency-integrity@main/,
+  );
+
+  const waiveCode = await runDepsCli([
+    "waive",
+    "GHSA-pxg6-pf52-xh8x",
+    "--root",
+    root,
+    "--package",
+    "cookie",
+    "--justification",
+    "inline_mitigations_already_exist",
+    "--reason",
+    "Sanitized in patches/cookie@0.7.0.patch",
+    "--days",
+    "60",
+  ]);
+  assert.equal(waiveCode, 0);
+  assert.equal(await runDepsCli(["verify", "--root", root]), 0);
+  assert.equal(await runDepsCli(["status", "--root", root]), 0);
+
+  writeFileSync(
+    join(root, "patches/cookie@0.7.0.patch"),
+    "--- a/index.js\n+++ b/index.js\n@@ -1,1 +1,2 @@\n-old\n+safe\n+strict\n",
+  );
+  assert.equal(await runDepsCli(["verify", "--root", root]), 1);
+  assert.equal(await runDepsCli(["refresh", "--root", root]), 0);
+  assert.equal(
+    await runDepsCli(["sync", "--root", root], { queryFn: async () => sampleAdvisories }),
+    0,
+  );
+  assert.equal(await runDepsCli(["verify", "--root", root]), 0);
 });

@@ -97,8 +97,15 @@ function renderLlmSection(llmResult) {
   return lines;
 }
 
-/** @param {{ version: string, inventory: any, patchCheck: any, advisoryCheck: any, manifest: any, llmResult?: any }} report
- * @returns {string} */
+function formatEcosystemBreakdown(counts) {
+  const parts = [`${counts.cargo} Cargo`, `${counts.npm} npm`];
+  if (counts.go) parts.push(`${counts.go} Go`);
+  if (counts.pypi) parts.push(`${counts.pypi} PyPI`);
+  parts.push(`${counts.bazelAndToolchains} Bazel/toolchain`);
+  return parts.join(", ");
+}
+
+/** @param {any} report @returns {string} */
 export function renderMarkdownReport(report) {
   const statusWord = report.patchCheck.ok && report.advisoryCheck.ok ? "PASS" : "FAIL";
   const c = report.inventory.counts;
@@ -108,7 +115,7 @@ export function renderMarkdownReport(report) {
     `- **Gate Verdict**: **${statusWord}** (100% deterministic; LLM relied upon: \`false\`)`,
     `- **Parawing Version**: \`${report.version}\``,
     `- **Inventory Digest**: \`${report.inventory.digest}\``,
-    `- **Locked Dependencies**: ${c.total} total (${c.cargo} Cargo, ${c.npm} npm, ${c.bazelAndToolchains} Bazel/toolchain)`,
+    `- **Locked Dependencies**: ${c.total} total (${formatEcosystemBreakdown(c)})`,
     `- **Verified Patch Files**: ${report.patchCheck.summary.totalPatchFiles} across ${report.patchCheck.summary.cargoSeries} Cargo series + ${report.patchCheck.summary.auxiliaryPatches} auxiliary patches`,
     `- **Active npm Security Overrides**: ${report.patchCheck.summary.npmSecurityOverrides}`,
     "",

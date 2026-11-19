@@ -10,7 +10,8 @@ import { join } from "node:path";
 
 const OSV_QUERYBATCH_URL = "https://api.osv.dev/v1/querybatch";
 const OSV_VULN_URL = "https://api.osv.dev/v1/vulns";
-const VALID_VEX_JUSTIFICATIONS = new Set([
+const QUERYABLE_ECOSYSTEMS = new Set(["crates.io", "npm", "PyPI", "Go"]);
+export const VALID_VEX_JUSTIFICATIONS = new Set([
   "component_not_present",
   "vulnerable_code_not_present",
   "vulnerable_code_not_in_execute_path",
@@ -76,7 +77,7 @@ async function queryBatchChunk(chunk, timeoutMs) {
 /** @param {Array<any>} packages @param {{ timeoutMs?: number }} [opts] @returns {Promise<Array<any>>} */
 export async function queryOsvLive(packages, opts = {}) {
   const timeoutMs = opts.timeoutMs ?? 25_000;
-  const queryable = packages.filter((p) => ["crates.io", "npm", "PyPI"].includes(p.ecosystem));
+  const queryable = packages.filter((p) => QUERYABLE_ECOSYSTEMS.has(p.ecosystem));
   const rawPairs = [];
   const uniqueIds = new Set();
   for (let i = 0; i < queryable.length; i += 400) {

@@ -54,7 +54,10 @@ jobs:
       - run: pnpm run lint:js
       - run: bazel run //scripts:workspace_checks
       - name: Verify live OSV advisories and emit dependency VEX report
-        run: node scripts/deps/cli.mjs verify --online --vex-out "$RUNNER_TEMP/parawing-deps.openvex.json" --md-out "$GITHUB_STEP_SUMMARY"
+        uses: ./.github/actions/dependency-integrity
+        with:
+          mode: online
+          vex-out: ${{ runner.temp }}/parawing-deps.openvex.json
       - name: Hermetic e2e smoke gate
         run: pnpm run test:e2e page-script-demo.e2e.test.ts fetch-init-headers.e2e.test.ts storage-cookies.e2e.test.ts inserted-script-cap.e2e.test.ts rbi-v2-channel.e2e.test.ts parawing-page-ops.e2e.test.ts
       - if: always()

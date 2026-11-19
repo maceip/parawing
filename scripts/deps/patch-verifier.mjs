@@ -3,7 +3,7 @@
 // https://opensource.org/licenses/Apache-2.0
 
 // Deterministic verifier for vendor patch series, cross-manifest parity, patch SHA-256 hashes,
-// pnpm security overrides, and Bazel regression test target links.
+// pnpm security overrides, and Bazel/npm/file regression test target links.
 
 import { createHash } from "node:crypto";
 import { existsSync, readdirSync, readFileSync } from "node:fs";
@@ -18,11 +18,26 @@ export function sha256Hex(content) {
   return createHash("sha256").update(content).digest("hex");
 }
 
+/** @returns {any} */
+export function createEmptyManifest() {
+  return {
+    schemaVersion: 1,
+    cargoPatches: [],
+    auxiliaryPatches: [],
+    npmOverrides: [],
+    npmPatches: [],
+    waivers: [],
+    trackedUnmaintained: [],
+  };
+}
+
 /** @param {string} rootDir @returns {any} */
 export function loadPatchesManifest(rootDir) {
   const manifestPath = join(rootDir, "deps/patches-manifest.json");
   if (!existsSync(manifestPath)) {
-    throw new Error(`Missing canonical patch manifest: ${manifestPath}`);
+    throw new Error(
+      `Missing canonical patch manifest: ${manifestPath} (run \`node scripts/deps/cli.mjs init\`)`,
+    );
   }
   return JSON.parse(readFileSync(manifestPath, "utf8"));
 }
@@ -103,22 +118,55 @@ function verifyBazelTargetExists(rootDir, label, errors) {
   }
 }
 
-function verifyCargoSeriesEntry(rootDir, entry, ctx, errors) {
-  const key = `${entry.crate}-${entry.version}`;
-  const expectedRootPath = `packages/core/target/vendor-patched/${key}`;
-  const expectedHostPath = `../core/target/vendor-patched/${key}`;
-  if (ctx.rootPatches.get(entry.crate) !== expectedRootPath) {
-    errors.push(`Cargo.toml [patch.crates-io] missing or mismatched for ${key}`);
+function verifyVerificationTarget(rootDir, target, pkgJson, errors) {
+  if (target.startsWith("//")) {
+    verifyBazelTargetExists(rootDir, target, errors);
+    return;
   }
-  if (ctx.hostPatches.get(entry.crate) !== expectedHostPath) {
+  if (target.startsWith("npm:")) {
+    const scriptName = target.slice(4);
+    if (!pkgJson?.scripts?.[scriptName]) {
+      errors.push(`package.json scripts[${JSON.stringify(scriptName)}] missing for ${target}`);
+    }
+    return;
+  }
+  if (target.startsWith("file:")) {
+    const relFile = target.slice(5);
+    if (!relFile || !existsSync(join(rootDir, relFile))) {
+      errors.push(`Verification file missing for ${target}`);
+    }
+    return;
+  }
+  errors.push(
+    `Unsupported verificationTarget ${target} (use //pkg:target, npm:<script>, or file:<path>)`,
+  );
+}
+
+function checkCargoWorkspaceParity(entry, key, ctx, errors) {
+  if (ctx.hasRootCargo) {
+    const actualRoot = ctx.rootPatches.get(entry.crate);
+    const expectedRoot = entry.cargoPath || `packages/core/target/vendor-patched/${key}`;
+    if (actualRoot !== expectedRoot) {
+      errors.push(`Cargo.toml [patch.crates-io] missing or mismatched for ${key}`);
+    }
+  }
+  if (
+    ctx.hasHostCargo &&
+    ctx.hostPatches.get(entry.crate) !== `../core/target/vendor-patched/${key}`
+  ) {
     errors.push(`packages/rust-host/Cargo.toml [patch.crates-io] missing or mismatched for ${key}`);
   }
-  if (ctx.moduleShas.get(key) !== entry.tarballSha256) {
+  if (ctx.hasModuleBazel && ctx.moduleShas.get(key) !== entry.tarballSha256) {
     errors.push(`MODULE.bazel sha256 mismatch for ${key}`);
   }
-  if (!ctx.readmeKeys.has(key)) {
+  if (ctx.hasPatchesReadme && !ctx.readmeKeys.has(key)) {
     errors.push(`scripts/patches/README.md Provenance table missing ${key}`);
   }
+}
+
+function verifyCargoSeriesEntry(rootDir, entry, ctx, errors) {
+  const key = `${entry.crate}-${entry.version}`;
+  checkCargoWorkspaceParity(entry, key, ctx, errors);
   const seriesDir = join(rootDir, "scripts/patches", key);
   if (!existsSync(seriesDir)) {
     errors.push(`Missing patch series directory: scripts/patches/${key}`);
@@ -136,7 +184,7 @@ function verifyCargoSeriesEntry(rootDir, entry, ctx, errors) {
     verifySinglePatchFile(join(rootDir, rel), rel, patch.sha256, true, errors);
   }
   for (const target of entry.verificationTargets || []) {
-    verifyBazelTargetExists(rootDir, target, errors);
+    verifyVerificationTarget(rootDir, target, ctx.pkgJson, errors);
   }
   if ((entry.mitigates || []).length > 0 && (entry.verificationTargets || []).length === 0) {
     errors.push(`Security-patched crate ${key} must declare at least one verificationTarget`);
@@ -163,8 +211,7 @@ function verifyNoOrphanCargoEntries(rootDir, manifestSet, ctx, errors) {
   }
 }
 
-function verifyNpmOverrides(rootDir, manifestOverrides, inventoryPackages, errors) {
-  const pkgJson = JSON.parse(readFileSync(join(rootDir, "package.json"), "utf8"));
+function verifyNpmOverrides(pkgJson, manifestOverrides, inventoryPackages, errors) {
   const declared = pkgJson?.pnpm?.overrides || {};
   for (const rule of manifestOverrides || []) {
     if (declared[rule.selector] !== rule.replacement) {
@@ -185,8 +232,7 @@ function verifyNpmOverrides(rootDir, manifestOverrides, inventoryPackages, error
   }
 }
 
-function verifyNpmPatches(rootDir, npmPatches, errors) {
-  const pkgJson = JSON.parse(readFileSync(join(rootDir, "package.json"), "utf8"));
+function verifyNpmPatches(rootDir, pkgJson, npmPatches, errors) {
   const declared = pkgJson?.pnpm?.patchedDependencies || {};
   const indexed = new Set();
   for (const entry of npmPatches || []) {
@@ -199,7 +245,7 @@ function verifyNpmPatches(rootDir, npmPatches, errors) {
     }
     verifySinglePatchFile(join(rootDir, entry.path), entry.path, entry.sha256, false, errors);
     for (const target of entry.verificationTargets || []) {
-      verifyBazelTargetExists(rootDir, target, errors);
+      verifyVerificationTarget(rootDir, target, pkgJson, errors);
     }
     if ((entry.mitigates || []).length > 0 && (entry.verificationTargets || []).length === 0) {
       errors.push(`Security-patched npm package ${key} must declare a verificationTarget`);
@@ -212,40 +258,64 @@ function verifyNpmPatches(rootDir, npmPatches, errors) {
   }
 }
 
-/** @param {string} rootDir @param {Array<any>} inventoryPackages @returns {{ ok: boolean, errors: string[], summary: Record<string, number> }} */
-export function verifyAllPatchesAndOverrides(rootDir, inventoryPackages) {
-  const errors = [];
-  const manifest = loadPatchesManifest(rootDir);
-  const ctx = {
-    rootPatches: parseCargoPatchSection(readFileSync(join(rootDir, "Cargo.toml"), "utf8")),
-    hostPatches: parseCargoPatchSection(
-      readFileSync(join(rootDir, "packages/rust-host/Cargo.toml"), "utf8"),
-    ),
-    moduleShas: parseModulePatchedShas(readFileSync(join(rootDir, "MODULE.bazel"), "utf8")),
-    readmeKeys: parseReadmeProvenance(
-      readFileSync(join(rootDir, "scripts/patches/README.md"), "utf8"),
-    ),
-    manifestKeys: new Set(manifest.cargoPatches.map((e) => `${e.crate}-${e.version}`)),
+function buildVerifierContext(rootDir, manifest) {
+  const rootCargoPath = join(rootDir, "Cargo.toml");
+  const hostCargoPath = join(rootDir, "packages/rust-host/Cargo.toml");
+  const moduleBazelPath = join(rootDir, "MODULE.bazel");
+  const patchesReadmePath = join(rootDir, "scripts/patches/README.md");
+  const pkgJsonPath = join(rootDir, "package.json");
+  return {
+    hasRootCargo: existsSync(rootCargoPath),
+    hasHostCargo: existsSync(hostCargoPath),
+    hasModuleBazel: existsSync(moduleBazelPath),
+    hasPatchesReadme: existsSync(patchesReadmePath),
+    rootPatches: existsSync(rootCargoPath)
+      ? parseCargoPatchSection(readFileSync(rootCargoPath, "utf8"))
+      : new Map(),
+    hostPatches: existsSync(hostCargoPath)
+      ? parseCargoPatchSection(readFileSync(hostCargoPath, "utf8"))
+      : new Map(),
+    moduleShas: existsSync(moduleBazelPath)
+      ? parseModulePatchedShas(readFileSync(moduleBazelPath, "utf8"))
+      : new Map(),
+    readmeKeys: existsSync(patchesReadmePath)
+      ? parseReadmeProvenance(readFileSync(patchesReadmePath, "utf8"))
+      : new Set(),
+    pkgJson: existsSync(pkgJsonPath) ? JSON.parse(readFileSync(pkgJsonPath, "utf8")) : {},
+    manifestKeys: new Set((manifest.cargoPatches || []).map((e) => `${e.crate}-${e.version}`)),
   };
-  const manifestCrateNames = new Set(manifest.cargoPatches.map((e) => e.crate));
-  for (const entry of manifest.cargoPatches) {
+}
+
+/**
+ * @param {string} rootDir
+ * @param {Array<any>} inventoryPackages
+ * @param {any} [explicitManifest]
+ * @returns {{ ok: boolean, errors: string[], summary: Record<string, number> }}
+ */
+export function verifyAllPatchesAndOverrides(rootDir, inventoryPackages, explicitManifest) {
+  const errors = [];
+  const manifest = explicitManifest || loadPatchesManifest(rootDir);
+  const ctx = buildVerifierContext(rootDir, manifest);
+  const cargoPatches = manifest.cargoPatches || [];
+  const manifestCrateNames = new Set(cargoPatches.map((e) => e.crate));
+  for (const entry of cargoPatches) {
     verifyCargoSeriesEntry(rootDir, entry, ctx, errors);
   }
   verifyNoOrphanCargoEntries(rootDir, manifestCrateNames, ctx, errors);
   for (const aux of manifest.auxiliaryPatches || []) {
     verifySinglePatchFile(join(rootDir, aux.path), aux.path, aux.sha256, false, errors);
   }
-  verifyNpmOverrides(rootDir, manifest.npmOverrides, inventoryPackages, errors);
-  verifyNpmPatches(rootDir, manifest.npmPatches, errors);
+  verifyNpmOverrides(ctx.pkgJson, manifest.npmOverrides, inventoryPackages, errors);
+  verifyNpmPatches(rootDir, ctx.pkgJson, manifest.npmPatches, errors);
   const totalPatchFiles =
-    manifest.cargoPatches.reduce((acc, e) => acc + e.patches.length, 0) +
+    cargoPatches.reduce((acc, e) => acc + e.patches.length, 0) +
     (manifest.auxiliaryPatches || []).length +
     (manifest.npmPatches || []).length;
   return {
     ok: errors.length === 0,
     errors,
     summary: {
-      cargoSeries: manifest.cargoPatches.length,
+      cargoSeries: cargoPatches.length,
       auxiliaryPatches: (manifest.auxiliaryPatches || []).length,
       npmPatches: (manifest.npmPatches || []).length,
       totalPatchFiles,

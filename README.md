@@ -16,7 +16,14 @@ handoff, and 0-RTT client-side scene compositing, forked from Kitesurf.
 
 ## Dependency Integrity & Vulnerability Ledger
 
-Every Rust crate and npm tarball is SHA-256 pinned, audited against OSV/GitHub Advisory/RustSec, and tracked with OpenVEX 0.2.0 attestations on the live **[Vulnerability Discovery & Remediation Ledger](https://maceip.github.io/parawing/)** (`pnpm run pages:build`).
+Every Rust crate and npm tarball is SHA-256 pinned, audited against OSV/GitHub Advisory/RustSec, and tracked with OpenVEX 0.2.0 attestations on the live **[Vulnerability Discovery & Remediation Ledger](https://maceip.github.io/parawing/)** (`pnpm run pages:build`). Full onboarding & patch guide: [`deps/README.md`](deps/README.md).
+
+```bash
+pnpm run deps:status                       # Inspect lock digest, patch parity & advisory state
+pnpm run deps:verify                       # Offline <0.5s SHA-256 patch + lockfile gate (in pnpm check)
+pnpm run deps:sync -- --refresh-patches    # Recompute patch SHA-256s & re-lock live OSV advisories
+node scripts/deps/cli.mjs init --root <dir> --ci # Onboard any Rust/Node/Go/Python repo + GitHub Action
+```
 
 ## Requirements
 
