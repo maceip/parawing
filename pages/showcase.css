@@ -4,16 +4,12 @@
  * https://opensource.org/licenses/Apache-2.0
  */
 
-/* Soft pastel editorial page tokens paired with a stark high-contrast Parawing browser chassis. */
+/* Soft pastel editorial landing page paired with a stark high-contrast Parawing co-browser. */
 :root {
   --pastel-canvas: #faf6f0;
   --pastel-header: #f5efe6;
   --pastel-sage: #e8f1eb;
   --pastel-sage-border: #c8ddd0;
-  --pastel-blush: #f7e9e4;
-  --pastel-blush-border: #e5cbc2;
-  --pastel-butter: #f7f0dc;
-  --pastel-butter-border: #e2d5b3;
   --pastel-sky: #e9f0f7;
   --pastel-border: #dfd5c8;
   --pastel-ink: #2a2420;
@@ -29,6 +25,8 @@
   --hc-muted: #cbd5e1;
   --hc-accent: #38bdf8;
   --hc-green: #34d399;
+  --hc-stop-bg: #fde047;
+  --hc-stop-hover: #facc15;
   --hc-red-bg: #450a0a;
   --hc-red-border: #f87171;
   --hc-red-fg: #fecaca;
@@ -146,8 +144,8 @@ input:focus-visible {
 }
 
 .pastel-main {
-  padding-top: 32px;
-  padding-bottom: 56px;
+  padding-top: 28px;
+  padding-bottom: 48px;
 }
 
 .pastel-hero {
@@ -156,11 +154,11 @@ input:focus-visible {
   align-items: flex-end;
   justify-content: space-between;
   gap: 16px 32px;
-  margin-bottom: 24px;
+  margin-bottom: 20px;
 }
 
 .pastel-hero-copy {
-  max-width: 720px;
+  max-width: 740px;
 }
 
 .pastel-eyebrow {
@@ -176,7 +174,7 @@ input:focus-visible {
   font-family: var(--font-mono);
   font-size: 12px;
   font-weight: 700;
-  margin-bottom: 10px;
+  margin-bottom: 8px;
 }
 
 .pastel-hero h1 {
@@ -214,7 +212,6 @@ input:focus-visible {
   border-radius: 14px;
   box-shadow: 0 24px 56px rgba(26, 20, 16, 0.22);
   overflow: hidden;
-  margin-bottom: 28px;
 }
 
 .hc-titlebar {
@@ -396,10 +393,214 @@ input:focus-visible {
   cursor: pointer;
 }
 
+/* Compositor-animated agent mouse pointer and click ripple over the live Blitz viewport. */
+.hc-agent-cursor-layer {
+  position: absolute;
+  inset: 0;
+  pointer-events: none;
+  z-index: 4;
+  overflow: hidden;
+}
+
+.hc-agent-cursor {
+  position: absolute;
+  left: 0;
+  top: 0;
+  display: inline-flex;
+  align-items: flex-start;
+  gap: 6px;
+  transform: translate3d(520px, 240px, 0);
+  transition:
+    transform 580ms cubic-bezier(0.22, 1, 0.36, 1),
+    opacity 200ms ease;
+  will-change: transform, opacity;
+}
+
+.hc-agent-cursor[data-active="false"] {
+  opacity: 0;
+}
+
+.hc-agent-pointer-svg {
+  width: 24px;
+  height: 28px;
+  flex-shrink: 0;
+  filter: drop-shadow(0 3px 8px rgba(0, 0, 0, 0.45));
+  transition: transform 140ms ease;
+}
+
+.hc-agent-cursor[data-clicking="true"] .hc-agent-pointer-svg {
+  transform: scale(0.84);
+}
+
+.hc-agent-cursor-tag {
+  margin-top: 12px;
+  padding: 3px 10px;
+  border-radius: 9999px;
+  background-color: var(--hc-chassis);
+  border: 1.5px solid var(--hc-accent);
+  color: var(--hc-fg);
+  font-family: var(--font-mono);
+  font-size: 11px;
+  font-weight: 700;
+  line-height: 1.3;
+  white-space: nowrap;
+  box-shadow: 0 8px 20px rgba(0, 0, 0, 0.38);
+}
+
+.hc-click-ripple {
+  position: absolute;
+  left: 0;
+  top: 0;
+  width: 30px;
+  height: 30px;
+  margin-left: -15px;
+  margin-top: -15px;
+  border-radius: 9999px;
+  border: 3px solid var(--hc-stop-bg);
+  box-shadow: 0 0 0 2px var(--hc-border);
+  opacity: 0;
+  transform: translate3d(0, 0, 0) scale(0.3);
+}
+
+.hc-click-ripple[data-animating="true"] {
+  animation: hc-ripple-pop 520ms cubic-bezier(0.16, 1, 0.3, 1) forwards;
+}
+
+@keyframes hc-ripple-pop {
+  0% {
+    opacity: 0.96;
+    transform: translate3d(var(--ripple-x, 0px), var(--ripple-y, 0px), 0) scale(0.35);
+  }
+  100% {
+    opacity: 0;
+    transform: translate3d(var(--ripple-x, 0px), var(--ripple-y, 0px), 0) scale(2.25);
+  }
+}
+
+/* Floating in-browser HUD: agent control bar + the 3 quick scenario buttons as an overlay. */
+.hc-viewport-overlay {
+  position: absolute;
+  left: 14px;
+  right: 14px;
+  bottom: 14px;
+  z-index: 5;
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  justify-content: space-between;
+  gap: 10px;
+  pointer-events: none;
+}
+
+.hc-agent-bar {
+  pointer-events: auto;
+  display: inline-flex;
+  align-items: center;
+  gap: 12px;
+  padding: 6px 6px 6px 14px;
+  border-radius: 9999px;
+  background-color: rgba(10, 12, 16, 0.93);
+  border: 1.5px solid var(--hc-fg);
+  box-shadow: 0 12px 32px rgba(0, 0, 0, 0.48);
+}
+
+.hc-agent-status {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  color: var(--hc-fg);
+  font-family: var(--font-mono);
+  font-size: 12px;
+  font-weight: 700;
+  max-width: 340px;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.hc-agent-status::before {
+  content: "";
+  width: 9px;
+  height: 9px;
+  border-radius: 9999px;
+  flex-shrink: 0;
+  background-color: var(--hc-accent);
+  box-shadow: 0 0 0 3px rgba(56, 189, 248, 0.28);
+}
+
+.hc-agent-status[data-controller="human"]::before {
+  background-color: var(--hc-green);
+  box-shadow: 0 0 0 3px rgba(52, 211, 153, 0.28);
+}
+
+.hc-take-control-btn {
+  appearance: none;
+  height: 32px;
+  padding: 0 14px;
+  border-radius: 9999px;
+  border: 1.5px solid var(--hc-border);
+  background-color: var(--hc-stop-bg);
+  color: var(--hc-border);
+  font-family: var(--font-sans);
+  font-size: 13px;
+  font-weight: 700;
+  cursor: pointer;
+  white-space: nowrap;
+}
+
+.hc-take-control-btn:hover {
+  background-color: var(--hc-stop-hover);
+}
+
+.hc-take-control-btn[data-controller="human"] {
+  background-color: var(--hc-bar);
+  border-color: var(--hc-accent);
+  color: var(--hc-accent);
+}
+
+.hc-take-control-btn[data-controller="human"]:hover {
+  background-color: var(--hc-accent);
+  color: var(--hc-border);
+}
+
+.hc-quick-overlay {
+  pointer-events: auto;
+  display: inline-flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 6px;
+  padding: 5px;
+  border-radius: 12px;
+  background-color: rgba(10, 12, 16, 0.93);
+  border: 1.5px solid var(--hc-inner-border);
+  box-shadow: 0 12px 32px rgba(0, 0, 0, 0.48);
+}
+
+.hc-overlay-btn {
+  appearance: none;
+  height: 30px;
+  padding: 0 11px;
+  border-radius: 8px;
+  border: 1px solid var(--hc-inner-border);
+  background-color: var(--hc-bar);
+  color: var(--hc-fg);
+  font-family: var(--font-mono);
+  font-size: 12px;
+  font-weight: 700;
+  cursor: pointer;
+  white-space: nowrap;
+}
+
+.hc-overlay-btn:hover {
+  border-color: var(--hc-accent);
+  color: var(--hc-accent);
+}
+
 .hc-loading-overlay {
   position: absolute;
   inset: 0;
-  background-color: rgba(10, 12, 16, 0.76);
+  z-index: 6;
+  background-color: rgba(10, 12, 16, 0.78);
   color: var(--hc-fg);
   display: flex;
   align-items: center;
@@ -429,72 +630,8 @@ input:focus-visible {
   font-variant-numeric: tabular-nums;
 }
 
-/* Soft pastel interactive cards below the high-contrast browser. */
-.pastel-cards {
-  display: grid;
-  grid-template-columns: repeat(3, minmax(0, 1fr));
-  gap: 18px;
-}
-
-.pastel-card {
-  padding: 20px;
-  border-radius: 14px;
-  border: 1px solid var(--pastel-border);
-  display: flex;
-  flex-direction: column;
-  justify-content: space-between;
-  gap: 14px;
-}
-
-.pastel-card-sage {
-  background-color: var(--pastel-sage);
-  border-color: var(--pastel-sage-border);
-}
-
-.pastel-card-blush {
-  background-color: var(--pastel-blush);
-  border-color: var(--pastel-blush-border);
-}
-
-.pastel-card-butter {
-  background-color: var(--pastel-butter);
-  border-color: var(--pastel-butter-border);
-}
-
-.pastel-card h2 {
-  margin: 0 0 6px 0;
-  font-size: 17px;
-  line-height: 1.3;
-  color: var(--pastel-ink);
-}
-
-.pastel-card p {
-  margin: 0;
-  font-size: 14px;
-  color: var(--pastel-muted);
-}
-
-.pastel-card-btn {
-  align-self: flex-start;
-  height: 36px;
-  padding: 0 14px;
-  border-radius: 8px;
-  border: 1px solid var(--pastel-ink);
-  background-color: var(--pastel-canvas);
-  color: var(--pastel-ink);
-  font-family: var(--font-sans);
-  font-size: 13px;
-  font-weight: 700;
-  cursor: pointer;
-}
-
-.pastel-card-btn:hover {
-  background-color: var(--pastel-ink);
-  color: var(--pastel-canvas);
-}
-
 .pastel-footer {
-  margin-top: 36px;
+  margin-top: 28px;
   padding-top: 18px;
   border-top: 1px solid var(--pastel-border);
   display: flex;
@@ -511,13 +648,15 @@ input:focus-visible {
   font-weight: 700;
 }
 
+@media (prefers-reduced-motion: reduce) {
+  .hc-agent-cursor {
+    transition: opacity 150ms ease;
+  }
+}
+
 @media (max-width: 960px) {
   .pastel-shell {
     padding-inline: 20px;
-  }
-
-  .pastel-cards {
-    grid-template-columns: 1fr;
   }
 
   .hc-toolbar {

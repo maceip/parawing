@@ -16,7 +16,7 @@ import { loadPatchesManifest, verifyAllPatchesAndOverrides } from "./deps/patch-
 import { buildOpenVexDocument } from "./deps/reporter.mjs";
 
 const CANONICAL_URL = "https://maceip.github.io/parawing/";
-const SHOWCASE_CANONICAL_URL = `${CANONICAL_URL}showcase.html`;
+const SECURITY_CANONICAL_URL = `${CANONICAL_URL}security.html`;
 const SHOWCASE_SERVER_ORIGIN = "https://64-225-124-165.sslip.io";
 const SHOWCASE_REGION = "sfo2";
 const REPO_URL = "https://github.com/maceip/parawing";
@@ -175,9 +175,9 @@ function renderUnmaintainedRows(manifest) {
 }
 
 function renderShowcaseHtml(version) {
-  const title = "Parawing — Live Browser Showcase (Locked to aol.com)";
+  const title = "Parawing — Live Delegated Co-Browser Demo (Locked to aol.com)";
   const description =
-    "Pastel soft-tone showcase framing a high-contrast Parawing browser component rendered live on DigitalOcean SFO2 and strictly locked to aol.com.";
+    "Pastel soft-tone landing page framing a high-contrast Parawing co-browser on DigitalOcean SFO2 where an agent casually browses aol.com until you click Take Control.";
   const ogImage = `${CANONICAL_URL}favicon.png`;
   const showcaseConfig = {
     serverOrigin: SHOWCASE_SERVER_ORIGIN,
@@ -192,12 +192,12 @@ function renderShowcaseHtml(version) {
     <meta name="description" content="${escapeHtml(description)}" />
     <meta name="robots" content="index, follow" />
     <meta name="theme-color" content="#faf6f0" />
-    <link rel="canonical" href="${SHOWCASE_CANONICAL_URL}" />
+    <link rel="canonical" href="${CANONICAL_URL}" />
     <link rel="icon" type="image/png" href="./favicon.png" />
     <meta property="og:type" content="website" />
     <meta property="og:title" content="${escapeHtml(title)}" />
     <meta property="og:description" content="${escapeHtml(description)}" />
-    <meta property="og:url" content="${SHOWCASE_CANONICAL_URL}" />
+    <meta property="og:url" content="${CANONICAL_URL}" />
     <meta property="og:image" content="${ogImage}" />
     <meta name="twitter:card" content="summary" />
     <meta name="twitter:title" content="${escapeHtml(title)}" />
@@ -219,8 +219,8 @@ function renderShowcaseHtml(version) {
           <span>Parawing v${escapeHtml(version)}</span>
         </a>
         <nav class="pastel-nav-links" aria-label="Site navigation">
-          <a class="pastel-nav-link" href="./showcase.html" aria-current="page">Live Showcase</a>
-          <a class="pastel-nav-link" href="./index.html">Security Ledger</a>
+          <a class="pastel-nav-link" href="./" aria-current="page">Live Demo</a>
+          <a class="pastel-nav-link" href="./security.html">Security Ledger</a>
         </nav>
       </div>
     </header>
@@ -229,13 +229,13 @@ function renderShowcaseHtml(version) {
       <section class="pastel-hero">
         <div class="pastel-hero-copy">
           <span class="pastel-eyebrow">DigitalOcean SFO2 · Locked to aol.com</span>
-          <h1>Parawing Browser Showcase</h1>
+          <h1>Parawing Delegated Co-Browser</h1>
           <p>
-            A stark high-contrast Parawing browser component (Rust/Blitz layout &amp; paint + zero-permission Deno V8 isolates) framed on a calm pastel page and locked strictly to <code>aol.com</code>.
+            Watch an autonomous agent casually browse <code>aol.com</code> inside a server-side Rust/Blitz + zero-permission Deno V8 isolate—then click <strong>Take Control</strong> to step in seamlessly.
           </p>
         </div>
         <div id="droplet-meta" class="pastel-host-meta">
-          Host: 64-225-124-165.sslip.io · Policy: aol.com-only
+          Host: 64-225-124-165.sslip.io · Epoch #1
         </div>
       </section>
 
@@ -276,7 +276,7 @@ function renderShowcaseHtml(version) {
           <button type="button" id="dismiss-policy-btn" class="hc-action-btn">Dismiss</button>
         </div>
 
-        <div class="hc-viewport-wrap">
+        <div id="viewport-wrap" class="hc-viewport-wrap">
           <canvas
             id="browser-canvas"
             class="hc-canvas"
@@ -284,6 +284,56 @@ function renderShowcaseHtml(version) {
             height="760"
             aria-label="Live Parawing browser viewport locked to aol.com"
           ></canvas>
+
+          <div class="hc-agent-cursor-layer" aria-hidden="true">
+            <div id="agent-click-ripple" class="hc-click-ripple" data-animating="false"></div>
+            <div
+              id="agent-cursor"
+              class="hc-agent-cursor"
+              data-active="false"
+              data-clicking="false"
+              data-moves="0"
+              data-clicks="0"
+              data-x="640"
+              data-y="260"
+            >
+              <svg class="hc-agent-pointer-svg" viewBox="0 0 24 28" focusable="false">
+                <path
+                  d="M2.5 2.2L20.8 13.6L12.6 15.3L16.7 24.4L13.1 26.0L9.0 16.9L3.2 22.1Z"
+                  fill="#0a0c10"
+                  stroke="#ffffff"
+                  stroke-width="2"
+                  stroke-linejoin="round"
+                />
+              </svg>
+              <span id="agent-cursor-tag" class="hc-agent-cursor-tag">Agent · aol.com</span>
+            </div>
+          </div>
+
+          <div class="hc-viewport-overlay" role="region" aria-label="Co-browser agent and scenario controls">
+            <div class="hc-agent-bar">
+              <span
+                id="agent-status-text"
+                class="hc-agent-status"
+                data-controller="agent"
+                aria-live="polite"
+              >Agent casually browsing aol.com</span>
+              <button
+                type="button"
+                id="take-control-btn"
+                class="hc-take-control-btn"
+                data-controller="agent"
+                data-epoch="1"
+              >■ Take Control</button>
+            </div>
+
+            <div class="hc-quick-overlay" role="group" aria-label="Demo scenario actions">
+              <button type="button" id="load-news-btn" class="hc-overlay-btn">aol.com/news/</button>
+              <button type="button" id="test-block-btn" class="hc-overlay-btn">Try example.com</button>
+              <button type="button" id="card-reconnect-btn" class="hc-overlay-btn">Warm Reconnect</button>
+            </div>
+          </div>
+
           <div id="loading-overlay" class="hc-loading-overlay">
             <span id="loading-text">Connecting to DigitalOcean Parawing host (aol.com-only)…</span>
           </div>
@@ -295,42 +345,10 @@ function renderShowcaseHtml(version) {
         </div>
       </section>
 
-      <section class="pastel-cards" aria-label="Interactive showcase scenarios">
-        <article class="pastel-card pastel-card-sage">
-          <div>
-            <h2>Navigate Inside AOL</h2>
-            <p>
-              Streams live Blitz layout &amp; paint frames over WSS from the dedicated SFO2 DigitalOcean droplet. Click links on the canvas or scroll with your mouse wheel.
-            </p>
-          </div>
-          <button type="button" id="load-news-btn" class="pastel-card-btn">Load aol.com/news/</button>
-        </article>
-
-        <article class="pastel-card pastel-card-blush">
-          <div>
-            <h2>Verify Domain Lock</h2>
-            <p>
-              Both the WebSocket session gateway and the Deno V8 egress broker reject every non-<code>aol.com</code> navigation and third-party tracker request.
-            </p>
-          </div>
-          <button type="button" id="test-block-btn" class="pastel-card-btn">Try loading example.com</button>
-        </article>
-
-        <article class="pastel-card pastel-card-butter">
-          <div>
-            <h2>Warm Session Continuity</h2>
-            <p>
-              Disconnect the client WebSocket while keeping the server-side Parawing isolate warm on the droplet, then reattach at Tier 0.
-            </p>
-          </div>
-          <button type="button" id="card-reconnect-btn" class="pastel-card-btn">Disconnect &amp; Reconnect</button>
-        </article>
-      </section>
-
       <footer class="pastel-footer">
         <span>Server runtime: DigitalOcean SFO2 droplet (<code>64-225-124-165.sslip.io</code>) · Egress locked to <code>aol.com</code> &amp; <code>*.aol.com</code>.</span>
         <span>
-          <a href="./index.html">Vulnerability &amp; Patch Ledger</a> ·
+          <a href="./security.html">Vulnerability &amp; Patch Ledger</a> ·
           <a href="${SHOWCASE_SERVER_ORIGIN}/showcase/status" target="_blank" rel="noopener noreferrer">Live Droplet Status JSON</a>
         </span>
       </footer>
@@ -338,6 +356,23 @@ function renderShowcaseHtml(version) {
 
     <script>window.__PARAWING_SHOWCASE_CONFIG__ = ${JSON.stringify(showcaseConfig).replace(/</g, "\\u003c")};</script>
     <script type="module" src="./showcase.js"></script>
+  </body>
+</html>
+`;
+}
+
+function renderShowcaseRedirectHtml() {
+  return `<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta http-equiv="refresh" content="0; url=./" />
+    <link rel="canonical" href="${CANONICAL_URL}" />
+    <title>Redirecting to Parawing Live Demo…</title>
+    <script>window.location.replace("./" + window.location.search + window.location.hash);</script>
+  </head>
+  <body>
+    <p><a href="./">Continue to the Parawing Live Demo</a></p>
   </body>
 </html>
 `;
@@ -395,12 +430,12 @@ export function buildSecurityPages(options = {}) {
     <meta name="description" content="${escapeHtml(description)}" />
     <meta name="robots" content="index, follow" />
     <meta name="theme-color" content="#0017c1" />
-    <link rel="canonical" href="${CANONICAL_URL}" />
+    <link rel="canonical" href="${SECURITY_CANONICAL_URL}" />
     <link rel="icon" type="image/png" href="./favicon.png" />
     <meta property="og:type" content="website" />
     <meta property="og:title" content="${escapeHtml(title)}" />
     <meta property="og:description" content="${escapeHtml(description)}" />
-    <meta property="og:url" content="${CANONICAL_URL}" />
+    <meta property="og:url" content="${SECURITY_CANONICAL_URL}" />
     <meta property="og:image" content="${ogImage}" />
     <meta name="twitter:card" content="summary" />
     <meta name="twitter:title" content="${escapeHtml(title)}" />
@@ -478,7 +513,7 @@ export function buildSecurityPages(options = {}) {
               Patch Series &amp; Notices (${patchSeriesCount + (manifest.trackedUnmaintained?.length || 0)})
             </button>
           </div>
-          <a class="dads-showcase-link" href="./showcase.html">Live Showcase →</a>
+          <a class="dads-showcase-link" href="./">← Live Demo</a>
         </div>
       </div>
     </header>
@@ -607,7 +642,7 @@ export function buildSecurityPages(options = {}) {
             <strong>Delegated Agent Co-Browser Engine</strong> — Rust/Blitz KSC2 vector streaming, zero-permission Deno V8 isolates, and CRIU session continuity with attested zero-CVE builds.
           </p>
           <nav class="dads-utility-nav" aria-label="Primary resources">
-            <a href="./showcase.html">Live Showcase</a>
+            <a href="./">Live Demo</a>
             <a href="./parawing.openvex.json">OpenVEX v0.2.0</a>
             <a href="${REPO_URL}/releases/latest">Releases</a>
           </nav>
@@ -627,8 +662,9 @@ export function buildSecurityPages(options = {}) {
 
   rmSync(outDir, { recursive: true, force: true });
   mkdirSync(outDir, { recursive: true });
-  writeFileSync(join(outDir, "index.html"), html);
-  writeFileSync(join(outDir, "showcase.html"), renderShowcaseHtml(version));
+  writeFileSync(join(outDir, "index.html"), renderShowcaseHtml(version));
+  writeFileSync(join(outDir, "security.html"), html);
+  writeFileSync(join(outDir, "showcase.html"), renderShowcaseRedirectHtml());
   copyFileSync(join(rootDir, "pages/styles.css"), join(outDir, "styles.css"));
   copyFileSync(join(rootDir, "pages/app.js"), join(outDir, "app.js"));
   copyFileSync(join(rootDir, "pages/showcase.css"), join(outDir, "showcase.css"));

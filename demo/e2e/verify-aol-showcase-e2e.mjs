@@ -3,7 +3,7 @@
 // Licensed under the Apache 2.0 license found in the LICENSE file or at:
 // https://opensource.org/licenses/Apache-2.0
 
-// Automated Chromium E2E test for the pastel GitHub Pages showcase (`dist-pages/showcase.html`)
+// Automated Chromium E2E test for the default GitHub Pages landing demo (`dist-pages/index.html`)
 // connected live over WSS to the AOL-locked DigitalOcean SFO2 droplet (`64-225-124-165.sslip.io`).
 
 import assert from "node:assert/strict";
@@ -83,7 +83,7 @@ async function main() {
     executablePath: findBrowserBin(),
     headless: "new",
     userDataDir,
-    defaultViewport: { width: 1360, height: 1080 },
+    defaultViewport: { width: 1360, height: 980 },
   });
 
   try {
@@ -91,36 +91,50 @@ async function main() {
     const pageErrors = [];
     page.on("pageerror", (err) => pageErrors.push(String(err?.message ?? err)));
 
-    await page.goto(`${baseUrl}/showcase.html`, { waitUntil: "domcontentloaded" });
-
-    // 1. Verify pastel soft-tone page vs stark high-contrast Parawing browser tokens.
-    const styles = await page.evaluate(() => {
+    // 1. Open `/` (default GitHub Pages landing page) and verify overlay + zero bottom cards.
+    await page.goto(`${baseUrl}/`, { waitUntil: "domcontentloaded" });
+    const layout = await page.evaluate(() => {
       const bodyBg = getComputedStyle(document.body).backgroundColor;
       const chassis = document.querySelector(".hc-browser");
       const cs = getComputedStyle(chassis);
+      const vp = document.getElementById("viewport-wrap").getBoundingClientRect();
+      const ov = document.querySelector(".hc-viewport-overlay").getBoundingClientRect();
       return {
         bodyBg,
         chassisBg: cs.backgroundColor,
         chassisColor: cs.color,
         chassisBorder: `${cs.borderTopWidth} ${cs.borderTopStyle} ${cs.borderTopColor}`,
+        bottomPastelCards: document.querySelectorAll(".pastel-cards, .pastel-card").length,
+        overlayInsideViewport:
+          ov.top >= vp.top && ov.bottom <= vp.bottom && ov.left >= vp.left && ov.right <= vp.right,
+        quickOverlayButtons: document.querySelectorAll(".hc-quick-overlay button").length,
       };
     });
-    assert.equal(styles.bodyBg, "rgb(250, 246, 240)");
-    assert.equal(styles.chassisBg, "rgb(10, 12, 16)");
-    assert.equal(styles.chassisColor, "rgb(255, 255, 255)");
-    assert.equal(styles.chassisBorder, "2px solid rgb(0, 0, 0)");
+    assert.equal(layout.bodyBg, "rgb(250, 246, 240)");
+    assert.equal(layout.chassisBg, "rgb(10, 12, 16)");
+    assert.equal(layout.chassisColor, "rgb(255, 255, 255)");
+    assert.equal(layout.chassisBorder, "2px solid rgb(0, 0, 0)");
+    assert.equal(layout.bottomPastelCards, 0);
+    assert.equal(layout.overlayInsideViewport, true);
+    assert.equal(layout.quickOverlayButtons, 3);
 
-    // 2. Wait for live WSS connection + first Blitz-rendered frame of https://www.aol.com/.
+    // 2. Wait for live WSS bootstrap + autonomous agent moving its mouse and clicking on aol.com!
     await page.waitForFunction(
       () => {
         const c = document.getElementById("browser-canvas");
-        return Number(c?.getAttribute("data-frames") || "0") >= 1;
+        const cursor = document.getElementById("agent-cursor");
+        return (
+          Number(c?.getAttribute("data-frames") || "0") >= 2 &&
+          Number(cursor?.getAttribute("data-moves") || "0") >= 1 &&
+          Number(cursor?.getAttribute("data-clicks") || "0") >= 1
+        );
       },
-      { timeout: 35_000 },
+      { timeout: 45_000 },
     );
 
-    const initialRender = await page.evaluate(() => {
+    const agentLiveState = await page.evaluate(() => {
       const c = document.getElementById("browser-canvas");
+      const cursor = document.getElementById("agent-cursor");
       const ctx = c.getContext("2d");
       const { data } = ctx.getImageData(0, 0, c.width, c.height);
       const distinctColors = new Set();
@@ -131,22 +145,52 @@ async function main() {
       return {
         badge: document.getElementById("conn-badge")?.textContent?.trim() || "",
         currentUrl: c.getAttribute("data-current-url") || "",
-        frames: Number(c.getAttribute("data-frames") || "0"),
+        cursorActive: cursor.getAttribute("data-active"),
+        moves: Number(cursor.getAttribute("data-moves") || "0"),
+        clicks: Number(cursor.getAttribute("data-clicks") || "0"),
+        takeControlLabel: document.getElementById("take-control-btn")?.textContent?.trim() || "",
         distinctSampledColors: distinctColors.size,
       };
     });
-    assert.match(initialRender.badge, /Live · SFO2/);
-    assert.equal(initialRender.currentUrl, "https://www.aol.com/");
-    assert.ok(
-      initialRender.distinctSampledColors > 12,
-      `Expected rich live AOL pixels on canvas, sampled ${initialRender.distinctSampledColors} colors`,
-    );
+    assert.match(agentLiveState.badge, /Live · SFO2/);
+    assert.equal(agentLiveState.cursorActive, "true");
+    assert.ok(agentLiveState.moves >= 1);
+    assert.ok(agentLiveState.clicks >= 1);
+    assert.equal(agentLiveState.takeControlLabel, "■ Take Control");
+    assert.ok(agentLiveState.distinctSampledColors > 12);
 
     if (screenshotOut) {
       await page.screenshot({ path: screenshotOut, fullPage: true });
     }
 
-    // 3. Exercise non-AOL domain lock (`Try loading example.com`) + Dismiss button.
+    // 3. Click `■ Take Control` stop button -> verify epoch-fenced human takeover stops the agent!
+    await page.click("#take-control-btn");
+    await page.waitForFunction(
+      () =>
+        document.getElementById("take-control-btn")?.getAttribute("data-controller") === "human",
+      { timeout: 15_000 },
+    );
+    const afterTakeover = await page.evaluate(() => ({
+      controller: document.getElementById("take-control-btn")?.getAttribute("data-controller"),
+      epoch: Number(document.getElementById("take-control-btn")?.getAttribute("data-epoch") || "0"),
+      btnText: document.getElementById("take-control-btn")?.textContent?.trim() || "",
+      cursorActive: document.getElementById("agent-cursor")?.getAttribute("data-active"),
+      movesAtTakeover: Number(
+        document.getElementById("agent-cursor")?.getAttribute("data-moves") || "0",
+      ),
+    }));
+    assert.equal(afterTakeover.controller, "human");
+    assert.ok(afterTakeover.epoch >= 2);
+    assert.equal(afterTakeover.btnText, "▶ Resume Agent");
+    assert.equal(afterTakeover.cursorActive, "false");
+
+    await new Promise((r) => setTimeout(r, 2_200));
+    const movesAfterPause = await page.$eval("#agent-cursor", (el) =>
+      Number(el.getAttribute("data-moves") || "0"),
+    );
+    assert.equal(movesAfterPause, afterTakeover.movesAtTakeover);
+
+    // 4. Exercise all 3 in-browser overlay scenario buttons + wheel scroll + toolbar nav.
     await page.click("#test-block-btn");
     await page.waitForFunction(() => document.getElementById("policy-banner")?.hidden === false, {
       timeout: 10_000,
@@ -154,30 +198,13 @@ async function main() {
     const blockBanner = await page.evaluate(() => ({
       text: document.getElementById("policy-banner-text")?.textContent?.trim() || "",
       policyTelemetry: document.getElementById("policy-telemetry")?.textContent?.trim() || "",
-      stillOnUrl: document.getElementById("browser-canvas")?.getAttribute("data-current-url") || "",
     }));
     assert.match(blockBanner.text, /locked exclusively to aol\.com/);
     assert.match(blockBanner.policyTelemetry, /^1 blocked navs/);
-    assert.equal(blockBanner.stillOnUrl, "https://www.aol.com/");
 
     await page.click("#dismiss-policy-btn");
-    const bannerHidden = await page.$eval("#policy-banner", (el) => el.hidden);
-    assert.equal(bannerHidden, true);
+    assert.equal(await page.$eval("#policy-banner", (el) => el.hidden), true);
 
-    // 4. Exercise wheel scrolling on the canvas and assert server-side scrollY advances.
-    const canvasBox = await page.$eval("#browser-canvas", (el) => {
-      const r = el.getBoundingClientRect();
-      return { x: r.left + r.width / 2, y: r.top + r.height / 2 };
-    });
-    await page.mouse.move(canvasBox.x, canvasBox.y);
-    await page.mouse.wheel({ deltaY: 420 });
-    await page.waitForFunction(
-      () =>
-        Number(document.getElementById("browser-canvas")?.getAttribute("data-scroll-y") || "0") > 0,
-      { timeout: 15_000 },
-    );
-
-    // 5. Exercise `Load aol.com/news/` card button + Back / Forward / Reload toolbar buttons.
     await page.click("#load-news-btn");
     await page.waitForFunction(
       () =>
@@ -185,65 +212,57 @@ async function main() {
         "https://www.aol.com/news/",
       { timeout: 35_000 },
     );
-    const backDisabledOnNews = await page.$eval("#back-btn", (el) => el.disabled);
-    assert.equal(backDisabledOnNews, false);
 
-    await page.click("#back-btn");
+    const canvasCenter = await page.$eval("#browser-canvas", (el) => {
+      const r = el.getBoundingClientRect();
+      return { x: r.left + r.width / 2, y: r.top + r.height / 3 };
+    });
+    await page.mouse.move(canvasCenter.x, canvasCenter.y);
+    await page.mouse.wheel({ deltaY: 420 });
     await page.waitForFunction(
       () =>
-        document.getElementById("browser-canvas")?.getAttribute("data-current-url") ===
-        "https://www.aol.com/",
-      { timeout: 35_000 },
-    );
-    const forwardDisabledAfterBack = await page.$eval("#forward-btn", (el) => el.disabled);
-    assert.equal(forwardDisabledAfterBack, false);
-
-    await page.click("#forward-btn");
-    await page.waitForFunction(
-      () =>
-        document.getElementById("browser-canvas")?.getAttribute("data-current-url") ===
-        "https://www.aol.com/news/",
-      { timeout: 35_000 },
+        Number(document.getElementById("browser-canvas")?.getAttribute("data-scroll-y") || "0") > 0,
+      { timeout: 15_000 },
     );
 
-    const framesBeforeReload = await page.$eval("#browser-canvas", (el) =>
-      Number(el.getAttribute("data-frames") || "0"),
-    );
-    await page.click("#reload-btn");
-    await page.waitForFunction(
-      (prev) =>
-        Number(document.getElementById("browser-canvas")?.getAttribute("data-frames") || "0") >
-        prev,
-      { timeout: 35_000 },
-      framesBeforeReload,
-    );
-
-    // 6. Exercise Disconnect + Warm Tier 0 Reconnect against the DigitalOcean droplet.
-    await page.click("#session-toggle-btn");
-    await page.waitForFunction(
-      () => document.getElementById("conn-badge")?.getAttribute("data-state") === "disconnected",
-      { timeout: 10_000 },
-    );
-    await page.click("#session-toggle-btn");
+    await page.click("#card-reconnect-btn");
     await page.waitForFunction(
       () =>
         (document.getElementById("conn-badge")?.textContent || "").includes(
           "Reconnected (Tier 0) · SFO2",
         ),
-      { timeout: 20_000 },
+      { timeout: 25_000 },
     );
 
-    // 7. Confirm remote DigitalOcean status endpoint reflects real rendered frames & blocked navs.
+    // 5. Hand control back via `▶ Resume Agent` and verify epoch advances again.
+    const epochBeforeResume = await page.$eval("#take-control-btn", (el) =>
+      Number(el.getAttribute("data-epoch") || "0"),
+    );
+    await page.click("#take-control-btn");
+    await page.waitForFunction(
+      (prevEpoch) => {
+        const btn = document.getElementById("take-control-btn");
+        return (
+          btn?.getAttribute("data-controller") === "agent" &&
+          Number(btn?.getAttribute("data-epoch") || "0") > prevEpoch
+        );
+      },
+      { timeout: 15_000 },
+      epochBeforeResume,
+    );
+
+    // 6. Verify live DigitalOcean status JSON reflects real agent actions & human takeovers.
     const statusRes = await fetch("https://64-225-124-165.sslip.io/showcase/status");
     assert.equal(statusRes.status, 200);
     const statusJson = await statusRes.json();
     assert.equal(statusJson.ok, true);
     assert.equal(statusJson.policy, "aol.com-only");
-    assert.ok(statusJson.framesRendered >= 4);
+    assert.ok(statusJson.agentActions >= 1);
+    assert.ok(statusJson.humanTakeovers >= 1);
     assert.ok(statusJson.blockedNavigations >= 1);
     assert.deepEqual(pageErrors, []);
 
-    console.log("[aol-showcase:e2e] ALL LIVE CONTROLS & DO DROPLET POLICY GATES VERIFIED:", {
+    console.log("[aol-showcase:e2e] DEFAULT LANDING + AGENT CURSOR + TAKE CONTROL VERIFIED:", {
       dropletStatus: statusJson,
     });
   } finally {

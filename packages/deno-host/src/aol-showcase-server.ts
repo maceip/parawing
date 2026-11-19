@@ -3,7 +3,7 @@
 // https://opensource.org/licenses/Apache-2.0
 
 // Dedicated DigitalOcean showcase server hosting Parawing (Blitz + zero-perm Deno V8 isolates)
-// strictly locked to `aol.com` (`*.aol.com`) at both the session gateway and engine egress layers.
+// locked to `aol.com`, with an autonomous casual-browsing agent and epoch-fenced human takeover.
 
 import { randomUUID } from "node:crypto";
 import { createServer, type IncomingMessage, type ServerResponse } from "node:http";
@@ -25,6 +25,8 @@ const VIEWPORT_HEIGHT = 760;
 const SESSION_IDLE_TTL_MS = 5 * 60_000;
 const MAX_SESSIONS = 16;
 
+export type ShowcaseControllerRole = "agent" | "human";
+
 interface PolicyStats {
   allowedRequests: number;
   blockedSubresources: number;
@@ -37,8 +39,28 @@ interface StoredShowcaseSession {
   historyIndex: number;
   lastActiveAt: number;
   bootstrapped: boolean;
+  controller: ShowcaseControllerRole;
+  epoch: number;
+  agentStepCount: number;
+  visitedUrls: string[];
+  cursorX: number;
+  cursorY: number;
   activeDisconnect: Promise<void> | null;
   stats: PolicyStats;
+}
+
+interface DomLinkCandidate {
+  href: string;
+  label: string;
+  x: number;
+  y: number;
+}
+
+interface AgentDomProbe {
+  scrollY: number;
+  maxScroll: number;
+  href: string;
+  candidates: DomLinkCandidate[];
 }
 
 export function normalizeAndValidateAolUrl(
@@ -90,6 +112,23 @@ export function normalizeAndValidateAolUrl(
     parsed.hostname = "www.aol.com";
   }
   return { ok: true, url: parsed.toString() };
+}
+
+function isCasualBrowsableAolUrl(urlStr: string): boolean {
+  try {
+    const u = new URL(urlStr);
+    const host = u.hostname.toLowerCase();
+    if (host.startsWith("login.") || host.startsWith("mail.") || host.startsWith("guce.")) {
+      return false;
+    }
+    const p = u.pathname.toLowerCase();
+    if (p.startsWith("/account") || p.startsWith("/login") || p.includes("signin")) {
+      return false;
+    }
+    return true;
+  } catch {
+    return false;
+  }
 }
 
 function isAllowedSubresourceHost(hostname: string): boolean {
@@ -167,6 +206,10 @@ function sendJson(req: IncomingMessage, res: ServerResponse, status: number, bod
   res.end(payload);
 }
 
+function sleep(ms: number): Promise<void> {
+  return new Promise((r) => setTimeout(r, ms));
+}
+
 export interface StartAolShowcaseServerOptions {
   host?: string;
   port?: number;
@@ -175,6 +218,9 @@ export interface StartAolShowcaseServerOptions {
   denoBin?: string;
   defaultUrl?: string;
   allowLocalTestOrigin?: string;
+  agentInitialDelayMs?: number;
+  agentIntervalMs?: number;
+  agentGlideMs?: number;
 }
 
 export interface RunningAolShowcaseServer {
@@ -192,12 +238,17 @@ export async function startAolShowcaseServer(
   const region = options.region ?? process.env["SHOWCASE_REGION"] ?? "sfo2";
   const defaultUrl = options.defaultUrl ?? "https://www.aol.com/";
   const allowLocalTestOrigin = options.allowLocalTestOrigin;
+  const agentInitialDelayMs = options.agentInitialDelayMs ?? 1_300;
+  const agentIntervalMs = options.agentIntervalMs ?? 3_200;
+  const agentGlideMs = options.agentGlideMs ?? 650;
 
   const globalCounters = {
     allowed: 0,
     blockedSubresources: 0,
     blockedNavigations: 0,
     framesRendered: 0,
+    agentActions: 0,
+    humanTakeovers: 0,
   };
 
   const denoServer = await createDenoHostServer({
@@ -264,6 +315,8 @@ export async function startAolShowcaseServer(
         allowedRequests: globalCounters.allowed,
         blockedSubresources: globalCounters.blockedSubresources,
         blockedNavigations: globalCounters.blockedNavigations,
+        agentActions: globalCounters.agentActions,
+        humanTakeovers: globalCounters.humanTakeovers,
       });
       return;
     }
@@ -289,10 +342,14 @@ export async function startAolShowcaseServer(
       requestedId && /^[a-zA-Z0-9_-]{6,64}$/.test(requestedId)
         ? requestedId
         : `aol-${randomUUID().slice(0, 12)}`;
+    const initialAgentDisabled = url.searchParams.get("agent") === "0";
 
     let closed = false;
     let pwSession: ParawingBrowserSession | null = null;
     let lastRenderedSeq = -1;
+    let agentGen = 0;
+    let agentStopping = false;
+    let agentTimer: ReturnType<typeof setTimeout> | null = null;
     const repaintTimers = new Set<ReturnType<typeof setTimeout>>();
 
     const sendWs = (payload: Record<string, unknown>): void => {
@@ -305,6 +362,13 @@ export async function startAolShowcaseServer(
     const clearRepaintTimers = (): void => {
       for (const t of repaintTimers) clearTimeout(t);
       repaintTimers.clear();
+    };
+
+    const cancelAgentTimer = (): void => {
+      if (agentTimer !== null) {
+        clearTimeout(agentTimer);
+        agentTimer = null;
+      }
     };
 
     const captureAndSendFrame = async (
@@ -328,6 +392,9 @@ export async function startAolShowcaseServer(
         width: VIEWPORT_WIDTH,
         height: VIEWPORT_HEIGHT,
         page: pageState,
+        controller: meta.controller,
+        agentActive: meta.controller === "agent",
+        epoch: meta.epoch,
         canGoBack: meta.historyIndex > 0,
         canGoForward: meta.historyIndex < meta.history.length - 1,
         policy: {
@@ -339,6 +406,15 @@ export async function startAolShowcaseServer(
         pngBase64: Buffer.from(png).toString("base64"),
       });
       return pageState;
+    };
+
+    let queue = Promise.resolve();
+    const enqueue = (fn: () => Promise<void>): Promise<void> => {
+      queue = queue.then(fn).catch((err: unknown) => {
+        const message = err instanceof Error ? err.message : String(err);
+        sendWs({ type: "error", message });
+      });
+      return queue;
     };
 
     const scheduleProgressiveRepaints = (meta: StoredShowcaseSession): void => {
@@ -358,45 +434,258 @@ export async function startAolShowcaseServer(
       }
     };
 
-    let queue = Promise.resolve();
-    const enqueue = (fn: () => Promise<void>): Promise<void> => {
-      queue = queue.then(fn).catch((err: unknown) => {
-        const message = err instanceof Error ? err.message : String(err);
-        sendWs({ type: "error", message });
-      });
-      return queue;
-    };
-
     const navigateAllowed = async (
       meta: StoredShowcaseSession,
       targetUrl: string,
       pushHistory: boolean,
-    ): Promise<void> => {
-      if (!pwSession) return;
-      sendWs({ type: "loading", url: targetUrl });
+      reason = "navigate",
+    ): Promise<boolean> => {
+      if (!pwSession) return false;
+      sendWs({
+        type: "loading",
+        url: targetUrl,
+        actor: reason.startsWith("agent") ? "agent" : "human",
+      });
       const navState = await pwSession.goto(targetUrl, 25_000);
       const finalCheck = validateTargetUrl(navState.href || targetUrl);
       if (!finalCheck.ok) {
-        meta.stats.blockedNavigations += 1;
-        globalCounters.blockedNavigations += 1;
         const fallbackUrl = meta.history[meta.historyIndex] ?? defaultUrl;
         await pwSession.goto(fallbackUrl, 20_000);
-        sendWs({
-          type: "policyBlocked",
-          blockedUrl: navState.href,
-          reason: finalCheck.reason,
-          blockedNavigations: meta.stats.blockedNavigations,
-        });
+        if (!reason.startsWith("agent")) {
+          meta.stats.blockedNavigations += 1;
+          globalCounters.blockedNavigations += 1;
+          sendWs({
+            type: "policyBlocked",
+            blockedUrl: navState.href,
+            reason: finalCheck.reason,
+            blockedNavigations: meta.stats.blockedNavigations,
+          });
+        }
         await captureAndSendFrame(meta, "policy-revert");
-        return;
+        return false;
       }
       if (pushHistory) {
         meta.history = meta.history.slice(0, meta.historyIndex + 1);
         meta.history.push(finalCheck.url);
         meta.historyIndex = meta.history.length - 1;
       }
-      await captureAndSendFrame(meta, "navigate");
+      if (!meta.visitedUrls.includes(finalCheck.url)) {
+        meta.visitedUrls.push(finalCheck.url);
+        if (meta.visitedUrls.length > 24) meta.visitedUrls.shift();
+      }
+      await captureAndSendFrame(meta, reason);
       scheduleProgressiveRepaints(meta);
+      return true;
+    };
+
+    const probeVisibleAolDom = async (): Promise<AgentDomProbe | null> => {
+      if (!pwSession?.connected) return null;
+      try {
+        return await pwSession.evaluate<AgentDomProbe>(
+          `(() => {` +
+            `const vw = window.innerWidth || ${VIEWPORT_WIDTH};` +
+            `const vh = window.innerHeight || ${VIEWPORT_HEIGHT};` +
+            `const scrollY = window.scrollY || 0;` +
+            `const docH = Math.max(document.documentElement?.scrollHeight || 0, document.body?.scrollHeight || 0, vh);` +
+            `const maxScroll = Math.max(0, docH - vh);` +
+            `const anchors = Array.from(document.querySelectorAll("a[href]"));` +
+            `const candidates = [];` +
+            `for (const a of anchors) {` +
+            `  const href = a.href || "";` +
+            `  if (!href || href.startsWith("javascript:") || href.includes("#")) continue;` +
+            `  const r = a.getBoundingClientRect();` +
+            `  if (r.width < 30 || r.height < 14) continue;` +
+            `  if (r.top < 16 || r.bottom > 660 || r.left < 16 || r.right > vw - 16) continue;` +
+            `  const txt = (a.textContent || a.getAttribute("aria-label") || "").replace(/\\s+/g, " ").trim();` +
+            `  if (txt.length < 3) continue;` +
+            `  candidates.push({` +
+            `    href,` +
+            `    label: txt.slice(0, 46),` +
+            `    x: Math.round(r.left + Math.min(r.width * 0.45, 110)),` +
+            `    y: Math.round(r.top + Math.min(r.height * 0.5, 22)),` +
+            `  });` +
+            `  if (candidates.length >= 32) break;` +
+            `}` +
+            `return { scrollY, maxScroll, href: location.href, candidates };` +
+            `})()`,
+        );
+      } catch {
+        return null;
+      }
+    };
+
+    const scheduleAgentStep = (meta: StoredShowcaseSession, delayMs = agentIntervalMs): void => {
+      cancelAgentTimer();
+      if (closed || agentStopping || meta.controller !== "agent") return;
+      const expectedGen = agentGen;
+      agentTimer = setTimeout(() => {
+        agentTimer = null;
+        if (closed || agentStopping || meta.controller !== "agent" || expectedGen !== agentGen) {
+          return;
+        }
+        void enqueue(async () => {
+          if (closed || agentStopping || meta.controller !== "agent" || expectedGen !== agentGen) {
+            return;
+          }
+          await runAgentStep(meta, expectedGen);
+          if (
+            !closed &&
+            !agentStopping &&
+            meta.controller === "agent" &&
+            expectedGen === agentGen
+          ) {
+            scheduleAgentStep(meta, agentIntervalMs);
+          }
+        });
+      }, delayMs);
+    };
+
+    const runAgentStep = async (
+      meta: StoredShowcaseSession,
+      expectedGen: number,
+    ): Promise<void> => {
+      const stillActive = (): boolean =>
+        !closed &&
+        !agentStopping &&
+        meta.controller === "agent" &&
+        expectedGen === agentGen &&
+        Boolean(pwSession?.connected);
+      if (!stillActive()) return;
+
+      const probe = await probeVisibleAolDom();
+      if (!probe || !stillActive()) return;
+
+      const validLinks = probe.candidates.filter((c) => {
+        const verdict = validateTargetUrl(c.href);
+        if (!verdict.ok) return false;
+        if (verdict.url === probe.href) return false;
+        if (!allowLocalTestOrigin && !isCasualBrowsableAolUrl(verdict.url)) return false;
+        return true;
+      });
+      const unvisitedLinks = validLinks.filter((c) => {
+        const verdict = validateTargetUrl(c.href);
+        return verdict.ok && !meta.visitedUrls.includes(verdict.url);
+      });
+      const linkPool = unvisitedLinks.length > 0 ? unvisitedLinks : validLinks;
+
+      // Alternate between clicking real visible AOL links (even steps) and scrolling (odd steps).
+      const preferClick = meta.agentStepCount % 2 === 0;
+      meta.agentStepCount += 1;
+
+      if (preferClick && linkPool.length > 0) {
+        const pick = linkPool[(meta.agentStepCount - 1) % Math.min(linkPool.length, 5)]!;
+        const verdict = validateTargetUrl(pick.href);
+        if (verdict.ok) {
+          meta.cursorX = pick.x;
+          meta.cursorY = pick.y;
+          sendWs({
+            type: "agentCursor",
+            phase: "move",
+            x: pick.x,
+            y: pick.y,
+            label: pick.label,
+            targetUrl: verdict.url,
+          });
+          await sleep(agentGlideMs);
+          if (!stillActive()) return;
+
+          sendWs({
+            type: "agentCursor",
+            phase: "click",
+            x: pick.x,
+            y: pick.y,
+            label: pick.label,
+            targetUrl: verdict.url,
+          });
+          globalCounters.agentActions += 1;
+          await navigateAllowed(meta, verdict.url, true, "agent-click");
+          return;
+        }
+      }
+
+      if (probe.maxScroll > 120) {
+        const focusTarget = linkPool[0] ?? probe.candidates[0];
+        const hoverX = focusTarget ? focusTarget.x : 560;
+        const hoverY = focusTarget ? focusTarget.y : 340;
+        const scrollingDown = probe.scrollY + 340 <= probe.maxScroll;
+        const deltaY = scrollingDown ? 340 : -Math.min(probe.scrollY, 480);
+        meta.cursorX = hoverX;
+        meta.cursorY = hoverY;
+        sendWs({
+          type: "agentCursor",
+          phase: "scroll",
+          x: hoverX,
+          y: hoverY,
+          label: scrollingDown ? "Scrolling down page" : "Scrolling back up",
+        });
+        await sleep(Math.round(agentGlideMs * 0.75));
+        if (!stillActive() || !pwSession) return;
+
+        await pwSession.evaluate(`window.scrollBy(0, ${deltaY})`);
+        globalCounters.agentActions += 1;
+        await captureAndSendFrame(meta, "agent-scroll");
+        scheduleProgressiveRepaints(meta);
+        return;
+      }
+
+      if (meta.historyIndex > 0) {
+        meta.historyIndex -= 1;
+        const prevUrl = meta.history[meta.historyIndex]!;
+        sendWs({
+          type: "agentCursor",
+          phase: "move",
+          x: 68,
+          y: 42,
+          label: "Returning to previous AOL page",
+          targetUrl: prevUrl,
+        });
+        await sleep(Math.round(agentGlideMs * 0.75));
+        if (!stillActive()) return;
+        globalCounters.agentActions += 1;
+        await navigateAllowed(meta, prevUrl, false, "agent-back");
+      }
+    };
+
+    const transitionControllerRole = async (
+      meta: StoredShowcaseSession,
+      nextRole: ShowcaseControllerRole,
+    ): Promise<void> => {
+      agentGen += 1;
+      cancelAgentTimer();
+      agentStopping = nextRole === "human";
+
+      const prev = pwSession;
+      pwSession = null;
+      if (prev) {
+        await prev.disconnect().catch(() => {});
+      }
+      const nextEpoch = meta.epoch + 1;
+      pwSession = await connectParawingSession({
+        wsEndpoint: engineWsEndpoint,
+        sessionId: safeSessionId,
+        userId: "showcase-visitor",
+        epoch: nextEpoch,
+        delegatedAgent: nextRole === "agent",
+        expectReconnect: true,
+        viewport: { width: VIEWPORT_WIDTH, height: VIEWPORT_HEIGHT },
+        timeoutMs: 15_000,
+      });
+      meta.controller = nextRole;
+      meta.epoch = nextEpoch;
+      if (nextRole === "human") {
+        globalCounters.humanTakeovers += 1;
+      }
+
+      sendWs({
+        type: "controlState",
+        controller: meta.controller,
+        agentActive: meta.controller === "agent",
+        epoch: meta.epoch,
+      });
+
+      if (meta.controller === "agent") {
+        scheduleAgentStep(meta, agentInitialDelayMs);
+      }
     };
 
     void enqueue(async () => {
@@ -415,9 +704,19 @@ export async function startAolShowcaseServer(
         historyIndex: -1,
         lastActiveAt: Date.now(),
         bootstrapped: false,
+        controller: initialAgentDisabled ? "human" : "agent",
+        epoch: 1,
+        agentStepCount: 0,
+        visitedUrls: [],
+        cursorX: 640,
+        cursorY: 260,
         activeDisconnect: null,
         stats: { allowedRequests: 0, blockedSubresources: 0, blockedNavigations: 0 },
       };
+      if (isReconnect) {
+        meta.epoch += 1;
+      }
+      agentStopping = meta.controller === "human";
       meta.lastActiveAt = Date.now();
       sessions.set(safeSessionId, meta);
 
@@ -425,6 +724,8 @@ export async function startAolShowcaseServer(
         wsEndpoint: engineWsEndpoint,
         sessionId: safeSessionId,
         userId: "showcase-visitor",
+        epoch: meta.epoch,
+        delegatedAgent: meta.controller === "agent",
         expectReconnect: isReconnect,
         viewport: { width: VIEWPORT_WIDTH, height: VIEWPORT_HEIGHT },
         timeoutMs: 25_000,
@@ -437,13 +738,21 @@ export async function startAolShowcaseServer(
         resumedTier: pwSession.resumedTier,
         region,
         policy: "aol.com-only",
+        controller: meta.controller,
+        agentActive: meta.controller === "agent",
+        epoch: meta.epoch,
+        cursor: { x: meta.cursorX, y: meta.cursorY },
       });
 
       if (!meta.bootstrapped) {
         meta.bootstrapped = true;
-        await navigateAllowed(meta, defaultUrl, true);
+        await navigateAllowed(meta, defaultUrl, true, "bootstrap");
       } else {
         await captureAndSendFrame(meta, "reconnected", pwSession.resumedTier);
+      }
+
+      if (meta.controller === "agent") {
+        scheduleAgentStep(meta, agentInitialDelayMs);
       }
     });
 
@@ -458,89 +767,38 @@ export async function startAolShowcaseServer(
       const meta = sessions.get(safeSessionId);
       if (!meta) return;
       meta.lastActiveAt = Date.now();
+      const kind = String(cmd["type"] ?? "");
+
+      // Take Control preempts any in-flight agent glide immediately before awaiting the queue.
+      if (kind === "takeControl") {
+        agentStopping = true;
+        agentGen += 1;
+        cancelAgentTimer();
+        void enqueue(async () => {
+          if (closed) return;
+          await transitionControllerRole(meta, "human");
+        });
+        return;
+      }
+
+      if (kind === "resumeAgent") {
+        agentStopping = false;
+        void enqueue(async () => {
+          if (closed) return;
+          await transitionControllerRole(meta, "agent");
+        });
+        return;
+      }
+
+      // Postpone background agent steps whenever the user dispatches an interactive command.
+      agentGen += 1;
+      cancelAgentTimer();
 
       void enqueue(async () => {
         if (closed || !pwSession?.connected) return;
-        const kind = String(cmd["type"] ?? "");
-
-        if (kind === "navigate") {
-          const verdict = validateTargetUrl(String(cmd["url"] ?? ""));
-          if (!verdict.ok) {
-            meta.stats.blockedNavigations += 1;
-            globalCounters.blockedNavigations += 1;
-            sendWs({
-              type: "policyBlocked",
-              blockedUrl: verdict.blockedUrl,
-              reason: verdict.reason,
-              blockedNavigations: meta.stats.blockedNavigations,
-            });
-            return;
-          }
-          await navigateAllowed(meta, verdict.url, true);
-          return;
-        }
-
-        if (kind === "reload") {
-          const current = meta.history[meta.historyIndex] ?? defaultUrl;
-          await navigateAllowed(meta, current, false);
-          return;
-        }
-
-        if (kind === "back" && meta.historyIndex > 0) {
-          meta.historyIndex -= 1;
-          await navigateAllowed(meta, meta.history[meta.historyIndex]!, false);
-          return;
-        }
-
-        if (kind === "forward" && meta.historyIndex < meta.history.length - 1) {
-          meta.historyIndex += 1;
-          await navigateAllowed(meta, meta.history[meta.historyIndex]!, false);
-          return;
-        }
-
-        if (kind === "scroll") {
-          const x = Math.max(
-            0,
-            Math.min(VIEWPORT_WIDTH - 1, Math.round(Number(cmd["x"]) || VIEWPORT_WIDTH / 2)),
-          );
-          const y = Math.max(
-            0,
-            Math.min(VIEWPORT_HEIGHT - 1, Math.round(Number(cmd["y"]) || VIEWPORT_HEIGHT / 2)),
-          );
-          const deltaX = Math.max(-1200, Math.min(1200, Number(cmd["deltaX"]) || 0));
-          const deltaY = Math.max(-1600, Math.min(1600, Number(cmd["deltaY"]) || 0));
-          const beforeScroll = await pwSession.getPageState();
-          await pwSession.sendCdp("Input.dispatchMouseEvent", {
-            type: "mouseWheel",
-            x,
-            y,
-            deltaX,
-            deltaY,
-          });
-          const afterWheel = await pwSession.getPageState();
-          if (
-            (deltaY !== 0 && afterWheel.scrollY === beforeScroll.scrollY) ||
-            (deltaX !== 0 && afterWheel.scrollX === beforeScroll.scrollX)
-          ) {
-            await pwSession.evaluate(`window.scrollBy(${deltaX}, ${deltaY})`);
-          }
-          await captureAndSendFrame(meta, "scroll");
-          scheduleProgressiveRepaints(meta);
-          return;
-        }
-
-        if (kind === "click") {
-          const x = Math.max(0, Math.min(VIEWPORT_WIDTH - 1, Math.round(Number(cmd["x"]) || 0)));
-          const y = Math.max(0, Math.min(VIEWPORT_HEIGHT - 1, Math.round(Number(cmd["y"]) || 0)));
-          const hitHref = await pwSession.evaluate<string>(
-            `(() => {` +
-              `const el = document.elementFromPoint(${x}, ${y});` +
-              `const a = el && el.closest ? el.closest("a[href]") : null;` +
-              `return a ? a.href : "";` +
-              `})()`,
-          );
-          if (hitHref) {
-            const verdict = validateTargetUrl(hitHref);
+        try {
+          if (kind === "navigate") {
+            const verdict = validateTargetUrl(String(cmd["url"] ?? ""));
             if (!verdict.ok) {
               meta.stats.blockedNavigations += 1;
               globalCounters.blockedNavigations += 1;
@@ -552,30 +810,113 @@ export async function startAolShowcaseServer(
               });
               return;
             }
-            await navigateAllowed(meta, verdict.url, true);
+            await navigateAllowed(meta, verdict.url, true, "navigate");
             return;
           }
-          await pwSession.sendCdp("Input.dispatchMouseEvent", {
-            type: "mousePressed",
-            x,
-            y,
-            button: "left",
-            clickCount: 1,
-          });
-          await pwSession.sendCdp("Input.dispatchMouseEvent", {
-            type: "mouseReleased",
-            x,
-            y,
-            button: "left",
-            clickCount: 1,
-          });
-          await captureAndSendFrame(meta, "click");
+
+          if (kind === "reload") {
+            const current = meta.history[meta.historyIndex] ?? defaultUrl;
+            await navigateAllowed(meta, current, false, "reload");
+            return;
+          }
+
+          if (kind === "back" && meta.historyIndex > 0) {
+            meta.historyIndex -= 1;
+            await navigateAllowed(meta, meta.history[meta.historyIndex]!, false, "back");
+            return;
+          }
+
+          if (kind === "forward" && meta.historyIndex < meta.history.length - 1) {
+            meta.historyIndex += 1;
+            await navigateAllowed(meta, meta.history[meta.historyIndex]!, false, "forward");
+            return;
+          }
+
+          if (kind === "scroll") {
+            const x = Math.max(
+              0,
+              Math.min(VIEWPORT_WIDTH - 1, Math.round(Number(cmd["x"]) || VIEWPORT_WIDTH / 2)),
+            );
+            const y = Math.max(
+              0,
+              Math.min(VIEWPORT_HEIGHT - 1, Math.round(Number(cmd["y"]) || VIEWPORT_HEIGHT / 2)),
+            );
+            const deltaX = Math.max(-1200, Math.min(1200, Number(cmd["deltaX"]) || 0));
+            const deltaY = Math.max(-1600, Math.min(1600, Number(cmd["deltaY"]) || 0));
+            const beforeScroll = await pwSession.getPageState();
+            await pwSession.sendCdp("Input.dispatchMouseEvent", {
+              type: "mouseWheel",
+              x,
+              y,
+              deltaX,
+              deltaY,
+            });
+            const afterWheel = await pwSession.getPageState();
+            if (
+              (deltaY !== 0 && afterWheel.scrollY === beforeScroll.scrollY) ||
+              (deltaX !== 0 && afterWheel.scrollX === beforeScroll.scrollX)
+            ) {
+              await pwSession.evaluate(`window.scrollBy(${deltaX}, ${deltaY})`);
+            }
+            await captureAndSendFrame(meta, "scroll");
+            scheduleProgressiveRepaints(meta);
+            return;
+          }
+
+          if (kind === "click") {
+            const x = Math.max(0, Math.min(VIEWPORT_WIDTH - 1, Math.round(Number(cmd["x"]) || 0)));
+            const y = Math.max(0, Math.min(VIEWPORT_HEIGHT - 1, Math.round(Number(cmd["y"]) || 0)));
+            const hitHref = await pwSession.evaluate<string>(
+              `(() => {` +
+                `const el = document.elementFromPoint(${x}, ${y});` +
+                `const a = el && el.closest ? el.closest("a[href]") : null;` +
+                `return a ? a.href : "";` +
+                `})()`,
+            );
+            if (hitHref) {
+              const verdict = validateTargetUrl(hitHref);
+              if (!verdict.ok) {
+                meta.stats.blockedNavigations += 1;
+                globalCounters.blockedNavigations += 1;
+                sendWs({
+                  type: "policyBlocked",
+                  blockedUrl: verdict.blockedUrl,
+                  reason: verdict.reason,
+                  blockedNavigations: meta.stats.blockedNavigations,
+                });
+                return;
+              }
+              await navigateAllowed(meta, verdict.url, true, "click");
+              return;
+            }
+            await pwSession.sendCdp("Input.dispatchMouseEvent", {
+              type: "mousePressed",
+              x,
+              y,
+              button: "left",
+              clickCount: 1,
+            });
+            await pwSession.sendCdp("Input.dispatchMouseEvent", {
+              type: "mouseReleased",
+              x,
+              y,
+              button: "left",
+              clickCount: 1,
+            });
+            await captureAndSendFrame(meta, "click");
+          }
+        } finally {
+          if (!closed && meta.controller === "agent") {
+            scheduleAgentStep(meta, agentIntervalMs + 1_200);
+          }
         }
       });
     });
 
     transport.onClose(() => {
       closed = true;
+      agentGen += 1;
+      cancelAgentTimer();
       clearRepaintTimers();
       if (pwSession) {
         const meta = sessions.get(safeSessionId);

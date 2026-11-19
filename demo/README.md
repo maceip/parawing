@@ -43,14 +43,14 @@ node demo/e2e/record-agent-handoff.mjs
 
 ## GitHub Pages Live Showcase (`parawing-aol-showcase`)
 
-A separate dedicated DigitalOcean SFO2 droplet (`64.225.124.165` / `https://64-225-124-165.sslip.io`) powers the pastel GitHub Pages showcase (`https://maceip.github.io/parawing/showcase.html`), rendering a high-contrast Parawing browser strictly locked to `aol.com` (`*.aol.com`) at both the WebSocket session gateway and the Deno V8 egress broker.
+A separate dedicated DigitalOcean SFO2 droplet (`64.225.124.165` / `https://64-225-124-165.sslip.io`) powers the default GitHub Pages landing demo (`https://maceip.github.io/parawing/`, with the Security Ledger at `https://maceip.github.io/parawing/security.html`), rendering a high-contrast Parawing co-browser strictly locked to `aol.com` (`*.aol.com`) where an autonomous agent casually browses until the visitor clicks **Take Control**.
 
 ```bash
 # 1. Provision & deploy the AOL-locked Parawing host onto DigitalOcean
 node demo/digitalocean/provision-droplet.mjs ensure --name parawing-aol-showcase --state demo/.aol-droplet-state.json
 node demo/digitalocean/deploy-aol-showcase.mjs
 
-# 2. Build GitHub Pages (`dist-pages/index.html` + `dist-pages/showcase.html`) & run live Chromium E2E
+# 2. Build GitHub Pages (`dist-pages/index.html` + `dist-pages/security.html`) & run live Chromium E2E
 node scripts/security-pages-e2e.mjs
 node demo/e2e/verify-aol-showcase-e2e.mjs
 ```

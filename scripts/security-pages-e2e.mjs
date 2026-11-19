@@ -3,9 +3,9 @@
 // Licensed under the Apache 2.0 license found in the LICENSE file or at:
 // https://opensource.org/licenses/Apache-2.0
 
-// Automated Chromium E2E verification for the Digital Agency Design System v2.18.2
-// GitHub Pages vulnerability & remediation ledger (`dist-pages/`). Exercises every
-// interactive control, verifies exact Figma tokens/geometry, and checks JSON endpoints.
+// Automated Chromium E2E verification for Parawing's GitHub Pages (`dist-pages/`):
+// verifies the default live co-browser landing page (`index.html`), showcase redirect, and
+// the Digital Agency Design System v2.18.2 vulnerability & remediation ledger (`security.html`).
 
 import assert from "node:assert/strict";
 import { existsSync, mkdtempSync, readFileSync, readdirSync, rmSync } from "node:fs";
@@ -87,7 +87,47 @@ async function main() {
     const page = await browser.newPage();
     const pageErrors = [];
     page.on("pageerror", (err) => pageErrors.push(String(err?.message ?? err)));
-    await page.goto(`${baseUrl}/`, { waitUntil: "networkidle0" });
+
+    // 0. Verify `/` (`index.html`) is the default live co-browser demo with in-browser overlay.
+    await page.goto(`${baseUrl}/?server=http://127.0.0.1:9`, { waitUntil: "domcontentloaded" });
+    const landingCheck = await page.evaluate(() => {
+      const canonical = document.querySelector('link[rel="canonical"]')?.getAttribute("href") || "";
+      const bodyBg = getComputedStyle(document.body).backgroundColor;
+      const chassis = document.querySelector(".hc-browser");
+      const cs = getComputedStyle(chassis);
+      const vpRect = document.getElementById("viewport-wrap").getBoundingClientRect();
+      const overlayRect = document.querySelector(".hc-viewport-overlay").getBoundingClientRect();
+      return {
+        canonical,
+        bodyBg,
+        chassisBg: cs.backgroundColor,
+        chassisColor: cs.color,
+        pastelCardsCount: document.querySelectorAll(".pastel-cards, .pastel-card").length,
+        hasAgentCursor: Boolean(document.getElementById("agent-cursor")),
+        takeControlText: document.getElementById("take-control-btn")?.textContent?.trim() || "",
+        overlayInsideViewport:
+          overlayRect.top >= vpRect.top &&
+          overlayRect.bottom <= vpRect.bottom &&
+          overlayRect.left >= vpRect.left &&
+          overlayRect.right <= vpRect.right,
+        quickOverlayBtns: document.querySelectorAll(".hc-quick-overlay button").length,
+      };
+    });
+    assert.equal(landingCheck.canonical, "https://maceip.github.io/parawing/");
+    assert.equal(landingCheck.bodyBg, "rgb(250, 246, 240)");
+    assert.equal(landingCheck.chassisBg, "rgb(10, 12, 16)");
+    assert.equal(landingCheck.chassisColor, "rgb(255, 255, 255)");
+    assert.equal(landingCheck.pastelCardsCount, 0);
+    assert.equal(landingCheck.hasAgentCursor, true);
+    assert.equal(landingCheck.takeControlText, "■ Take Control");
+    assert.equal(landingCheck.overlayInsideViewport, true);
+    assert.equal(landingCheck.quickOverlayBtns, 3);
+
+    // Navigate via header link to `./security.html` and verify the Vulnerability & Patch Ledger.
+    await Promise.all([
+      page.waitForNavigation({ waitUntil: "networkidle0" }),
+      page.click('a[href="./security.html"]'),
+    ]);
 
     // 1. Verify Slim Header (gooey overflowing icon), compact top zone & footer pitch.
     const layoutMetrics = await page.evaluate(() => {
@@ -102,6 +142,7 @@ async function main() {
       const headerRect = header.getBoundingClientRect();
       const logoRect = logo.getBoundingClientRect();
       return {
+        canonical: document.querySelector('link[rel="canonical"]')?.getAttribute("href") || "",
         headerHeight: headerRect.height,
         headerOverflow: getComputedStyle(header).overflow,
         gooFilterActive:
@@ -119,6 +160,7 @@ async function main() {
         initialRows: document.querySelectorAll("#advisories-tbody tr.dads-data-row").length,
       };
     });
+    assert.equal(layoutMetrics.canonical, "https://maceip.github.io/parawing/security.html");
     assert.equal(layoutMetrics.headerHeight, 48);
     assert.equal(layoutMetrics.headerOverflow, "visible");
     assert.equal(layoutMetrics.gooFilterActive, true);
@@ -222,7 +264,7 @@ async function main() {
     assert.equal(patchesTabState.patchesHidden, false);
     assert.ok(patchesTabState.patchRows >= 24);
 
-    // 7. Verify published OpenVEX & Dependency Integrity JSON endpoints.
+    // 7. Verify published OpenVEX, Dependency Integrity JSON, and legacy showcase.html redirect.
     const vexRes = await fetch(`${baseUrl}/parawing.openvex.json`);
     assert.equal(vexRes.status, 200);
     const vexJson = await vexRes.json();
@@ -233,36 +275,15 @@ async function main() {
     const depJson = await depRes.json();
     assert.equal(depJson.remediated.length, buildInfo.remediatedCount);
 
-    // 8. Navigate via header link to showcase.html and verify pastel + high-contrast tokens.
-    await Promise.all([
-      page.waitForNavigation({ waitUntil: "domcontentloaded" }),
-      page.click(".dads-showcase-link"),
-    ]);
-    const showcaseCheck = await page.evaluate(() => {
-      const canonical = document.querySelector('link[rel="canonical"]')?.getAttribute("href") || "";
-      const bodyBg = getComputedStyle(document.body).backgroundColor;
-      const chassis = document.querySelector(".hc-browser");
-      const cs = getComputedStyle(chassis);
-      const titleGroupChildren = document.querySelector(".hc-title-group")?.children.length || 0;
-      const statusChildren = document.querySelector(".hc-statusbar")?.children.length || 0;
-      return {
-        canonical,
-        bodyBg,
-        chassisBg: cs.backgroundColor,
-        chassisColor: cs.color,
-        titleGroupChildren,
-        statusChildren,
-      };
+    await page.goto(`${baseUrl}/showcase.html?server=http://127.0.0.1:9`, {
+      waitUntil: "domcontentloaded",
     });
-    assert.equal(showcaseCheck.canonical, "https://maceip.github.io/parawing/showcase.html");
-    assert.equal(showcaseCheck.bodyBg, "rgb(250, 246, 240)");
-    assert.equal(showcaseCheck.chassisBg, "rgb(10, 12, 16)");
-    assert.equal(showcaseCheck.chassisColor, "rgb(255, 255, 255)");
-    assert.ok(showcaseCheck.titleGroupChildren <= 2);
-    assert.ok(showcaseCheck.statusChildren <= 2);
+    await page.waitForFunction(() => Boolean(document.getElementById("take-control-btn")), {
+      timeout: 5_000,
+    });
     assert.deepEqual(pageErrors, []);
 
-    console.log("[pages:e2e] ALL CONTROLS & FIGMA DADS v2.18.2 TOKENS VERIFIED:", {
+    console.log("[pages:e2e] DEFAULT LIVE DEMO LANDING + SECURITY LEDGER VERIFIED:", {
       headerHeightPx: layoutMetrics.headerHeight,
       contentWidthPx: layoutMetrics.contentWidth,
       remediated: buildInfo.remediatedCount,

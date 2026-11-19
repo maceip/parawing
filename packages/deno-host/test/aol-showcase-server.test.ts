@@ -2,8 +2,8 @@
 // Licensed under the Apache 2.0 license found in the LICENSE file or at:
 // https://opensource.org/licenses/Apache-2.0
 
-// Hermetic unit and WebSocket session tests for the AOL-locked Parawing showcase server
-// (`aol-showcase-server.ts`), verifying URL policy enforcement, scrolling, and Tier 0 reconnect.
+// Hermetic unit and WebSocket session tests for the AOL-locked Parawing showcase server,
+// covering URL locking, autonomous casual agent browsing, Take Control epoch handoff, and Tier 0.
 
 import assert from "node:assert/strict";
 import { createServer, type IncomingMessage, type ServerResponse } from "node:http";
@@ -116,7 +116,7 @@ test("normalizeAndValidateAolUrl enforces strict aol.com / *.aol.com policy", ()
   }
 });
 
-test("startAolShowcaseServer streams PNG frames, blocks non-AOL URLs, and warm-reconnects", async () => {
+test("startAolShowcaseServer runs autonomous agent, handles Take Control, blocks non-AOL, and warm-reconnects", async () => {
   const fixture = createServer((req: IncomingMessage, res: ServerResponse) => {
     if (req.url === "/news") {
       res.writeHead(200, { "content-type": "text/html; charset=utf-8" });
@@ -128,9 +128,9 @@ test("startAolShowcaseServer streams PNG frames, blocks non-AOL URLs, and warm-r
     }
     res.writeHead(200, { "content-type": "text/html; charset=utf-8" });
     res.end(
-      "<!doctype html><html><body style='margin:0;background:#f8fafc;color:#0f172a'>" +
+      "<!doctype html><html><body style='margin:0;padding:40px;background:#f8fafc;color:#0f172a'>" +
         "<h1>AOL Home Fixture</h1><a id='news-link' href='/news' " +
-        "style='display:block;width:240px;height:48px'>Read News</a>" +
+        "style='display:block;width:240px;height:48px'>Read Breaking News</a>" +
         "<div style='height:2400px'>Scrollable stories</div></body></html>",
     );
   });
@@ -145,24 +145,47 @@ test("startAolShowcaseServer streams PNG frames, blocks non-AOL URLs, and warm-r
     region: "sfo2",
     defaultUrl: `${fixtureOrigin}/`,
     allowLocalTestOrigin: fixtureOrigin,
+    agentInitialDelayMs: 90,
+    agentIntervalMs: 140,
+    agentGlideMs: 50,
   });
 
   try {
-    const statusRes = await fetch(`${showcase.origin}/showcase/status`);
-    assert.equal(statusRes.status, 200);
-    const statusJson = (await statusRes.json()) as { ok: boolean; policy: string };
-    assert.equal(statusJson.ok, true);
-    assert.equal(statusJson.policy, "aol.com-only");
-
     const wsUrl = `${showcase.origin.replace(/^http/, "ws")}/showcase/ws?sessionId=aol-hermetic-1`;
     const client1 = await TestShowcaseClient.connect(wsUrl);
     const conn1 = await client1.waitFor((m) => m.type === "connected");
     assert.equal(conn1["reconnected"], false);
+    assert.equal(conn1["controller"], "agent");
+    assert.equal(conn1["epoch"], 1);
 
-    const frame1 = await client1.waitFor((m) => m.type === "frame");
+    const frame1 = await client1.waitFor((m) => m.type === "frame" && m["reason"] === "bootstrap");
     const png1 = Buffer.from(String(frame1["pngBase64"] ?? ""), "base64");
     assert.ok(png1.subarray(0, 4).equals(Buffer.from([0x89, 0x50, 0x4e, 0x47])));
 
+    // Autonomous agent moves cursor to #news-link and clicks into /news.
+    const cursorMove = await client1.waitFor(
+      (m) => m.type === "agentCursor" && m["phase"] === "move",
+    );
+    assert.equal(cursorMove["label"], "Read Breaking News");
+    const cursorClick = await client1.waitFor(
+      (m) => m.type === "agentCursor" && m["phase"] === "click",
+    );
+    assert.equal(cursorClick["targetUrl"], `${fixtureOrigin}/news`);
+
+    const agentClickFrame = await client1.waitFor(
+      (m) => m.type === "frame" && m["reason"] === "agent-click",
+    );
+    assert.equal((agentClickFrame["page"] as { href: string }).href, `${fixtureOrigin}/news`);
+
+    // Human clicks Take Control -> stops agent and bumps epoch to 2.
+    client1.send({ type: "takeControl" });
+    const takeover = await client1.waitFor(
+      (m) => m.type === "controlState" && m["controller"] === "human",
+    );
+    assert.equal(takeover["agentActive"], false);
+    assert.equal(takeover["epoch"], 2);
+
+    // Non-AOL URL is rejected while keeping session intact.
     client1.send({ type: "navigate", url: "https://example.com/" });
     const blocked = await client1.waitFor((m) => m.type === "policyBlocked");
     assert.equal(blocked["blockedNavigations"], 1);
@@ -175,15 +198,37 @@ test("startAolShowcaseServer streams PNG frames, blocks non-AOL URLs, and warm-r
 
     await client1.close();
 
+    // Warm Tier 0 reconnect preserves scrollY and human controller state at epoch 3.
     const client2 = await TestShowcaseClient.connect(wsUrl);
     const conn2 = await client2.waitFor((m) => m.type === "connected");
     assert.equal(conn2["reconnected"], true);
     assert.equal(conn2["resumedTier"], 0);
+    assert.equal(conn2["controller"], "human");
+    assert.equal(conn2["epoch"], 3);
     const frameReconnect = await client2.waitFor(
       (m) => m.type === "frame" && m["reason"] === "reconnected",
     );
     const pageAfterReconnect = frameReconnect["page"] as { scrollY: number };
     assert.equal(pageAfterReconnect.scrollY, pageAfterScroll.scrollY);
+
+    // Resume Agent bumps epoch to 4 and re-enables autonomous browsing.
+    client2.send({ type: "resumeAgent" });
+    const resumedAgent = await client2.waitFor(
+      (m) => m.type === "controlState" && m["controller"] === "agent",
+    );
+    assert.equal(resumedAgent["agentActive"], true);
+    assert.equal(resumedAgent["epoch"], 4);
+
+    const statusRes = await fetch(`${showcase.origin}/showcase/status`);
+    const statusJson = (await statusRes.json()) as {
+      ok: boolean;
+      agentActions: number;
+      humanTakeovers: number;
+    };
+    assert.equal(statusJson.ok, true);
+    assert.ok(statusJson.agentActions >= 1);
+    assert.equal(statusJson.humanTakeovers, 1);
+
     await client2.close();
   } finally {
     await showcase.close();

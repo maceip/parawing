@@ -145,7 +145,7 @@ mkdir -p /opt/parawing-aol /var/lib/parawing-aol-home
   }
 
   handle / {
-    redir https://maceip.github.io/parawing/showcase.html 302
+    redir https://maceip.github.io/parawing/ 302
   }
 }
 `;
