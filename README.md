@@ -1,107 +1,56 @@
-<img width="200" src=".github/assets/parawing_logo.png" alt="Parawing" />
+<img width="150" src=".github/assets/parawing_logo.png" alt="Parawing" />
 
 # Parawing
 
-Parawing is a performant, secure agent co-browser built for humans and AI agents to share live
-web sessions with hardware-backed passkey delegation, blind credential brokering, live human
-handoff, and 0-RTT client-side scene compositing, forked from Kitesurf.
+Secure delegated agent co-browser for humans and AI agents to share live web sessions with passkey authority, blind credential brokering, epoch-fenced human handoff, and 0-RTT `KSC2` scene compositing (forked from Kitesurf). **[Live Co-Browser Demo](https://maceip.github.io/parawing/)** · **[Security & OpenVEX Ledger](https://maceip.github.io/parawing/security.html)** · **[Dependency Integrity](deps/README.md)**
 
-## Live Agent Handoff
+## Live Browser Handoff
 
-![Live epoch-fenced agent handoff between agent-alpha and human-vivari](.github/assets/agent_handoff_demo.gif)
+![Live Parawing browser demo: autonomous agent browsing aol.com and human Take Control handoff](.github/assets/agent_handoff_demo.gif)
 
-1. **Autonomous execution (`agent-alpha`):** Drives a remote `parawing-rust-host` target (Blitz layout + zero-permission Deno V8 sub-isolate) while streaming binary `KSC2` vector display-lists into the unpacked MV3 [Vivari Chrome Extension](demo/chrome-extension) (`scene_host.wasm` client compositor) and pausing at a high-risk cutover gate.
-2. **Epoch-fenced human takeover (`human-vivari`):** Clicking **Take Control** executes `Parawing.transferOwnership`, increments the monotonic epoch lease, fences stale agent sockets (`StaleEpochFenced`), and lets the human authorize the action directly inside the live Deno V8 sub-isolate (`__state.humanApproved = true`).
-3. **Seamless handback:** Clicking **Hand Off to Agent** advances the epoch lease back to `agent-alpha`, which reconnects at the new epoch and finishes the rollout against the preserved isolate heap and DOM. Reproduce or re-record end-to-end with [`demo/e2e/record-agent-handoff.mjs`](demo/e2e/record-agent-handoff.mjs).
-
-## Browser Onboarding (Spawn, Browse, Disconnect & Reconnect)
-
-Spawn a persistent Parawing browser subprocess, browse and interact over CDP, disconnect the client socket cleanly, and reattach to the preserved live Deno V8 isolate (`Tier 0`) or checkpointed input journal (`Tier 1`) via [`@parawing/deno-host/onboarding`](packages/deno-host/src/onboarding.ts) (verified end-to-end in [`browser-onboarding-e2e.test.ts`](packages/deno-host/test/browser-onboarding-e2e.test.ts)):
-
-```ts
-import { spawnParawingBrowser } from "@parawing/deno-host/onboarding";
-
-const browser = await spawnParawingBrowser({ allowPrivateNetwork: true });
-const s1 = await browser.openSession({ sessionId: "onboard-1", userId: "agent-1" });
-await s1.goto("https://example.com/");
-await s1.disconnect(); // Spawned Parawing host + Deno V8 sub-isolate remain warm
-
-const s2 = await browser.reconnectSession({ sessionId: "onboard-1", userId: "agent-1" });
-console.log(s2.resumedTier, await s2.getPageState()); // 0, { href, title, seq, ... }
-await s2.destroySession();
-await browser.close();
-```
-
-Or run the one-shot CLI flow (`pnpm run browser:onboard https://example.com/`).
-
-## Dependency Integrity & Vulnerability Ledger
-
-Every Rust crate and npm tarball is SHA-256 pinned, audited against OSV/GitHub Advisory/RustSec, and tracked with OpenVEX 0.2.0 attestations on the live **[Vulnerability Discovery & Remediation Ledger](https://maceip.github.io/parawing/)** (`pnpm run pages:build`). Full onboarding & patch guide: [`deps/README.md`](deps/README.md).
-
-```bash
-pnpm run deps:status                       # Inspect lock digest, patch parity & advisory state
-pnpm run deps:verify                       # Offline <0.5s SHA-256 patch + lockfile gate (in pnpm check)
-pnpm run deps:sync -- --refresh-patches    # Recompute patch SHA-256s & re-lock live OSV advisories
-node scripts/deps/cli.mjs init --root <dir> --ci # Onboard any Rust/Node/Go/Python repo + GitHub Action
-```
-
-## Requirements
-
-- [Bazelisk](https://github.com/bazelbuild/bazelisk), installed as `bazel`
-- Node.js 22 or newer
-- `pnpm` 9.15.4
-- `deno` 2.x (sandboxed V8 isolate host runtime)
-- Rust toolchain matching [rust-toolchain.toml](rust-toolchain.toml) (for `parawing-cli` and `parawing-rust-host`)
-- On macOS: GNU tar (`brew install gnu-tar`), plus an optional local Linux hypervisor (OrbStack or Docker) for Tier 2 `CRIU 4.1.1` process freeze/thaw
+An autonomous agent casually browses `aol.com` inside a server-side Rust/Blitz + zero-permission Deno V8 isolate until a human clicks **Take Control** to advance the monotonic epoch lease, verify the domain-locked egress gate, and hand back ([`record-browser-handoff.mjs`](demo/e2e/record-browser-handoff.mjs)).
 
 ## Architecture
 
-- **`packages/core` (Blitz / Stylo / Taffy / Parley / Vello):** Rust browser core compiled to WebAssembly (`parawing-core`) and native static/host libraries (`parawing_core_host`). Owns HTML5 parsing, CSS cascade/layout, text shaping, 2D software rasterization, Boa JS fallback, and `KSC2` scene recording and client compositing.
-- **`packages/deno-host`:** Zero-permission Deno/V8 child execution host (`--no-prompt --no-config --no-lock --no-code-cache` with no `--allow-*` permissions and `--v8-flags=--disallow-code-generation-from-strings`) with an embedded V8 page/realm evaluator and an out-of-process egress broker enforcing outbound URL policy, private-network blocking, and SSRF checks.
-- **`packages/rpc-transport`:** Framed `PRWP` binary pipe (`0x50525750`, 16-byte header) with incremental frame decoding, streaming binary chunks, capability tables, credit flow control, and freeze/thaw coordination over stdio pipes or Unix domain sockets.
-- **`packages/device-authority` + `packages/rust-host`:** Hardware-backed Walkaway `ControlHub` handoff, WebAuthn L2/L3 passkey delegation, tokenized (`pwtok_`) and sealed credential brokering, macOS Keychain / encrypted vault storage, and live `CRIU 4.1.1` (Linux or macOS local Linux capsule) or signed Tier 1 portable state freeze/thaw/roam checkpointing.
-- **`KSC2` 0-RTT client compositor & encrypted input journal:** Binary vector/tile display-list deltas with tile-hash resynchronization (`rbi-v2`), speculative client-side scroll and pointer handling, and sealed local input journaling (`rbi-input-journal`).
-
-## Build and Test
-
-```bash
-pnpm install
-pnpm run build
-pnpm run check
-pnpm run test:unit
-bazel test //packages/device-authority:lib_test //packages/rust-host:host_test
-pnpm run test:e2e page-script-demo.e2e.test.ts
+```mermaid
+%%{init: {'theme': 'base', 'themeVariables': {'background': '#faf6f0', 'lineColor': '#475569', 'edgeLabelBackground': '#faf6f0', 'tertiaryColor': '#f5efe6'}}}%%
+flowchart TB
+  subgraph Clients["Clients & 0-RTT Co-Browsers"]
+    Agent(["AI Agent · CDP & Onboarding SDK"]):::client
+    Human(["Human · Browser UI, CLI & Vivari KSC2"]):::client
+  end
+  subgraph Authority["Session Authority & Continuity (engine · rust-host)"]
+    Hub["SessionManager · Epoch Leases & CDP / RBI Router"]:::hub
+    Auth[["device-authority · WebAuthn L3 & Blind Vault"]]:::hub
+    State[("Tier 0 Warm · Tier 1 Journal · Tier 2 CRIU 4.1.1")]:::gate
+  end
+  subgraph Sandbox["Zero-Permission Isolate & Blitz Core (PRWP 0x50525750)"]
+    Deno["deno-host · V8 PageScript & Worker Sub-Isolates"]:::sandbox
+    Core["core · Blitz HTML / Stylo / Taffy / Parley / Vello + KSC2"]:::sandbox
+    Egress{{"Out-of-Process Egress & SSRF Broker"}}:::gate
+  end
+  Agent -->|"CDP WebSocket"| Hub
+  Human <-->|"KSC2 Stream + Take Control"| Hub
+  Hub <-->|"Blind Fill & Passkeys"| Auth
+  Hub -.->|"Freeze / Thaw / Roam"| State
+  Hub <-->|"Framed PRWP Pipes"| Deno
+  Deno <-->|"DOM, Layout & Paint"| Core
+  Deno -->|"Policy-Gated Fetch"| Egress
+  classDef client fill:#e9f0f7,stroke:#2563eb,stroke-width:2px,color:#0f172a
+  classDef hub fill:#0a0c10,stroke:#38bdf8,stroke-width:2px,color:#ffffff
+  classDef sandbox fill:#e8f1eb,stroke:#059669,stroke-width:2px,color:#064e3b
+  classDef gate fill:#f7f0dc,stroke:#d97706,stroke-width:2px,color:#451a03
+  style Clients fill:#f4f8fc,stroke:#bfd4ea,stroke-width:1.5px,color:#0f172a
+  style Authority fill:#f5efe6,stroke:#dfd5c8,stroke-width:1.5px,color:#2a2420
+  style Sandbox fill:#f2f7f4,stroke:#c8ddd0,stroke-width:1.5px,color:#064e3b
 ```
 
-Before rebuilding or checking a branch change, stage native and WebAssembly outputs with `pnpm run build`. Keep individual Bazel test selections targeted rather than running full WPT or Playwright suites unintentionally.
+## Quickstart
 
-## CLI and Protocol Endpoints
+Requires [Bazelisk](https://github.com/bazelbuild/bazelisk) (`bazel`), Node 22+, `pnpm` 9.15.4, `deno` 2.x, and Rust ([`rust-toolchain.toml`](rust-toolchain.toml)). Licensed under [Apache-2.0](LICENSE) ([NOTICE](NOTICE), [licenses/](licenses/)).
 
-- **Native client:** Build and run the client in `packages/parawing-cli` (`cargo run --manifest-path packages/parawing-cli/Cargo.toml -- <url>`).
-- **CDP WebSocket endpoints:** `/devtools/browser` (browser target discovery) and `/devtools/page/parawing` (page-mode CDP session).
-- **RBI binary scene stream:** `/rbi/ws` (`KSC2` reliable scene frames, scroll/pointer datagrams, credit flow control, and tile-hash delta resync).
-- **Host ControlHub socket:** `0600` Unix domain socket managed by `parawing-rust-host` for session handoff, credential fill approvals, WebAuthn assertion signing, and session roam.
-
-## Packages
-
-| Package                                                  | Role                                                                    |
-| -------------------------------------------------------- | ----------------------------------------------------------------------- |
-| [`packages/core`](packages/core)                         | Rust browser core (HTML, CSS, layout, paint, Boa, `KSC2` codec)         |
-| [`packages/deno-host`](packages/deno-host)               | Zero-permission Deno/V8 child isolate host and egress broker            |
-| [`packages/device-authority`](packages/device-authority) | Hardware-bound key custody, Keychain vault, WebAuthn signing            |
-| [`packages/dom-shim`](packages/dom-shim)                 | In-isolate DOM, Event, CSSOM, and Generated WebIDL bindings             |
-| [`packages/engine`](packages/engine)                     | CDP server, session authority, mandates, `KSC2` server, isolates        |
-| [`packages/jsrpc-types`](packages/jsrpc-types)           | Shared TypeScript JSRPC contracts between host and isolates             |
-| [`packages/page-renderer`](packages/page-renderer)       | Stateless scene rasterizer runtime with cached WebAssembly resources    |
-| [`packages/page-script`](packages/page-script)           | Per-page isolate runtime, navigation, and DOM/eval dispatch             |
-| [`packages/parawing-cli`](packages/parawing-cli)         | Native Rust terminal browser client and RBI scene viewer                |
-| [`packages/renderer-core`](packages/renderer-core)       | Stripped `SceneRasterizer` WebAssembly slice of `packages/core`         |
-| [`packages/rpc-transport`](packages/rpc-transport)       | Framed `PRWP` RPC codec, capability table, and pipe session             |
-| [`packages/rust-host`](packages/rust-host)               | Native Tokio host, `ControlHub` socket, `CRIU 4.1.1`/Tier 1 freeze/thaw |
-| [`packages/scene-host-wasm`](packages/scene-host-wasm)   | Local WebAssembly scene rasterizer staged for `parawing-cli`            |
-| [`packages/script-gate`](packages/script-gate)           | Shared SRI, CSP `script-src`, MIME, mixed-content, sandbox gate         |
-| [`packages/worker-script`](packages/worker-script)       | Isolated child runtime for page `new Worker()` execution                |
-
-## License
-
-Licensed under [Apache-2.0](LICENSE). Third-party attributions and notices live in [NOTICE](NOTICE) and [licenses/](licenses/).
+```bash
+pnpm install && pnpm run build              # Stage Blitz Wasm, isolate bundles & RBI assets
+pnpm run check                              # Bazel type/unit/lint/lockfile + SHA-256 OSV gates
+pnpm run browser:onboard https://aol.com/   # Spawn host, browse, disconnect & Tier 0 reconnect
+```
